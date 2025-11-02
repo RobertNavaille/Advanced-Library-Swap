@@ -1,5 +1,4 @@
 // Main Figma Swap Library Plugin (clean template)
-figma.notify('Test toast: If you see this, native toasts are working.');
 import { COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING } from './keyMapping';
 import { copyTextOverrides } from './swapUtils';
 
