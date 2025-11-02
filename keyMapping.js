@@ -1,0 +1,26 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.STYLE_KEY_MAPPING = exports.COMPONENT_KEY_MAPPING = void 0;
+// Key mappings for Shark and Monkey libraries
+exports.COMPONENT_KEY_MAPPING = {
+    'Shark': {
+        'Rectangle': '3e1bf9f255bc97d64c91dea5f8308d3a174974ea',
+        'Shape=Square': 'a3727e05ca34d16f76cb2e27fc31a9914ec17b6d',
+        'Shape=Round': '89b3646550532710b0261b1a04c81138396895b9',
+    },
+    'Monkey': {
+        'Rectangle': 'd25b598e077fe348e9a16efbea58c13cbaeaaa25',
+        'Shape=Square': '2e78071ac513ccf3f9d7f95e8fc66787907660dd',
+        'Shape=Round': '8d4fdf8e0bdccf82ac065ee1a13c0f8edf6587e0',
+    },
+};
+exports.STYLE_KEY_MAPPING = {
+    'Shark': {
+        'Background': 'S:d229a7e81e7a05731f1eaa36470abf5a4fae9bf2',
+        'Primary': 'S:82e40649545abfa72bf66cdd4b2f3796dd69a466',
+    },
+    'Monkey': {
+        'Primary': 'S:ff2ac86fbfdde699eea044a240b1eeacf96d8a4e',
+        'Background': 'S:5c7e364fb93f9409be83e7b52d90bb2fe4663777',
+    },
+};

@@ -1,0 +1,21 @@
+{
+  "name": "New Swap library plugin",
+  "id": "1554521831844238245",
+  "api": "1.0.0",
+  "main": "code.js",
+  "capabilities": [],
+  "permissions": ["teamlibrary"],
+  "enableProposedApi": false,
+  "documentAccess": "dynamic-page",
+  "editorType": [
+    "figma"
+  ],
+  "ui": "ui.html",
+  "networkAccess": {
+    "allowedDomains": [
+      "https://api.figma.com",
+      "https://fonts.googleapis.com",
+      "https://fonts.gstatic.com"
+    ]
+  }
+}

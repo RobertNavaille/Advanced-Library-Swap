@@ -1,0 +1,2208 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <!-- 
+    To enable Figma's official theme colors, call figma.showUI() with themeColors: true
+    Example: figma.showUI(__html__, { themeColors: true });
+    This will inject the official CSS variables and add figma-light/figma-dark classes
+  -->
+  <style id="figma-style">
+    /* This style tag will be populated by Figma with CSS variables */
+  </style>
+  <script>
+    // Debug theme injection
+    console.log('Plugin UI loaded');
+    
+    // Figma handles all theme switching automatically via CSS variables
+    // No JavaScript observers or processing needed!
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600&display=swap" rel="stylesheet">
+  <style>
+    /* Figma Plugin UI - Official Design System Integration */
+    :root {
+      /* Color tokens are automatically injected by Figma when themeColors: true */
+      /* We only define typography, spacing, and other non-color tokens here */
+      
+      /* Typography - Figma UI3 Scale */
+      --figma-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --figma-font-size-11: 11px;
+      --figma-font-size-12: 12px;
+      --figma-font-size-14: 14px;
+      --figma-font-size-16: 16px;
+      --figma-line-height-16: 1.45;
+      --figma-line-height-20: 1.43;
+      --figma-font-weight-normal: 400;
+      --figma-font-weight-medium: 500;
+      --figma-font-weight-semibold: 600;
+      
+      /* Spacing - Figma UI3 8px Grid */
+      --figma-space-4: 4px;
+      --figma-space-8: 8px;
+      --figma-space-12: 12px;
+      --figma-space-16: 16px;
+      --figma-space-20: 20px;
+      --figma-space-24: 24px;
+      
+      /* Border Radius */
+      --figma-radius-4: 4px;
+      --figma-radius-6: 6px;
+      --figma-radius-8: 8px;
+      
+      /* Shadows */
+      --figma-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --figma-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --figma-shadow-brand: 0 0 0 3px rgba(13, 153, 255, 0.1);
+    }
+
+    /* Base Styles */
+    body { 
+      font: var(--figma-font-size-12)/var(--figma-line-height-16) var(--figma-font-family); 
+      margin: var(--figma-space-16); 
+      background: var(--figma-color-bg);
+      color: var(--figma-color-text);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 32px);
+    }
+    
+    h1 { 
+      font-size: var(--figma-font-size-14); 
+      font-weight: var(--figma-font-weight-semibold);
+      margin: 0 0 var(--figma-space-16) 0; 
+      display: flex; 
+      align-items: center;
+      color: var(--figma-color-text);
+    }
+    
+    #scanResultsView h1 {
+      justify-content: space-between;
+    }
+    
+    .back-btn { 
+      background: none; 
+      border: none; 
+      font-size: var(--figma-font-size-16); 
+      cursor: pointer; 
+      margin-right: var(--figma-space-8); 
+      padding: var(--figma-space-4); 
+      border-radius: var(--figma-radius-4);
+      color: var(--figma-color-icon-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .back-btn:hover { 
+      background: var(--figma-color-bg-hover); 
+      color: var(--figma-color-icon);
+    }
+    
+    button { 
+      width: 100%; 
+      padding: var(--figma-space-8) var(--figma-space-12); 
+      font: inherit; 
+      font-weight: var(--figma-font-weight-medium);
+      background: var(--figma-color-bg-brand); 
+      color: var(--figma-color-text-onbrand); 
+      border: none; 
+      border-radius: var(--figma-radius-6); 
+      cursor: pointer; 
+      margin: var(--figma-space-4) 0;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      box-shadow: var(--figma-shadow-sm);
+    }
+    
+    button:hover { 
+      background: var(--figma-color-bg-brand-hover); 
+      box-shadow: var(--figma-shadow-md);
+    }
+    
+    button:active {
+      background: var(--figma-color-bg-brand-pressed);
+      transform: translateY(1px);
+    }
+    
+    button:focus {
+      outline: none;
+      box-shadow: var(--figma-shadow-brand);
+    }
+    
+    .library-item, .component-item { 
+      padding: var(--figma-space-12); 
+      margin: var(--figma-space-4) 0; 
+      background: var(--figma-color-bg); 
+      border: 1px solid var(--figma-color-border); 
+      border-radius: var(--figma-radius-6); 
+       
+      display: flex; 
+      align-items: center;
+      box-shadow: var(--figma-shadow-sm);
+    }
+    
+    .library-item { cursor: default; }
+    .component-item { cursor: default; }
+    
+
+    
+
+    
+    .library-section-header { 
+      font-weight: var(--figma-font-weight-semibold); 
+      margin: var(--figma-space-20) 0 var(--figma-space-8) 0; 
+      color: var(--figma-color-text-secondary); 
+      font-size: var(--figma-font-size-11); 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+      border-bottom: 1px solid var(--figma-color-border); 
+      padding-bottom: var(--figma-space-4); 
+    }
+    
+    .scan-results-header { 
+      font-weight: var(--figma-font-weight-semibold); 
+      margin-bottom: var(--figma-space-16); 
+      font-size: var(--figma-font-size-14); 
+      color: var(--figma-color-text);
+    }
+    
+    .swap-all-container { 
+      margin-top: var(--figma-space-24); 
+      padding-top: var(--figma-space-16); 
+      border-top: 1px solid var(--figma-color-border); 
+    }
+    
+    .swap-all-btn { 
+      width: 100%; 
+      padding: var(--figma-space-12) var(--figma-space-16); 
+      font-size: var(--figma-font-size-14); 
+      font-weight: var(--figma-font-weight-semibold); 
+      background: var(--figma-color-bg-success); 
+      color: var(--figma-color-text-onbrand); 
+      border: none; 
+      border-radius: var(--figma-radius-6); 
+      cursor: pointer; 
+      
+      box-shadow: var(--figma-shadow-sm);
+    }
+    
+    .swap-all-btn:hover { 
+      background: var(--figma-color-bg-success-hover); 
+      box-shadow: var(--figma-shadow-md);
+    }
+    
+    /* Settings styles */
+    #settingsView h3 { 
+      margin: 0 0 var(--figma-space-8) 0; 
+      font-size: var(--figma-font-size-14); 
+      font-weight: var(--figma-font-weight-semibold);
+      color: var(--figma-color-text); 
+    }
+    
+    .settings-section { 
+      padding: var(--figma-space-12); 
+      background: var(--figma-color-bg-secondary); 
+      border-radius: var(--figma-radius-6); 
+      border: 1px solid var(--figma-color-border); 
+    }
+    
+    .library-name, .component-name { 
+      font-weight: var(--figma-font-weight-semibold); 
+      color: var(--figma-color-text); 
+    }
+    
+    .library-count, .component-info { 
+      font-size: var(--figma-font-size-11); 
+      color: var(--figma-color-text-secondary); 
+      margin-top: 2px; 
+    }
+    
+    .hint { 
+      margin-bottom: var(--figma-space-12); 
+      font-size: var(--figma-font-size-11); 
+      color: var(--figma-color-text-secondary); 
+      padding: var(--figma-space-12); 
+      background: var(--figma-color-bg-tertiary); 
+      border-radius: var(--figma-radius-6); 
+      border: 1px solid var(--figma-color-border);
+    }
+    
+    .no-items { 
+      text-align: center; 
+      color: var(--figma-color-text-tertiary); 
+      font-style: italic; 
+      padding: var(--figma-space-24); 
+    }
+    
+    .view { display: none; }
+    .view.active { 
+      display: flex; 
+      flex-direction: column;
+      flex: 1;
+    }
+    .result { margin-top: var(--figma-space-12); }
+    
+    /* Configuration styles */
+    .config-tabs { 
+      display: flex; 
+      margin-bottom: var(--figma-space-16); 
+      border-bottom: 1px solid var(--figma-color-border); 
+      background: var(--figma-color-bg-secondary);
+      border-radius: var(--figma-radius-6) var(--figma-radius-6) 0 0;
+      overflow: hidden;
+    }
+    
+    .config-tab-btn { 
+      background: none; 
+      border: none; 
+      padding: var(--figma-space-12) var(--figma-space-16); 
+      cursor: pointer; 
+      border-bottom: 2px solid transparent;
+      color: var(--figma-color-text-secondary);
+      font-weight: var(--figma-font-weight-medium);
+      
+    }
+    
+    .config-tab-btn:hover {
+      background: var(--figma-color-bg-hover);
+      color: var(--figma-color-text);
+    }
+    
+    .config-tab-btn.active { 
+      border-bottom-color: var(--figma-color-border-brand); 
+      font-weight: var(--figma-font-weight-semibold);
+      color: var(--figma-color-text);
+      background: var(--figma-color-bg);
+    }
+    
+    .config-section { display: none; }
+    .config-section.active { display: block; }
+    
+    .library-config-item { 
+      display: flex; 
+      align-items: center; 
+      gap: var(--figma-space-8); 
+      margin-bottom: var(--figma-space-8); 
+    }
+    
+    .library-config-item input { 
+      flex: 1; 
+      padding: var(--figma-space-8); 
+      border: 1px solid var(--figma-color-border); 
+      border-radius: var(--figma-radius-4);
+      font-family: var(--figma-font-family);
+      font-size: var(--figma-font-size-12);
+      background: var(--figma-color-bg);
+      color: var(--figma-color-text);
+    }
+    
+    .library-config-item input:focus {
+      outline: none;
+      border-color: var(--figma-color-border-brand);
+      box-shadow: var(--figma-shadow-brand);
+    }
+    
+    .library-config-item button { 
+      width: auto; 
+      padding: var(--figma-space-4) var(--figma-space-8); 
+      margin: 0; 
+      font-size: var(--figma-font-size-11);
+      font-weight: var(--figma-font-weight-medium);
+    }
+    
+    /* Modal styles - Figma UI3 */
+    .modal { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(30, 30, 30, 0.4); 
+      display: none; 
+      align-items: center; 
+      justify-content: center; 
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    
+    .modal-content { 
+      background: var(--figma-color-bg); 
+      padding: var(--figma-space-24); 
+      border-radius: var(--figma-radius-8); 
+      width: 320px; 
+      max-height: 480px; 
+      overflow-y: auto;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--figma-color-border);
+    }
+    
+    .modal-header { 
+      font-weight: var(--figma-font-weight-semibold); 
+      margin-bottom: var(--figma-space-16);
+      font-size: var(--figma-font-size-16);
+      color: var(--figma-color-text);
+    }
+    
+    .target-library-item { 
+      padding: var(--figma-space-12); 
+      margin: var(--figma-space-4) 0; 
+      border: 1px solid var(--figma-color-border); 
+      border-radius: var(--figma-radius-6); 
+      cursor: pointer;
+      
+      background: var(--figma-color-bg);
+    }
+    
+    .target-library-item:hover { 
+      border-color: var(--figma-color-border-brand); 
+      background: var(--figma-color-bg-secondary);
+      box-shadow: var(--figma-shadow-sm);
+    }
+    
+    .target-library-item.selected { 
+      border-color: var(--figma-color-border-brand); 
+      background: #e6f3ff;
+      box-shadow: var(--figma-shadow-brand);
+    }
+    
+    .target-library-item.disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+    }
+    
+    .target-library-item.disabled:hover { 
+      border-color: var(--figma-color-border); 
+      background: var(--figma-color-bg-tertiary); 
+      box-shadow: none;
+    }
+    
+    .target-library-name { 
+      font-weight: var(--figma-font-weight-medium);
+      color: var(--figma-color-text);
+    }
+    
+    .modal-buttons { 
+      display: flex; 
+      gap: var(--figma-space-8); 
+      margin-top: var(--figma-space-20); 
+    }
+    
+    .modal-buttons button { 
+      flex: 1; 
+      padding: var(--figma-space-8) var(--figma-space-16);
+    }
+    
+    /* Secondary button variant */
+    .modal-buttons button.secondary {
+      background: var(--figma-color-bg);
+      color: var(--figma-color-text);
+      border: 1px solid var(--figma-color-border-strong);
+    }
+    
+    .modal-buttons button.secondary:hover {
+      background: var(--figma-color-bg-hover);
+      border-color: var(--figma-color-border-brand);
+    }
+    
+    /* Button Variants - Figma UI3 */
+    .primary-button {
+      background: var(--figma-color-bg-success) !important;
+      color: var(--figma-color-text-onbrand) !important;
+    }
+    
+    .primary-button:hover {
+      background: var(--figma-color-bg-success-hover) !important;
+    }
+    
+    .secondary-button {
+      background: var(--figma-color-bg) !important;
+      color: var(--figma-color-text) !important;
+      border: 1px solid var(--figma-color-border-strong) !important;
+    }
+    
+    .secondary-button:hover {
+      background: var(--figma-color-bg-hover) !important;
+      border-color: var(--figma-color-border-brand) !important;
+    }
+    
+    .tertiary-button {
+      background: var(--figma-color-bg-tertiary) !important;
+      color: var(--figma-color-text-secondary) !important;
+      border: 1px solid var(--figma-color-border) !important;
+    }
+    
+    .tertiary-button:hover {
+      background: var(--figma-color-bg-hover) !important;
+      color: var(--figma-color-text) !important;
+      border-color: var(--figma-color-border-strong) !important;
+    }
+    
+    /* Enhanced visual hierarchy */
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--figma-space-8);
+    }
+    
+    /* Figma UI3 specific improvements */
+    .plugin-container {
+      background: var(--figma-color-bg);
+      border-radius: var(--figma-radius-8);
+      overflow: hidden;
+    }
+    
+    /* Enhanced focus states for accessibility */
+    *:focus-visible {
+      outline: 2px solid var(--figma-color-border-brand);
+      outline-offset: 2px;
+    }
+    
+    /* Improved text contrast */
+    .component-info.secondary {
+      color: var(--figma-color-text-tertiary);
+    }
+    
+    /* No global transitions - theme switching should be instant */
+    
+    /* New Scan Results View Styles */
+    .search-container {
+      margin-bottom: var(--figma-space-16);
+    }
+    
+    .search-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: var(--figma-color-bg);
+      border: 1px solid var(--figma-color-border);
+      border-radius: var(--figma-radius-6);
+      padding: 0 var(--figma-space-8);
+      height: 32px;
+    }
+    
+    .search-icon {
+      color: var(--figma-color-icon-secondary);
+      margin-right: var(--figma-space-8);
+      flex-shrink: 0;
+    }
+    
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: none;
+      font-size: var(--figma-font-size-11);
+      color: var(--figma-color-text);
+      font-family: var(--figma-font-family);
+    }
+    
+    .search-input::placeholder {
+      color: var(--figma-color-text-tertiary);
+    }
+    
+    .search-controls {
+      color: var(--figma-color-icon-secondary);
+      margin-left: var(--figma-space-8);
+      flex-shrink: 0;
+    }
+    
+    .library-mapping-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--figma-space-16);
+      padding: 0 var(--figma-space-4);
+    }
+    
+    .library-name {
+      font-size: var(--figma-font-size-11);
+      font-weight: var(--figma-font-weight-medium);
+      color: var(--figma-color-text-secondary);
+    }
+    
+    .arrow-icon {
+      color: var(--figma-color-icon-tertiary);
+      flex-shrink: 0;
+    }
+    
+    .component-mappings {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: var(--figma-space-16);
+    }
+    
+    .mapping-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--figma-space-8) var(--figma-space-4);
+      margin-bottom: var(--figma-space-4);
+      border-radius: var(--figma-radius-4);
+    }
+    
+    .mapping-item:hover {
+      background: var(--figma-color-bg-hover);
+    }
+    
+    .mapping-left,
+    .mapping-right {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    
+    .mapping-right {
+      justify-content: flex-end;
+    }
+    
+    .mapping-checkbox {
+      margin-right: var(--figma-space-8);
+      width: 16px;
+      height: 16px;
+      accent-color: var(--figma-color-bg-brand);
+    }
+    
+    .component-info {
+      display: flex;
+      align-items: center;
+      gap: var(--figma-space-8);
+    }
+    
+    .component-details {
+      display: flex;
+      flex-direction: column;
+      gap: var(--figma-space-2);
+      flex: 1;
+    }
+    
+    .component-library {
+      font-size: var(--figma-font-size-11);
+      color: var(--figma-color-text-secondary);
+    }
+    
+
+    
+    .component-icon {
+      color: var(--figma-color-icon-secondary);
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    
+    .text-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--figma-font-size-11);
+      font-weight: var(--figma-font-weight-semibold);
+      color: var(--figma-color-icon-secondary);
+      flex-shrink: 0;
+    }
+    
+    .color-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: var(--figma-radius-4);
+      border: 1px solid var(--figma-color-border);
+      flex-shrink: 0;
+    }
+    
+    .component-name {
+      font-size: var(--figma-font-size-11);
+      color: var(--figma-color-text);
+      font-family: var(--figma-font-family);
+    }
+    
+    .swap-button-container {
+      padding-top: var(--figma-space-16);
+      border-top: 1px solid var(--figma-color-border);
+    }
+    
+    .swap-library-btn {
+      width: 100%;
+      height: 32px;
+      background: var(--figma-color-bg-brand);
+      color: var(--figma-color-text-onbrand);
+      border: none;
+      border-radius: var(--figma-radius-6);
+      font-size: var(--figma-font-size-11);
+      font-weight: 400;
+      font-family: var(--figma-font-family);
+      cursor: pointer;
+    }
+    
+    .swap-library-btn:hover {
+      background: var(--figma-color-bg-brand-hover);
+    }
+    
+    /* Figma-style dividers */
+    .divider {
+      height: 1px;
+      background: var(--figma-color-border);
+      margin: var(--figma-space-16) 0;
+    }
+    
+    /* Status indicators */
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: var(--figma-space-8);
+    }
+    
+    .status-dot.success { background: var(--figma-color-bg-success); }
+    .status-dot.warning { background: #f59e0b; }
+    .status-dot.info { background: var(--figma-color-bg-brand); }
+    
+    /* Centered Scan View Styles */
+    .scan-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      padding: var(--figma-space-24);
+    }
+    
+    .scan-content {
+      text-align: center;
+      max-width: 300px;
+    }
+    
+    .scan-title {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-weight: 550;
+      font-size: 13px;
+      line-height: 22px;
+      letter-spacing: -0.25%;
+      text-align: center;
+      color: var(--figma-color-text);
+      margin: 0 0 8px 0;
+      display: block !important;
+    }
+    
+    .scan-description {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-weight: 400;
+      font-size: 11px;
+      line-height: 16px;
+      color: var(--figma-color-text-secondary);
+      margin: 0 0 30px 0;
+      text-align: center;
+    }
+    
+    .scan-button {
+      background: hsla(205, 100%, 53%, 1);
+      color: white;
+      border: none;
+      border-radius: var(--figma-radius-6);
+      height: 32px;
+      padding: 0 var(--figma-space-16);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: var(--figma-font-size-11);
+      line-height: 16px;
+      font-weight: 400;
+      cursor: pointer;
+      
+      box-shadow: var(--figma-shadow-sm);
+      width: auto;
+      margin: 0;
+    }
+    
+    .scan-button:hover {
+      background: hsla(205, 100%, 48%, 1);
+      box-shadow: var(--figma-shadow-md);
+    }
+    
+    .scan-button:active {
+      background: hsla(205, 100%, 43%, 1);
+      transform: translateY(1px);
+    }
+    
+    .scan-button:focus {
+      outline: none;
+      box-shadow: var(--figma-shadow-brand);
+    }
+    
+    .settings-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      border-top: 1px solid var(--figma-color-border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-left: 12px;
+      padding-right: 12px;
+      background: var(--figma-color-bg);
+    }
+    
+    .settings-icon-btn {
+      background: none;
+      border: none;
+      color: var(--figma-color-icon);
+      cursor: pointer;
+      padding: 0;
+      
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      outline: none;
+      box-shadow: none;
+    }
+    
+    .settings-icon-btn svg {
+      width: 16.89px;
+      height: 18px;
+    }
+    
+    .settings-icon-btn:hover {
+      background: var(--figma-color-bg-hover);
+      color: var(--figma-color-icon-secondary);
+      box-shadow: none;
+    }
+    
+    /* New scan results styles */
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--figma-color-icon-tertiary);
+      cursor: pointer;
+      padding: var(--figma-space-4);
+      border-radius: var(--figma-radius-4);
+      font-size: var(--figma-font-size-14);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto;
+      
+    }
+    
+    .close-btn:hover {
+      background: var(--figma-color-bg-hover);
+      color: var(--figma-color-icon);
+    }
+    
+    .scan-results-content {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: var(--figma-space-16);
+    }
+    
+    .component-icon {
+      color: var(--figma-color-icon-tertiary);
+      font-size: var(--figma-font-size-14);
+      margin-right: var(--figma-space-12);
+      font-family: monospace;
+    }
+    
+    .component-name {
+      font-size: var(--figma-font-size-14);
+      color: var(--figma-color-text);
+      font-weight: var(--figma-font-weight-normal);
+    }
+  </style>
+</head>
+<body>
+  <!-- Scan View -->
+  <div id="scanView" class="view active">
+    <div class="scan-container">
+      <div class="scan-content">
+        <h1 class="scan-title">Select a frame to scan</h1>
+        <p class="scan-description">Select a frame in your design to automatically scan for components and tokens</p>
+        <button id="scanAllBtn" class="scan-button" style="display: none;">Scan frame</button>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button id="settingsBtn" class="settings-icon-btn">
+        <svg width="24" height="24" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M10.2172 0.0820312C9.81887 0.0281343 9.41254 8.92698e-06 9.00042 0C8.69121 0 8.38513 0.0153335 8.08342 0.0458984L7.78362 0.0820312C7.03178 0.183756 6.61019 0.785009 6.50335 1.33398L6.48674 1.44238C6.41366 2.04872 6.06676 2.6104 5.50042 2.9375C4.934 3.26452 4.27401 3.28373 3.71233 3.04395C3.21323 2.83112 2.48125 2.84442 1.98381 3.37207L1.88714 3.48535C1.45265 4.04505 1.08286 4.6579 0.788502 5.3125L0.666432 5.5957C0.360589 6.34421 0.7343 7.0511 1.19768 7.39844C1.68666 7.76493 2.00041 8.34559 2.00042 9C2.00042 9.57279 1.76024 10.0894 1.37249 10.4551L1.19768 10.6016C0.734304 10.9489 0.360615 11.6558 0.666432 12.4043C0.977828 13.1658 1.39061 13.875 1.88714 14.5146C2.38218 15.1523 3.17988 15.1831 3.71233 14.9561C4.27401 14.7163 4.934 14.7355 5.50042 15.0625C6.06675 15.3896 6.41366 15.9513 6.48674 16.5576C6.5563 17.133 6.98194 17.8095 7.78362 17.918C8.18196 17.9719 8.58829 18 9.00042 18C9.41253 18 9.81888 17.9719 10.2172 17.918C11.0188 17.8094 11.4446 17.1329 11.5141 16.5576C11.5872 15.9512 11.9339 15.3896 12.5004 15.0625C13.0668 14.7355 13.7258 14.7163 14.2875 14.9561C14.82 15.1833 15.6175 15.1525 16.1127 14.5146C16.6093 13.8749 17.022 13.1659 17.3334 12.4043C17.6394 11.6557 17.2656 10.9489 16.8022 10.6016C16.3134 10.235 16.0004 9.65426 16.0004 9C16.0004 8.34574 16.3134 7.76495 16.8022 7.39844C17.2656 7.05108 17.6394 6.34429 17.3334 5.5957C17.0609 4.92939 16.7112 4.30311 16.2953 3.72852L16.1127 3.48535L16.017 3.37207C15.5194 2.84405 14.7867 2.83088 14.2875 3.04395C13.7258 3.28372 13.0668 3.26452 12.5004 2.9375C11.9339 2.61042 11.5872 2.04882 11.5141 1.44238C11.4446 0.867088 11.0188 0.190591 10.2172 0.0820312ZM7.91741 1.07227C8.27149 1.02436 8.6332 1 9.00042 1C9.36757 1.00001 9.7294 1.02436 10.0834 1.07227C10.3251 1.10518 10.4917 1.32027 10.5209 1.5625C10.6301 2.46795 11.1498 3.31261 12.0004 3.80371C12.8508 4.29467 13.8415 4.32184 14.6801 3.96387C14.9043 3.86816 15.1732 3.90609 15.3227 4.09863C15.7643 4.66748 16.131 5.29728 16.4076 5.97363C16.5 6.19944 16.3978 6.45133 16.2026 6.59766C15.4725 7.14486 15.0004 8.0174 15.0004 9C15.0004 9.9826 15.4725 10.8551 16.2026 11.4023C16.3978 11.5487 16.5 11.8006 16.4076 12.0264C16.131 12.7027 15.7643 13.3325 15.3227 13.9014C15.1732 14.0939 14.9043 14.1318 14.6801 14.0361C13.8415 13.6782 12.8508 13.7053 12.0004 14.1963C11.1498 14.6874 10.6301 15.532 10.5209 16.4375C10.4917 16.6797 10.3251 16.8948 10.0834 16.9277C9.72941 16.9756 9.36756 17 9.00042 17C8.63319 17 8.2715 16.9756 7.91741 16.9277C7.67547 16.895 7.50815 16.6799 7.47893 16.4375C7.3698 15.5321 6.8509 14.6874 6.00042 14.1963C5.14995 13.7053 4.15838 13.6781 3.31975 14.0361C3.09565 14.1316 2.82656 14.0938 2.67717 13.9014C2.2356 13.3325 1.86879 12.7027 1.59221 12.0264C1.49993 11.8007 1.60233 11.5487 1.79729 11.4023C2.52736 10.8551 3.00042 9.9826 3.00042 9C3.00041 8.01741 2.52736 7.14486 1.79729 6.59766C1.60233 6.45129 1.49993 6.1993 1.59221 5.97363C1.86879 5.29731 2.2356 4.66746 2.67717 4.09863C2.82656 3.90622 3.09565 3.8684 3.31975 3.96387C4.15838 4.32188 5.14995 4.29473 6.00042 3.80371C6.85091 3.31259 7.3698 2.46788 7.47893 1.5625C7.50815 1.32012 7.67548 1.10501 7.91741 1.07227ZM9.0002 6.5C10.3809 6.5 11.5002 7.61929 11.5002 9C11.5002 10.3807 10.3809 11.5 9.0002 11.5C7.61949 11.5 6.5002 10.3807 6.5002 9C6.5002 7.61929 7.61949 6.5 9.0002 6.5ZM9.0002 12.5C10.9332 12.5 12.5002 10.933 12.5002 9C12.5002 7.067 10.9332 5.5 9.0002 5.5C7.0672 5.5 5.5002 7.067 5.5002 9C5.5002 10.933 7.0672 12.5 9.0002 12.5Z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+    <div id="scanResult" class="result"></div>
+  </div>
+
+  <!-- Scan Results View -->
+  <div id="scanResultsView" class="view">
+    <h1>New Swap Plugin
+      <button id="closeScanResultsBtn" class="close-btn">✕</button>
+    </h1>
+    
+    <!-- Search Bar -->
+    <div class="search-container">
+      <div class="search-input-wrapper">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M7.25 2.5C4.90279 2.5 3 4.40279 3 6.75C3 9.09721 4.90279 11 7.25 11C8.44555 11 9.52628 10.5047 10.3003 9.72656L13.287 12.7133C13.4124 12.8387 13.5876 12.8387 13.713 12.7133C13.8384 12.5879 13.8384 12.4121 13.713 12.2867L10.7262 9.30005C11.5047 8.52628 12 7.44555 12 6.75C12 4.40279 10.0972 2.5 7.25 2.5ZM7.25 3.5C9.54493 3.5 11 4.95507 11 6.75C11 8.54493 9.54493 10 7.25 10C4.95507 10 3.5 8.54493 3.5 6.75C3.5 4.95507 4.95507 3.5 7.25 3.5Z" fill="currentColor"/>
+        </svg>
+        <input type="text" class="search-input" placeholder="Search">
+        <div class="search-controls">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 6.5C3 6.22386 3.22386 6 3.5 6H12.5C12.7761 6 13 6.22386 13 6.5C13 6.77614 12.7761 7 12.5 7H3.5C3.22386 7 3 6.77614 3 6.5Z" fill="currentColor"/>
+            <path d="M5 9.5C5 9.22386 5.22386 9 5.5 9H10.5C10.7761 9 11 9.22386 11 9.5C11 9.77614 10.7761 10 10.5 10H5.5C5.22386 10 5 9.77614 5 9.5Z" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Library Mapping Header -->
+    <div class="library-mapping-header">
+      <span class="library-name">Monkey library</span>
+      <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="library-name">Shark library</span>
+    </div>
+    
+    <!-- Component Mappings -->
+    <div class="component-mappings">
+      <!-- Component Mapping Item -->
+      <div class="mapping-item">
+        <div class="mapping-left">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <svg class="component-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5L14 5V11L8 14.5L2 11V5L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+        <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="mapping-right">
+          <div class="component-info">
+            <svg class="component-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5L14 5V11L8 14.5L2 11V5L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mapping-item">
+        <div class="mapping-left">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <svg class="component-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5L14 5V11L8 14.5L2 11V5L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+        <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="mapping-right">
+          <div class="component-info">
+            <svg class="component-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5L14 5V11L8 14.5L2 11V5L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mapping-item">
+        <div class="mapping-left">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <span class="text-icon">T</span>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+        <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="mapping-right">
+          <div class="component-info">
+            <span class="text-icon">T</span>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mapping-item">
+        <div class="mapping-left">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <span class="text-icon">T</span>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+        <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="mapping-right">
+          <div class="component-info">
+            <span class="text-icon">T</span>
+            <span class="component-name">Component name</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mapping-item">
+        <div class="mapping-left">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <div class="color-swatch" style="background-color: #E74C3C;"></div>
+            <span class="component-name">Color style</span>
+          </div>
+        </div>
+        <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="mapping-right">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <div class="color-swatch" style="background-color: #E74C3C;"></div>
+            <span class="component-name">Color style</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mapping-item">
+        <div class="mapping-left">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <div class="color-swatch" style="background-color: #E74C3C;"></div>
+            <span class="component-name">Color style</span>
+          </div>
+        </div>
+        <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="mapping-right">
+          <input type="checkbox" class="mapping-checkbox" checked>
+          <div class="component-info">
+            <div class="color-swatch" style="background-color: #E74C3C;"></div>
+            <span class="component-name">Color style</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Swap Button -->
+    <div class="swap-button-container">
+      <button id="swapLibraryBtn" class="swap-library-btn">Swap library</button>
+    </div>
+  </div>
+
+  <!-- Library List View -->
+  <div id="libraryView" class="view">
+    <h1>
+      <button class="back-btn" id="backToScan">←</button>
+      Component Libraries Found
+    </h1>
+    <div id="libraryList"></div>
+    <button id="backToScanFromLibraries" class="secondary-button">Back to Scan</button>
+  </div>
+
+  <!-- Style Library List View -->
+  <div id="styleLibraryView" class="view">
+    <h1>
+      <button class="back-btn" id="backToScanFromStyleLibraries">←</button>
+      Style Libraries Found
+    </h1>
+    <div id="styleLibraryList"></div>
+    <button id="backToScanFromStyleLibrariesBtn" class="secondary-button">Back to Scan</button>
+  </div>
+
+  <!-- Unified Library List View -->
+  <div id="unifiedLibraryView" class="view">
+    <h1>
+      <button class="back-btn" id="backToScanFromUnified">←</button>
+      Libraries Found
+    </h1>
+    <div id="unifiedLibraryList"></div>
+  </div>
+
+  <!-- Settings View -->
+  <div id="settingsView" class="view">
+    <h1>
+      <button class="back-btn" id="backToScanFromSettings">←</button>
+      Settings
+    </h1>
+    
+
+    <!-- Component Configuration Section -->
+    <div class="settings-section" style="margin-bottom: 16px;">
+      <h3>Library Configuration</h3>
+      <div style="margin-bottom: 8px;">
+  <button id="settingsUpdateLibraryBtn" style="background: #ff6b35; width: 100%;">Sync Library</button>
+      </div>
+      <div style="font-size: 10px; color: #6c757d; margin-top: 8px;">
+  Run "Sync Library" in library source files to automatically update plugin mappings.
+      </div>
+    </div>
+  </div>
+
+  <!-- Component List View -->
+  <div id="componentView" class="view">
+    <h1>
+      <button class="back-btn" id="backToLibraries">←</button>
+      <span id="currentLibraryName"></span> Components
+    </h1>
+    <div id="componentList"></div>
+    <button id="backToScanFromComponents" class="secondary-button">Back to Scan</button>
+  </div>
+
+  <!-- Style List View -->
+  <div id="styleView" class="view">
+    <h1>
+      <button class="back-btn" id="backToStyleLibraries">←</button>
+      <span id="currentStyleLibraryName"></span> Styles
+    </h1>
+    <div id="styleList"></div>
+    <button id="backToScanFromStyles" class="secondary-button">Back to Scan</button>
+  </div>
+
+  <!-- Configuration View -->
+  <div id="configView" class="view">
+    <h1>
+      <button class="back-btn" id="backToScanFromConfig">←</button>
+      Configure Libraries
+    </h1>
+    
+    <div class="config-tabs">
+      <button class="config-tab-btn active" id="showUserConfigBtn">User</button>
+      <button class="config-tab-btn" id="showTeamConfigBtn">Team</button>
+      <button class="config-tab-btn" id="showOrgConfigBtn">Organization</button>
+    </div>
+
+    <!-- User Config -->
+    <div id="userConfigSection" class="config-section active">
+      <div id="userLibrariesList"></div>
+      <button id="addUserLibraryBtn">Add Library</button>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button id="saveUserLibrariesBtn">Save User Libraries</button>
+        <button id="clearUserLibrariesBtn" style="background: #dc3545;">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Team Config -->
+    <div id="teamConfigSection" class="config-section">
+      <div id="teamLibrariesList"></div>
+      <button id="addTeamLibraryBtn">Add Library</button>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button id="saveTeamLibrariesBtn">Save Team Libraries</button>
+        <button id="clearTeamLibrariesBtn" style="background: #dc3545;">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Organization Config -->
+    <div id="orgConfigSection" class="config-section">
+      <div class="hint">Organization libraries are predefined: Shark and Monkey</div>
+      <div id="orgLibrariesList">
+        <div class="library-config-item">
+          <input type="text" value="Shark" disabled>
+          <input type="text" value="89ab1fa1" disabled>
+        </div>
+        <div class="library-config-item">
+          <input type="text" value="Monkey" disabled>
+          <input type="text" value="0dd69cc1" disabled>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Swap Modal -->
+  <div id="swapModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Swap Component</div>
+      <div id="swapComponentInfo"></div>
+      <div id="targetLibraryList"></div>
+      <div class="modal-buttons">
+        <button id="cancelSwapBtn" style="background: #6c757d;">Cancel</button>
+        <button id="confirmSwapBtn">Perform Swap</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let componentData = null;
+    let unifiedData = null;
+    let currentSwapData = null;
+
+    // View management
+    function showView(viewId) {
+      console.log('Switching to view:', viewId);
+      document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+      const targetView = document.getElementById(viewId);
+      if (targetView) {
+        targetView.classList.add('active');
+        console.log('Successfully switched to:', viewId);
+      } else {
+        console.error('View not found:', viewId);
+      }
+    }
+
+    // Update scan results view with found components and tokens
+    function updateScanResultsView(data) {
+      console.log('Updating scan results view with:', data);
+      
+      const scanResultsView = document.getElementById('scanResultsView');
+      if (!scanResultsView) {
+        console.error('Scan results view not found');
+        return;
+      }
+      
+      // Update library header with actual library names and determine mapping direction
+      const libraryHeader = scanResultsView.querySelector('.library-mapping-header');
+      if (libraryHeader) {
+        // Get unique source libraries from components
+        const sourceLibraries = [...new Set(data.components.map(c => c.library))];
+        const sourceLibraryName = sourceLibraries.length > 0 ? sourceLibraries[0] : 'Source Library';
+        
+        // Determine target library based on source (Shark ↔ Monkey mapping)
+        let targetLibraryName = 'Target Library';
+        if (sourceLibraryName.toLowerCase().includes('shark')) {
+          targetLibraryName = 'Monkey Library';
+        } else if (sourceLibraryName.toLowerCase().includes('monkey')) {
+          targetLibraryName = 'Shark Library';
+        } else {
+          // If source is neither Shark nor Monkey, default to the opposite of what we detect
+          targetLibraryName = sourceLibraryName.toLowerCase().includes('library') ? 
+            (sourceLibraryName.toLowerCase().includes('shark') ? 'Monkey Library' : 'Shark Library') : 
+            'Target Library';
+        }
+        
+        libraryHeader.innerHTML = `
+          <span class="library-name">${sourceLibraryName}</span>
+          <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="library-name">${targetLibraryName}</span>
+        `;
+      }
+      
+      // Find the component mappings container
+      const mappingsContainer = scanResultsView.querySelector('.component-mappings');
+      if (!mappingsContainer) {
+        console.error('Component mappings container not found');
+        return;
+      }
+      
+      // Clear existing content and rebuild
+      mappingsContainer.innerHTML = '';
+      
+      // Determine target library name for components
+      const sourceLibraryName = data.components.length > 0 ? data.components[0].library : '';
+      let targetLibraryName = 'Target Library';
+      if (sourceLibraryName.toLowerCase().includes('shark')) {
+        targetLibraryName = 'Monkey Library';
+      } else if (sourceLibraryName.toLowerCase().includes('monkey')) {
+        targetLibraryName = 'Shark Library';
+      }
+
+      // Add Components (deduplicated by variant name)
+      if (data.components && data.components.length > 0) {
+        const parentMap = new Map();
+        data.components.forEach((component) => {
+          const key = component.parentName + '|' + component.library;
+          if (!parentMap.has(key)) {
+            parentMap.set(key, component);
+          }
+        });
+        Array.from(parentMap.values()).forEach((component) => {
+          const mappingItem = document.createElement('div');
+          mappingItem.className = 'mapping-item';
+          mappingItem.innerHTML = `
+            <div class="mapping-left" data-parent-name="${component.parentName}">
+              <input type="checkbox" class="mapping-checkbox" checked>
+              <div class="component-info">
+                <svg class="component-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1.5L14 5V11L8 14.5L2 11V5L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+                <div class="component-details">
+                  <span class="component-name">${component.parentName}</span>
+                  <span class="component-library">${component.library}</span>
+                </div>
+              </div>
+            </div>
+            <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="mapping-right">
+              <div class="component-info">
+                <svg class="component-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1.5L14 5V11L8 14.5L2 11V5L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+                <div class="component-details">
+                  <span class="component-name">${component.parentName}</span>
+                  <span class="component-library target-library">${targetLibraryName}</span>
+                </div>
+              </div>
+            </div>
+          `;
+          mappingsContainer.appendChild(mappingItem);
+        });
+      }
+      
+      // Add Tokens as color styles
+      if (data.tokens && data.tokens.length > 0) {
+        data.tokens.forEach((token, index) => {
+          const mappingItem = document.createElement('div');
+          mappingItem.className = 'mapping-item';
+          mappingItem.innerHTML = `
+            <div class="mapping-left">
+              <input type="checkbox" class="mapping-checkbox" checked>
+              <div class="component-info">
+                <div class="color-swatch" style="background-color: ${token.value || '#E74C3C'};"></div>
+                <div class="component-details">
+                  <span class="component-name">${token.name}</span>
+                  <span class="component-library">${token.library || sourceLibraryName}</span>
+                </div>
+              </div>
+            </div>
+            <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="mapping-right">
+              <div class="component-info">
+                <div class="color-swatch" style="background-color: ${token.value || '#E74C3C'};"></div>
+                <div class="component-details">
+                  <span class="component-name">${token.name}</span>
+                  <span class="component-library target-library">${targetLibraryName}</span>
+                </div>
+              </div>
+            </div>
+          `;
+          mappingsContainer.appendChild(mappingItem);
+        });
+      }
+      
+      // If no components or tokens found, show placeholder
+      if ((!data.components || data.components.length === 0) && (!data.tokens || data.tokens.length === 0)) {
+        mappingsContainer.innerHTML = `
+          <div class="mapping-item">
+            <div class="mapping-left">
+              <div class="component-info">
+                <span class="component-name" style="color: var(--figma-color-text-tertiary);">No components or tokens found in this frame</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      console.log('Scan results view updated successfully');
+    }
+
+    // Show library list view
+    function showLibraries(libraries) {
+      const libraryListEl = document.getElementById('libraryList');
+      
+      if (libraries.length === 0) {
+        libraryListEl.innerHTML = '<div class="no-items">No libraries found in selection</div>';
+        showView('libraryView');
+        return;
+      }
+
+      let html = `<div style="font-weight: 600; margin-bottom: 8px;">Found ${libraries.length} librar${libraries.length === 1 ? 'y' : 'ies'}:</div>`;
+      
+      libraries.forEach(lib => {
+        // Determine target library for swapping
+        let targetLibrary = null;
+        if (lib.name === 'Shark') {
+          targetLibrary = 'Monkey';
+        } else if (lib.name === 'Monkey') {
+          targetLibrary = 'Shark';
+        }
+        
+        html += `
+          <div class="library-item">
+            <div onclick="showComponentsForLibrary('${lib.name}')" style="flex: 1; cursor: pointer;">
+              <div class="library-name">${lib.name}</div>
+              <div class="library-count">${lib.count} component${lib.count === 1 ? '' : 's'}</div>
+            </div>
+            ${targetLibrary ? `
+              <button onclick="swapAllComponents('${lib.name}', '${targetLibrary}')" 
+                      style="margin-left: 12px; padding: 8px 16px; font-size: 11px; white-space: nowrap; background: #18A0FB; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Swap All → ${targetLibrary}
+              </button>
+            ` : ''}
+          </div>
+        `;
+      });
+      
+      libraryListEl.innerHTML = html;
+      showView('libraryView');
+    }
+
+    // Show components for a specific library
+    function showComponentsForLibrary(libraryName) {
+      const currentLibraryNameEl = document.getElementById('currentLibraryName');
+      const componentListEl = document.getElementById('componentList');
+      
+      currentLibraryNameEl.textContent = libraryName;
+      
+      if (!componentData || !componentData.componentsByLibrary[libraryName]) {
+        componentListEl.innerHTML = '<div class="no-items">No components found</div>';
+        showView('componentView');
+        return;
+      }
+
+      const components = componentData.componentsByLibrary[libraryName];
+      
+      let html = `<div style="font-weight: 600; margin-bottom: 8px;">${components.length} component${components.length === 1 ? '' : 's'}:</div>`;
+      
+      components.forEach(comp => {
+        // Use displayName if available (for variants), otherwise use name
+        const displayName = comp.displayName || comp.name;
+        
+        // Build component info with variant details
+        let infoText = `Key: ${comp.key.substring(0, 12)}...`;
+        
+        if (comp.type && comp.type !== 'Instance') {
+          infoText += ` | Type: ${comp.type}`;
+        }
+        
+        if (comp.isVariant && comp.properties) {
+          const variantProps = Object.entries(comp.properties)
+            .map(([key, value]) => `${key}=${value}`)
+            .join(', ');
+          infoText += ` | Variant: ${variantProps}`;
+        }
+        
+        if (comp.isComponentSet && comp.variantCount) {
+          infoText += ` | ${comp.variantCount} variants`;
+        }
+        
+        if (comp.instances !== undefined) {
+          infoText += ` | ${comp.instances} instance${comp.instances === 1 ? '' : 's'}`;
+        }
+        
+        // Determine CSS class based on component type
+        let cssClass = 'component-item';
+        if (comp.isVariant) {
+          cssClass += ' variant';
+        } else if (comp.isComponentSet) {
+          cssClass += ' component-set';
+        }
+        
+        html += `
+          <div class="${cssClass}">
+            <div class="component-name">${displayName}</div>
+            <div class="component-info">${infoText}</div>
+          </div>
+        `;
+      });
+      
+      componentListEl.innerHTML = html;
+      showView('componentView');
+    }
+
+    // Show unified libraries (components and styles combined) as detailed list
+    function showUnifiedLibraries(libraries) {
+      const unifiedLibraryListEl = document.getElementById('unifiedLibraryList');
+      
+      if (libraries.length === 0) {
+        unifiedLibraryListEl.innerHTML = '<div class="no-items">No libraries found in selection</div>';
+        showView('unifiedLibraryView');
+        return;
+      }
+
+      // Get the first library that can be swapped (Shark or Monkey)
+      const swappableLibrary = libraries.find(lib => lib.name === 'Shark' || lib.name === 'Monkey');
+      let targetLibrary = null;
+      if (swappableLibrary) {
+        targetLibrary = swappableLibrary.name === 'Shark' ? 'Monkey' : 'Shark';
+      }
+
+      let html = `<div class="scan-results-header">Scan Results:</div>`;
+      
+      // Show detailed list of all components and styles
+      libraries.forEach(lib => {
+        if (lib.totalCount === 0) return;
+
+        html += `<div class="library-section-header">${lib.name} Library</div>`;
+        
+        let itemsAdded = 0;
+        
+        // Show components from this library (grouped by parent component)
+        if (window.unifiedScanData && window.unifiedScanData.componentsByLibrary[lib.name]) {
+          const components = window.unifiedScanData.componentsByLibrary[lib.name];
+          
+          // Group components by their parent name (for variants) or by their own name
+          const componentGroups = {};
+          
+          components.forEach(component => {
+            // Use the component.name field which contains the base component name
+            // For variants, this is already set to the parent component set name
+            const parentName = component.name;
+            
+            if (!componentGroups[parentName]) {
+              componentGroups[parentName] = {
+                name: parentName,
+                type: component.isVariant ? 'Component Set' : component.type,
+                isComponentSet: component.isVariant,
+                variants: []
+              };
+            }
+            
+            if (component.isVariant) {
+              componentGroups[parentName].variants.push(component);
+            }
+          });
+          
+          // Display each component group once
+          Object.values(componentGroups).forEach(group => {
+            const hasVariants = group.variants.length > 0;
+            const itemClass = hasVariants ? 'component-item component-set' : 'component-item';
+            
+            html += `
+              <div class="${itemClass}">
+                <div style="flex: 1;">
+                  <div class="component-name">📦 ${group.name}</div>
+                  <div class="component-info">${group.type}${hasVariants ? ` • ${group.variants.length} variants` : ''}</div>
+                </div>
+              </div>
+            `;
+            itemsAdded++;
+          });
+        }
+        
+        // Show styles from this library
+        if (window.unifiedScanData && window.unifiedScanData.stylesByLibrary[lib.name]) {
+          const styles = window.unifiedScanData.stylesByLibrary[lib.name];
+          
+          styles.forEach(style => {
+            const styleIcon = style.type === 'Text Style' ? '📝' : 
+                            style.type === 'Color Style' ? '🎨' : 
+                            style.type === 'Effect Style' ? '✨' : '🎨';
+            
+            html += `
+              <div class="component-item">
+                <div style="flex: 1;">
+                  <div class="component-name">${styleIcon} ${style.name}</div>
+                  <div class="component-info">${style.type}</div>
+                </div>
+              </div>
+            `;
+            itemsAdded++;
+          });
+        }
+        
+        // Show message if no items were added for this library
+        if (itemsAdded === 0) {
+          html += `<div class="component-item" style="opacity: 0.6;"><div style="flex: 1;"><div class="component-name">No items found</div></div></div>`;
+        }
+      });
+      
+      // Add swap all button at the bottom if we have a target library
+      if (targetLibrary && swappableLibrary) {
+        html += `
+          <div class="swap-all-container">
+            <button onclick="swapAllUnified('${swappableLibrary.name}', '${targetLibrary}')" 
+                    class="swap-all-btn">
+              🔄 Swap All ${swappableLibrary.name} → ${targetLibrary}
+            </button>
+          </div>
+        `;
+      }
+      
+      unifiedLibraryListEl.innerHTML = html;
+      showView('unifiedLibraryView');
+    }
+
+    // Open swap modal
+    function openSwapModal(componentName, componentKey, sourceLibrary) {
+      currentSwapData = {
+        componentName: componentName,
+        componentKey: componentKey,
+        sourceLibrary: sourceLibrary
+      };
+      
+      // Update modal info
+      document.getElementById('swapComponentInfo').innerHTML = 
+        `<strong>Swap "${componentName}"</strong> from <em>${sourceLibrary}</em> to a different library.<br><br>
+        <small><strong>How it works:</strong> This will replace ALL "${componentName}" components from ${sourceLibrary} with the same-named component from your chosen library. For best results, make sure you have at least one "${componentName}" component from each library in your frame before swapping.</small>`;
+      
+      // Get available libraries (excluding source)
+      let availableLibraries = [];
+      
+      // Add libraries currently in the frame (excluding source)
+      const frameLibraries = componentData.libraries.filter(function(lib) {
+        return lib.name !== sourceLibrary;
+      });
+      
+      // Add the hardcoded libraries from configuration (Shark and Monkey)
+      const configuredLibraries = ['Shark', 'Monkey'];
+      configuredLibraries.forEach(function(libName) {
+        if (libName !== sourceLibrary) {
+          const existsInFrame = frameLibraries.some(function(lib) {
+            return lib.name === libName;
+          });
+          
+          if (!existsInFrame) {
+            availableLibraries.push({
+              name: libName,
+              count: 0,
+              source: 'configured'
+            });
+          }
+        }
+      });
+      
+      // Add frame libraries
+      frameLibraries.forEach(function(lib) {
+        availableLibraries.push({
+          name: lib.name,
+          count: lib.count,
+          source: 'frame'
+        });
+      });
+      
+      // Populate target library list
+      const targetListEl = document.getElementById('targetLibraryList');
+      let html = '';
+      
+      if (availableLibraries.length === 0) {
+        html = '<div class="no-items">No other libraries available for swapping</div>';
+      } else {
+        availableLibraries.forEach(function(lib) {
+          let hasMatchingComponent = false;
+          let statusText = '';
+          
+          if (lib.source === 'frame') {
+            hasMatchingComponent = componentData.componentsByLibrary[lib.name] && 
+              componentData.componentsByLibrary[lib.name].some(function(comp) {
+                return comp.name === componentName;
+              });
+            statusText = hasMatchingComponent ? ' ✓ Ready to swap' : ' ✓ Ready to swap';
+          } else {
+            hasMatchingComponent = true;
+            statusText = ' ✓ Ready to swap';
+          }
+          
+          const disabledClass = '';
+          const countText = lib.source === 'frame' ? `${lib.count} components in frame` : 'Library configured';
+          
+          html += `
+            <div class="target-library-item${disabledClass}" data-library="${lib.name}" data-has-match="${hasMatchingComponent}" data-source="${lib.source}">
+              <div class="target-library-name">${lib.name}${statusText}</div>
+              <div style="font-size: 11px; color: #666;">${countText}</div>
+            </div>
+          `;
+        });
+      }
+      
+      targetListEl.innerHTML = html;
+      
+      // Add click handlers to library items
+      document.querySelectorAll('.target-library-item:not(.disabled)').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.target-library-item').forEach(i => i.classList.remove('selected'));
+          item.classList.add('selected');
+        });
+      });
+      
+      // Add click handlers for disabled items to show help
+      document.querySelectorAll('.target-library-item.disabled').forEach(item => {
+        item.addEventListener('click', () => {
+          const libraryName = item.getAttribute('data-library');
+          alert(`To enable swapping to ${libraryName}:\n\n1. Open Assets panel in Figma\n2. Find "${componentName}" in the ${libraryName} library\n3. Drag one instance into your frame\n4. Scan frame again\n\nThen you can swap between ${sourceLibrary} and ${libraryName} versions of "${componentName}".`);
+        });
+      });
+      
+      // Show modal
+      document.getElementById('swapModal').style.display = 'flex';
+    }
+    
+    // Swap all components from one library to another
+    function swapAllComponents(sourceLibrary, targetLibrary) {
+      if (!componentData || !componentData.componentsByLibrary[sourceLibrary]) {
+        alert('No components found to swap');
+        return;
+      }
+      
+      const components = componentData.componentsByLibrary[sourceLibrary];
+      const componentNames = components.map(comp => comp.name);
+      
+      if (confirm(`Swap all ${components.length} component${components.length === 1 ? '' : 's'} from ${sourceLibrary} to ${targetLibrary} library?\n\nComponents: ${componentNames.join(', ')}`)) {
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'SWAP_ALL_COMPONENTS',
+            sourceLibrary: sourceLibrary,
+            targetLibrary: targetLibrary,
+            components: components
+          } 
+        }, '*');
+      }
+    }
+    
+    function closeSwapModal() {
+      document.getElementById('swapModal').style.display = 'none';
+      currentSwapData = null;
+    }
+    
+    function performSwap() {
+      const selectedLibrary = document.querySelector('.target-library-item.selected');
+      
+      if (!selectedLibrary || !currentSwapData) {
+        alert('Please select a target library');
+        return;
+      }
+      
+      const targetLibrary = selectedLibrary.getAttribute('data-library');
+      const hasMatch = selectedLibrary.getAttribute('data-has-match') === 'true';
+      
+      if (!hasMatch) {
+        alert('Selected library does not have a matching component');
+        return;
+      }
+      
+      // Send swap request to plugin
+      parent.postMessage({ pluginMessage: {
+        type: 'SWAP_COMPONENT',
+        sourceComponentName: currentSwapData.componentName,
+        sourceComponentKey: currentSwapData.componentKey,
+        sourceLibrary: currentSwapData.sourceLibrary,
+        targetLibrary: targetLibrary
+      }}, '*');
+      
+      closeSwapModal();
+    }
+
+  function performLibrarySwap(data) {
+      console.log('🔄 performLibrarySwap called!');
+      const mappingItems = document.querySelectorAll('.mapping-item');
+      const componentsToSwap = [];
+      const stylesToSwap = [];
+      console.log('Found mapping items:', mappingItems.length);
+      
+      // Get the source and target library names from the header span elements
+      const libraryNameElements = document.querySelectorAll('.library-mapping-header .library-name');
+      console.log('Library name elements:', libraryNameElements);
+      
+      if (libraryNameElements.length < 2) {
+        alert('Unable to find source and target library names in header');
+        return;
+      }
+      
+      const sourceLibrary = libraryNameElements[0].textContent?.trim();
+      const targetLibrary = libraryNameElements[1].textContent?.trim();
+      
+      console.log('Extracted source library:', sourceLibrary);
+      console.log('Extracted target library:', targetLibrary);
+      
+      if (!sourceLibrary || !targetLibrary) {
+        alert('Unable to determine source and target libraries');
+        return;
+      }
+      
+      // Collect all checked items
+      // Instead of using the checked rows, always send all variants from the scan results
+      data.components.forEach((component) => {
+        componentsToSwap.push({
+          name: component.name,
+          sourceLibrary: sourceLibrary,
+          targetLibrary: targetLibrary
+        });
+      });
+      // Styles logic remains unchanged
+      mappingItems.forEach(item => {
+        const checkbox = item.querySelector('.mapping-checkbox');
+        if (checkbox && checkbox.checked) {
+          const isColorToken = item.querySelector('.color-swatch') !== null;
+          if (isColorToken) {
+            const componentName = item.querySelector('.component-name').textContent;
+            stylesToSwap.push({
+              name: componentName,
+              sourceLibrary: sourceLibrary,
+              targetLibrary: targetLibrary
+            });
+          }
+        }
+      });
+      
+      console.log('Components to swap:', componentsToSwap);
+      console.log('Styles to swap:', stylesToSwap);
+      console.log('Source library:', sourceLibrary);
+      console.log('Target library:', targetLibrary);
+      
+      if (componentsToSwap.length === 0 && stylesToSwap.length === 0) {
+        alert('No components or styles selected for swapping');
+        return;
+      }
+      
+      console.log('Sending PERFORM_LIBRARY_SWAP message...');
+      // Send swap request to plugin, now including sourceLibrary and targetLibrary
+      parent.postMessage({ pluginMessage: {
+        type: 'PERFORM_LIBRARY_SWAP',
+        components: componentsToSwap,
+        styles: stylesToSwap,
+        sourceLibrary: sourceLibrary,
+        targetLibrary: targetLibrary
+      }}, '*');
+    }
+
+    // Unified swap function (components + styles)
+    function swapAllUnified(sourceLibrary, targetLibrary) {
+      if (!unifiedData) {
+        console.log('No data found to swap');
+        return;
+      }
+      
+      const components = unifiedData.componentsByLibrary[sourceLibrary] || [];
+      const styles = unifiedData.stylesByLibrary[sourceLibrary] || [];
+      
+      if (components.length === 0 && styles.length === 0) {
+        console.log('No components or styles found to swap');
+        return;
+      }
+      
+      // Directly execute the swap without confirmation
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'SWAP_ALL',
+          sourceLibrary: sourceLibrary,
+          targetLibrary: targetLibrary,
+          components: components,
+          styles: styles
+        } 
+      }, '*');
+    }
+
+    // Show detailed view for unified library (placeholder for now)
+    function showUnifiedItemsForLibrary(libraryName) {
+      alert(`Detailed view for ${libraryName} coming soon! Use "Swap All" for now.`);
+    }
+
+    // Make functions global for onclick handlers
+    window.showComponentsForLibrary = showComponentsForLibrary;
+    window.showUnifiedItemsForLibrary = showUnifiedItemsForLibrary;
+    window.swapAllUnified = swapAllUnified;
+    window.openSwapModal = openSwapModal;
+
+    // Message handler
+    onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+      
+      if (msg.type === 'SHOW_INITIAL_VIEW' || msg.type === 'reset-ui') {
+        console.log('Showing initial view - no frame selected');
+        showView('scanView');
+        // Update the text to indicate frame selection is needed
+        const scanTitle = document.querySelector('.scan-title');
+        const scanDescription = document.querySelector('.scan-description');
+        if (scanTitle) scanTitle.textContent = 'Select a frame to scan';
+        if (scanDescription) scanDescription.textContent = 'Select a frame in your design to automatically scan for components and tokens';
+        // Optionally clear scan results or other UI state here
+        return;
+      }
+      
+      if (msg.type === 'SCAN_ALL_RESULT') {
+        console.log('Received SCAN_ALL_RESULT:', msg);
+        if (!msg.ok) {
+          const scanView = document.getElementById('scanView');
+          let errorDiv = scanView.querySelector('.error');
+          if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.style.cssText = 'color: #e74c3c; font-weight: 600; margin-top: 12px; padding: 8px; background: #fff5f5; border: 1px solid #fecaca; border-radius: 4px;';
+            scanView.appendChild(errorDiv);
+          }
+          errorDiv.textContent = msg.error || 'Unknown error';
+          return;
+        }
+
+        // Clear any previous errors
+        const errorDiv = document.getElementById('scanView').querySelector('.error');
+        if (errorDiv) errorDiv.remove();
+
+        unifiedData = msg.data;
+        console.log('Scan data:', unifiedData);
+        
+        // Store data globally for detailed view access
+        window.unifiedScanData = unifiedData;
+        
+        // Show the scan results view instead of unified libraries
+        showView('scanResultsView');
+        console.log('Showing scan results view');
+        
+        // Populate the scan results with the found components
+        updateScanResultsView(unifiedData);
+      }
+
+      if (msg.type === 'swap-complete') {
+        // Native toast now handled in backend
+        console.log('Swap completed:', msg.details);
+        return;
+      }
+    // Removed custom toast logic; now using Figma native toast
+
+      if (msg.type === 'swap-error') {
+        alert('Error: ' + (msg.message || 'Swap failed'));
+        console.error('Swap error:', msg);
+        return;
+      }
+
+      if (msg.type === 'SCAN_RESULT') {
+        if (!msg.ok) {
+          const scanView = document.getElementById('scanView');
+          let errorDiv = scanView.querySelector('.error');
+          if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.style.cssText = 'color: #e74c3c; font-weight: 600; margin-top: 12px; padding: 8px; background: #fff5f5; border: 1px solid #fecaca; border-radius: 4px;';
+            scanView.appendChild(errorDiv);
+          }
+          errorDiv.textContent = msg.error || 'Unknown error';
+          return;
+        }
+
+        // Clear any previous errors
+        const errorDiv = document.getElementById('scanView').querySelector('.error');
+        if (errorDiv) errorDiv.remove();
+
+        componentData = msg.data;
+        showLibraries(componentData.libraries);
+      }
+      
+      if (msg.type === 'SWAP_RESULT') {
+        if (msg.success) {
+          parent.postMessage({ pluginMessage: { type: 'SCAN_FRAME' } }, '*');
+        } else {
+          console.log('Swap failed:', msg.error || 'Failed to swap component');
+        }
+      }
+      
+      if (msg.type === 'SWAP_ALL_RESULT') {
+        // Toast notifications are handled by the plugin backend, no need for modal alerts
+        console.log('Swap completed:', msg);
+      }
+      
+      if (msg.type === 'KEY_EXTRACTION_RESULT') {
+        if (msg.success) {
+          console.log('Component Key Extraction Results:');
+          console.log('Total components found:', msg.totalComponents);
+          console.log('Extracted mapping:', msg.mapping);
+          
+          // Show a detailed result dialog
+          const extractedCount = Object.values(msg.mapping).reduce((sum, lib) => sum + Object.keys(lib).length, 0);
+          alert(`✓ Successfully extracted ${extractedCount} component keys!\n\nShark Library: ${Object.keys(msg.mapping.Shark || {}).length} components\nMonkey Library: ${Object.keys(msg.mapping.Monkey || {}).length} components\n\nCheck the browser console (F12) for the complete mapping code that you can copy into your plugin.`);
+        } else {
+          alert(`Key extraction failed: ${msg.error || 'Unknown error'}\n\nMake sure you have components from both Shark and Monkey libraries in your current document.`);
+        }
+      }
+      
+      if (msg.type === 'STYLE_KEY_EXTRACTION_RESULT') {
+        if (msg.success) {
+          console.log('Style Key Extraction Results:');
+          console.log('Total styles found:', msg.totalStyles);
+          console.log('Extracted mapping:', msg.mapping);
+          
+          // Show a detailed result dialog
+          const extractedCount = Object.values(msg.mapping).reduce((sum, lib) => sum + Object.keys(lib).length, 0);
+          alert(`✓ Successfully extracted ${extractedCount} style keys!\n\nShark Library: ${Object.keys(msg.mapping.Shark || {}).length} styles\nMonkey Library: ${Object.keys(msg.mapping.Monkey || {}).length} styles\n\nCheck the browser console (F12) for the complete style mapping code that you can copy into your plugin.`);
+        } else {
+          alert(`Style key extraction failed: ${msg.error || 'Unknown error'}\n\nMake sure you have styles from both Shark and Monkey libraries in your current document.`);
+        }
+      }
+      
+      if (msg.type === 'STYLE_SCAN_RESULT') {
+        if (msg.ok) {
+          styleData = msg.data;
+          showStyleLibraries(msg.data.libraries);
+        } else {
+          document.getElementById('scanResult').innerHTML = 
+            `<div style="color: red;">Error: ${msg.error}</div>`;
+        }
+      }
+      
+      if (msg.type === 'STYLE_SWAP_RESULT') {
+        if (msg.success) {
+          parent.postMessage({ pluginMessage: { type: 'SCAN_STYLES' } }, '*');
+        } else {
+          console.log('Style swap failed:', msg.error || 'Failed to swap style');
+        }
+      }
+      
+      if (msg.type === 'SWAP_ALL_STYLES_RESULT') {
+        if (msg.success) {
+          console.log(`Successfully swapped ${msg.totalSwapped} style instances across ${msg.styleCount} style types from ${msg.sourceLibrary} to ${msg.targetLibrary}`);
+          // Rescan to update the display
+          parent.postMessage({ pluginMessage: { type: 'SCAN_STYLES' } }, '*');
+        } else {
+          console.log('Style swap completed with errors:', msg);
+        }
+      }
+      
+
+      
+      if (msg.type === 'ACCESS_TOKEN_SAVED') {
+        // Token was saved successfully
+      }
+      
+      if (msg.type === 'ACCESS_TOKEN_CLEARED') {
+        document.getElementById('accessTokenInput').placeholder = 'Enter Figma access token for better component detection';
+      }
+    };
+
+    // Style management functions
+    let styleData = null;
+
+    // Show style library list view
+    function showStyleLibraries(libraries) {
+      const styleLibraryListEl = document.getElementById('styleLibraryList');
+      
+      if (libraries.length === 0) {
+        styleLibraryListEl.innerHTML = '<div class="no-items">No style libraries found in selection</div>';
+        showView('styleLibraryView');
+        return;
+      }
+
+      let html = `<div style="font-weight: 600; margin-bottom: 8px;">Found ${libraries.length} style librar${libraries.length === 1 ? 'y' : 'ies'}:</div>`;
+      
+      libraries.forEach(lib => {
+        // Determine target library for swapping
+        let targetLibrary = null;
+        if (lib.name === 'Shark') {
+          targetLibrary = 'Monkey';
+        } else if (lib.name === 'Monkey') {
+          targetLibrary = 'Shark';
+        }
+        
+        html += `
+          <div class="library-item">
+            <div onclick="showStylesForLibrary('${lib.name}')" style="flex: 1; cursor: pointer;">
+              <div class="library-name">${lib.name}</div>
+              <div class="library-count">${lib.count} style${lib.count === 1 ? '' : 's'}</div>
+            </div>
+            ${targetLibrary ? `
+              <button onclick="swapAllStyles('${lib.name}', '${targetLibrary}')" 
+                      style="margin-left: 12px; padding: 8px 16px; font-size: 11px; white-space: nowrap; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Swap All → ${targetLibrary}
+              </button>
+            ` : ''}
+          </div>
+        `;
+      });
+      
+      styleLibraryListEl.innerHTML = html;
+      showView('styleLibraryView');
+    }
+
+    // Show styles for a specific library
+    function showStylesForLibrary(libraryName) {
+      const currentStyleLibraryNameEl = document.getElementById('currentStyleLibraryName');
+      const styleListEl = document.getElementById('styleList');
+      
+      currentStyleLibraryNameEl.textContent = libraryName;
+      
+      if (!styleData || !styleData.stylesByLibrary[libraryName]) {
+        styleListEl.innerHTML = '<div class="no-items">No styles found</div>';
+        showView('styleView');
+        return;
+      }
+
+      const styles = styleData.stylesByLibrary[libraryName];
+      
+      let html = `<div style="font-weight: 600; margin-bottom: 8px;">${styles.length} style${styles.length === 1 ? '' : 's'}:</div>`;
+      
+      styles.forEach(style => {
+        // Color code by style type
+        let borderColor = '#ccc';
+        if (style.type === 'Text Style') borderColor = '#2196f3';
+        else if (style.type === 'Color Style' || style.type === 'Stroke Style') borderColor = '#ff5722';
+        else if (style.type === 'Effect Style') borderColor = '#9c27b0';
+        
+        html += `
+          <div class="component-item" style="border-left: 4px solid ${borderColor};">
+            <div class="component-name">${style.name}</div>
+            <div class="component-info">Type: ${style.type} | Key: ${style.key.substring(0, 12)}...</div>
+          </div>
+        `;
+      });
+      
+      styleListEl.innerHTML = html;
+      showView('styleView');
+    }
+
+    // Swap all styles from one library to another
+    function swapAllStyles(sourceLibrary, targetLibrary) {
+      if (!styleData || !styleData.stylesByLibrary[sourceLibrary]) {
+        alert('No styles found to swap');
+        return;
+      }
+      
+      const styles = styleData.stylesByLibrary[sourceLibrary];
+      const styleNames = styles.map(style => style.name);
+      
+      if (confirm(`Swap all ${styles.length} style${styles.length === 1 ? '' : 's'} from ${sourceLibrary} to ${targetLibrary} library?\n\nStyles: ${styleNames.join(', ')}`)) {
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'SWAP_ALL_STYLES',
+            sourceLibrary: sourceLibrary,
+            targetLibrary: targetLibrary,
+            styles: styles
+          } 
+        }, '*');
+      }
+    }
+
+    // Configuration management (simplified)
+    let currentConfigLevel = 'user';
+
+    function showConfigSection(level) {
+      currentConfigLevel = level;
+      
+      document.getElementById('userConfigSection').style.display = 'none';
+      document.getElementById('teamConfigSection').style.display = 'none';
+      document.getElementById('orgConfigSection').style.display = 'none';
+      
+      document.querySelectorAll('.config-tab-btn').forEach(btn => btn.classList.remove('active'));
+      
+      document.getElementById(level + 'ConfigSection').style.display = 'block';
+      document.getElementById('show' + level.charAt(0).toUpperCase() + level.slice(1) + 'ConfigBtn').classList.add('active');
+    }
+
+    // Event listeners - wrapped in function to ensure DOM is ready
+    function initializeEventListeners() {
+      // Main navigation
+      const scanAllBtn = document.getElementById('scanAllBtn');
+      const settingsBtn = document.getElementById('settingsBtn');
+      
+      if (scanAllBtn) {
+        scanAllBtn.addEventListener('click', () => {
+          console.log('Scan button clicked!');
+          parent.postMessage({ pluginMessage: { type: 'SCAN_ALL' } }, '*');
+          console.log('Message sent to plugin');
+        });
+      }
+      
+      if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+          showView('settingsView');
+        });
+      }
+
+      // Settings screen event listeners
+      const settingsUpdateLibraryBtn = document.getElementById('settingsUpdateLibraryBtn');
+
+      if (settingsUpdateLibraryBtn) {
+        settingsUpdateLibraryBtn.addEventListener('click', () => {
+          parent.postMessage({ pluginMessage: { type: 'UPDATE_LIBRARY_DEFINITIONS' } }, '*');
+        });
+      }
+
+
+
+    // Back navigation event listeners with defensive checks
+    const backElements = [
+      { id: 'backToScan', view: 'scanView' },
+      { id: 'backToScanFromConfig', view: 'scanView' },
+      { id: 'backToLibraries', view: 'libraryView' },
+      { id: 'backToScanFromLibraries', view: 'scanView' },
+      { id: 'backToScanFromComponents', view: 'scanView' },
+      { id: 'backToScanFromStyleLibraries', view: 'scanView' },
+      { id: 'backToScanFromStyleLibrariesBtn', view: 'scanView' },
+      { id: 'backToStyleLibraries', view: 'styleLibraryView' },
+      { id: 'backToScanFromStyles', view: 'scanView' },
+      { id: 'backToScanFromUnified', view: 'scanView' }
+    ];
+
+    backElements.forEach(({ id, view }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('click', () => {
+          showView(view);
+        });
+      }
+    });
+
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      const backToScanFromSettingsBtn = document.getElementById('backToScanFromSettings');
+      if (backToScanFromSettingsBtn) {
+        backToScanFromSettingsBtn.addEventListener('click', () => {
+          console.log('Back to scan from settings clicked');
+          showView('scanView');
+        });
+        console.log('Settings back button event listener added successfully');
+      } else {
+        console.error('backToScanFromSettings button not found');
+      }
+    }, 100);
+
+    document.getElementById('showUserConfigBtn').addEventListener('click', () => {
+      showConfigSection('user');
+    });
+
+    document.getElementById('showTeamConfigBtn').addEventListener('click', () => {
+      showConfigSection('team');
+    });
+
+    document.getElementById('showOrgConfigBtn').addEventListener('click', () => {
+      showConfigSection('org');
+    });
+
+    // Simplified config management
+    document.getElementById('addUserLibraryBtn').addEventListener('click', () => {
+      alert('User library configuration is simplified in this version. The plugin uses hardcoded Shark and Monkey libraries.');
+    });
+
+    document.getElementById('saveUserLibrariesBtn').addEventListener('click', () => {
+      alert('Configuration saved (using hardcoded libraries).');
+    });
+
+    document.getElementById('clearUserLibrariesBtn').addEventListener('click', () => {
+      if (confirm('Clear all user libraries?')) {
+        alert('User libraries cleared (using hardcoded libraries).');
+      }
+    });
+
+    document.getElementById('addTeamLibraryBtn').addEventListener('click', () => {
+      alert('Team library configuration is simplified in this version. The plugin uses hardcoded Shark and Monkey libraries.');
+    });
+
+    document.getElementById('saveTeamLibrariesBtn').addEventListener('click', () => {
+      alert('Configuration saved (using hardcoded libraries).');
+    });
+
+    document.getElementById('clearTeamLibrariesBtn').addEventListener('click', () => {
+      if (confirm('Clear all team libraries?')) {
+        alert('Team libraries cleared (using hardcoded libraries).');
+      }
+    });
+
+    // Swap modal event listeners
+    document.getElementById('cancelSwapBtn').addEventListener('click', () => {
+      closeSwapModal();
+    });
+
+    document.getElementById('confirmSwapBtn').addEventListener('click', () => {
+      performSwap();
+    });
+
+    // Main swap button event listener
+    document.getElementById('swapLibraryBtn').addEventListener('click', () => {
+      if (!unifiedData || !unifiedData.components) {
+        alert('No scan results available. Please scan a frame before swapping.');
+        return;
+      }
+      performLibrarySwap(unifiedData);
+    });
+    
+    // Close the initialize function and call it
+    }
+    
+    // Initialize all event listeners when DOM is ready
+    initializeEventListeners();
+  </script>
+</body>
+</html>
