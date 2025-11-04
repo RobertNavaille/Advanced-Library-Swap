@@ -1257,6 +1257,49 @@
       
       // Add Tokens as color styles
       if (data.tokens && data.tokens.length > 0) {
+        // Collect all target color requests
+        const targetColorRequests = data.tokens.map(token => ({
+          token,
+          styleName: token.name
+        }));
+
+        // Create a map to store target colors as they arrive
+        const targetColors = new Map();
+        let receivedCount = 0;
+
+        // Set up message handler for all target color responses
+        const messageHandler = (event) => {
+          if (event.data.pluginMessage?.type === 'TARGET_COLOR_RESULT') {
+            const { tokenId, color } = event.data.pluginMessage;
+            targetColors.set(tokenId, color);
+            receivedCount++;
+
+            // Update the corresponding swatch
+            const mappingItems = mappingsContainer.querySelectorAll('.mapping-item');
+            mappingItems.forEach(item => {
+              const targetSwatch = item.querySelector('.target-color-swatch');
+              if (targetSwatch && targetSwatch.dataset.tokenId === tokenId && color) {
+                targetSwatch.style.backgroundColor = color;
+              }
+            });
+          }
+        };
+        window.addEventListener('message', messageHandler);
+
+        // Request all target colors
+        targetColorRequests.forEach(({ token, styleName }) => {
+          parent.postMessage({ 
+            pluginMessage: { 
+              type: 'GET_TARGET_COLOR', 
+              tokenId: token.id,
+              styleName: styleName,
+              sourceLibrary: sourceLibraryName,
+              targetLibrary: targetLibraryName
+            } 
+          }, '*');
+        });
+
+        // Render all tokens immediately with source colors
         data.tokens.forEach((token, index) => {
           const mappingItem = document.createElement('div');
           mappingItem.className = 'mapping-item';
@@ -1276,7 +1319,7 @@
             </svg>
             <div class="mapping-right">
               <div class="component-info">
-                <div class="color-swatch" style="background-color: ${token.value || '#E74C3C'};"></div>
+                <div class="color-swatch target-color-swatch" data-token-id="${token.id}" style="background-color: ${token.value || '#E74C3C'};"></div>
                 <div class="component-details">
                   <span class="component-name">${token.name}</span>
                   <span class="component-library target-library">${targetLibraryName}</span>
@@ -1286,6 +1329,11 @@
           `;
           mappingsContainer.appendChild(mappingItem);
         });
+
+        // Clean up listener after timeout
+        setTimeout(() => {
+          window.removeEventListener('message', messageHandler);
+        }, 2000);
       }
       
       // If no components or tokens found, show placeholder

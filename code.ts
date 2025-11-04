@@ -52,6 +52,12 @@ figma.ui.onmessage = async (msg: any) => {
     case 'PERFORM_LIBRARY_SWAP':
       await performLibrarySwap(msg.components, msg.styles, msg.sourceLibrary, msg.targetLibrary);
       break;
+    case 'GET_TARGET_COLOR':
+      await getTargetColor(msg.tokenId, msg.styleName, msg.sourceLibrary, msg.targetLibrary);
+      break;
+    case 'UPDATE_LIBRARY_DEFINITIONS':
+      await syncLibraryDefinitions();
+      break;
     case 'SHOW_NATIVE_TOAST':
       figma.notify(msg.message || 'Swap completed successfully!');
       break;
@@ -217,9 +223,105 @@ function getColorValue(paint: Paint): string {
   return '#000000';
 }
 
+// Get target color for UI display
+async function getTargetColor(tokenId: string, styleName: string, sourceLibrary: string, targetLibrary: string): Promise<void> {
+  console.log(`🎨 Getting target color for: ${styleName}, from ${sourceLibrary} to ${targetLibrary}`);
+  
+  function normalizeLibraryName(name: string): string {
+    if (name.toLowerCase().includes('shark')) return 'Shark';
+    if (name.toLowerCase().includes('monkey')) return 'Monkey';
+    return name;
+  }
+  
+  const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
+  const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+  
+  console.log(`📍 Target library: ${normalizedTargetLibrary}, Style key: ${targetStyleKey}`);
+  
+  if (targetStyleKey) {
+    try {
+      const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+      console.log(`✅ Imported style: ${targetStyle?.name}, type: ${targetStyle?.type}`);
+      
+      if (targetStyle && targetStyle.type === 'PAINT' && targetStyle.paints.length > 0) {
+        const color = getColorValue(targetStyle.paints[0]);
+        console.log(`🎨 Target color: ${color}`);
+        figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color });
+        return;
+      }
+    } catch (err) {
+      console.warn(`❌ Failed to get target color for ${styleName}:`, err);
+    }
+  } else {
+    console.warn(`❌ No style key found for ${styleName} in ${normalizedTargetLibrary}`);
+  }
+  
+  // Fallback: return null if target not found
+  figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color: null });
+}
+
 // Library swap stub
 function handleSwapLibrary(libraryId: string): void {
   figma.ui.postMessage({ type: 'swap-complete', message: 'Library swap completed successfully' });
+}
+
+// Sync library definitions - outputs keys for local components and styles
+async function syncLibraryDefinitions(): Promise<void> {
+  console.log('🔄 Syncing library definitions...');
+  
+  const components: { name: string; key: string }[] = [];
+  const styles: { name: string; key: string; type: string }[] = [];
+  
+  // Load all pages first
+  await figma.loadAllPagesAsync();
+  
+  // Get all local components from current page only (more practical)
+  const localComponents = figma.currentPage.findAll(node => node.type === 'COMPONENT') as ComponentNode[];
+  for (const comp of localComponents) {
+    if (comp.key) {
+      components.push({ name: comp.name, key: comp.key });
+    }
+  }
+  
+  // Get all local styles
+  const localStyles = await figma.getLocalPaintStylesAsync();
+  for (const style of localStyles) {
+    if (style.key) {
+      styles.push({ name: style.name, key: style.key, type: 'PAINT' });
+    }
+  }
+  
+  const localTextStyles = await figma.getLocalTextStylesAsync();
+  for (const style of localTextStyles) {
+    if (style.key) {
+      styles.push({ name: style.name, key: style.key, type: 'TEXT' });
+    }
+  }
+  
+  const localEffectStyles = await figma.getLocalEffectStylesAsync();
+  for (const style of localEffectStyles) {
+    if (style.key) {
+      styles.push({ name: style.name, key: style.key, type: 'EFFECT' });
+    }
+  }
+  
+  // Output to console for easy copying
+  console.log('\n📦 COMPONENT KEYS:');
+  components.forEach(comp => {
+    console.log(`  '${comp.name}': '${comp.key}',`);
+  });
+  
+  console.log('\n🎨 STYLE KEYS:');
+  styles.forEach(style => {
+    console.log(`  '${style.name}': '${style.key}', // ${style.type}`);
+  });
+  
+  figma.notify(`Found ${components.length} components and ${styles.length} styles. Check console for keys.`);
+  figma.ui.postMessage({ 
+    type: 'SYNC_COMPLETE', 
+    components: components.length, 
+    styles: styles.length 
+  });
 }
 
 // Helper: Recursively find all instances by name and library
