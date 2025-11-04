@@ -16,6 +16,7 @@ interface TokenInfo {
   name: string;
   type: 'color' | 'typography' | 'spacing' | 'effect';
   value: string;
+  library?: string;
 }
 
 // Show the UI
@@ -127,11 +128,28 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
 
 // Scan a node for style tokens
 async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<void> {
+  console.log(`🔍 Scanning node: ${node.name} (type: ${node.type})`);
   if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
     try {
       const paintStyle = await figma.getStyleByIdAsync(node.fillStyleId);
       if (paintStyle && paintStyle.type === 'PAINT') {
-        const tokenInfo: TokenInfo = { id: paintStyle.id, name: paintStyle.name, type: 'color', value: getColorValue(paintStyle.paints[0]) };
+        console.log(`🎨 Found paint style: ${paintStyle.name}, key: ${paintStyle.key}`);
+        // Determine library from style key
+        let library = 'Unknown';
+        for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
+          for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
+            if (STYLE_KEY_MAPPING[libName][styleName] === paintStyle.key) {
+              library = libName;
+              console.log(`✅ Matched style key to library: ${library}`);
+              break;
+            }
+          }
+          if (library !== 'Unknown') break;
+        }
+        if (library === 'Unknown') {
+          console.log(`❌ No match found for style key: ${paintStyle.key}`);
+        }
+        const tokenInfo: TokenInfo = { id: paintStyle.id, name: paintStyle.name, type: 'color', value: getColorValue(paintStyle.paints[0]), library };
         if (!tokens.find(t => t.id === tokenInfo.id)) tokens.push(tokenInfo);
       }
     } catch {}
@@ -140,7 +158,23 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
     try {
       const textStyle = await figma.getStyleByIdAsync(node.textStyleId);
       if (textStyle && textStyle.type === 'TEXT') {
-        const tokenInfo: TokenInfo = { id: textStyle.id, name: textStyle.name, type: 'typography', value: `${textStyle.fontSize}px ${textStyle.fontName?.family || 'Unknown'}` };
+        console.log(`📝 Found text style: ${textStyle.name}, key: ${textStyle.key}`);
+        // Determine library from style key
+        let library = 'Unknown';
+        for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
+          for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
+            if (STYLE_KEY_MAPPING[libName][styleName] === textStyle.key) {
+              library = libName;
+              console.log(`✅ Matched style key to library: ${library}`);
+              break;
+            }
+          }
+          if (library !== 'Unknown') break;
+        }
+        if (library === 'Unknown') {
+          console.log(`❌ No match found for style key: ${textStyle.key}`);
+        }
+        const tokenInfo: TokenInfo = { id: textStyle.id, name: textStyle.name, type: 'typography', value: `${textStyle.fontSize}px ${textStyle.fontName?.family || 'Unknown'}`, library };
         if (!tokens.find(t => t.id === tokenInfo.id)) tokens.push(tokenInfo);
       }
     } catch {}
@@ -149,7 +183,23 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
     try {
       const effectStyle = await figma.getStyleByIdAsync(node.effectStyleId);
       if (effectStyle && effectStyle.type === 'EFFECT') {
-        const tokenInfo: TokenInfo = { id: effectStyle.id, name: effectStyle.name, type: 'effect', value: 'Effect style' };
+        console.log(`✨ Found effect style: ${effectStyle.name}, key: ${effectStyle.key}`);
+        // Determine library from style key
+        let library = 'Unknown';
+        for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
+          for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
+            if (STYLE_KEY_MAPPING[libName][styleName] === effectStyle.key) {
+              library = libName;
+              console.log(`✅ Matched style key to library: ${library}`);
+              break;
+            }
+          }
+          if (library !== 'Unknown') break;
+        }
+        if (library === 'Unknown') {
+          console.log(`❌ No match found for style key: ${effectStyle.key}`);
+        }
+        const tokenInfo: TokenInfo = { id: effectStyle.id, name: effectStyle.name, type: 'effect', value: 'Effect style', library };
         if (!tokens.find(t => t.id === tokenInfo.id)) tokens.push(tokenInfo);
       }
     } catch {}
@@ -197,6 +247,87 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
     }
   }
   return found;
+}
+
+// Recursively swap styles in a node and its children
+async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrary: string, targetLibrary: string): Promise<number> {
+  let swapCount = 0;
+
+  // Get the source and target style keys
+  const sourceStyleKey = STYLE_KEY_MAPPING[sourceLibrary]?.[styleName];
+  const targetStyleKey = STYLE_KEY_MAPPING[targetLibrary]?.[styleName];
+
+  if (!sourceStyleKey || !targetStyleKey) {
+    console.warn(`Style mapping not found for '${styleName}' between ${sourceLibrary} and ${targetLibrary}`);
+    return 0;
+  }
+
+  // Check if this node uses the source style
+  try {
+    // Handle fill/paint styles
+    if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
+      const currentStyle = await figma.getStyleByIdAsync(node.fillStyleId);
+      if (currentStyle && currentStyle.key === sourceStyleKey) {
+        // Import and apply the target style
+        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+        if (targetStyle && targetStyle.type === 'PAINT') {
+          await node.setFillStyleIdAsync(targetStyle.id);
+          swapCount++;
+          console.log(`✅ Swapped fill style '${styleName}' on ${node.type}`);
+        }
+      }
+    }
+
+    // Handle stroke styles
+    if ('strokeStyleId' in node && node.strokeStyleId && typeof node.strokeStyleId === 'string') {
+      const currentStyle = await figma.getStyleByIdAsync(node.strokeStyleId);
+      if (currentStyle && currentStyle.key === sourceStyleKey) {
+        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+        if (targetStyle && targetStyle.type === 'PAINT') {
+          await node.setStrokeStyleIdAsync(targetStyle.id);
+          swapCount++;
+          console.log(`✅ Swapped stroke style '${styleName}' on ${node.type}`);
+        }
+      }
+    }
+
+    // Handle text styles
+    if ('textStyleId' in node && node.textStyleId && typeof node.textStyleId === 'string') {
+      const currentStyle = await figma.getStyleByIdAsync(node.textStyleId);
+      if (currentStyle && currentStyle.key === sourceStyleKey) {
+        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+        if (targetStyle && targetStyle.type === 'TEXT') {
+          await node.setTextStyleIdAsync(targetStyle.id);
+          swapCount++;
+          console.log(`✅ Swapped text style '${styleName}' on ${node.type}`);
+        }
+      }
+    }
+
+    // Handle effect styles
+    if ('effectStyleId' in node && node.effectStyleId && typeof node.effectStyleId === 'string') {
+      const currentStyle = await figma.getStyleByIdAsync(node.effectStyleId);
+      if (currentStyle && currentStyle.key === sourceStyleKey) {
+        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+        if (targetStyle && targetStyle.type === 'EFFECT') {
+          await node.setEffectStyleIdAsync(targetStyle.id);
+          swapCount++;
+          console.log(`✅ Swapped effect style '${styleName}' on ${node.type}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`Error swapping style on node:`, err);
+  }
+
+  // Recursively process children
+  if ('children' in node && node.children) {
+    for (const child of node.children) {
+      swapCount += await swapStylesInNode(child, styleName, sourceLibrary, targetLibrary);
+    }
+  }
+
+  return swapCount;
 }
 
 // Add detailed swap logic for PERFORM_LIBRARY_SWAP
@@ -256,18 +387,37 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
     }
   }
 
-  if (totalInstancesFound === 0 && errorCount === 0) {
-    figma.ui.postMessage({ type: 'swap-error', message: 'No matching component instances found in selection.', details: [] });
-    console.error('Swap error: No matching component instances found in selection.');
+  // Handle style swapping
+  let styleSwapCount = 0;
+  for (const style of styles) {
+    try {
+      const selection = figma.currentPage.selection;
+      for (const node of selection) {
+        if (node.type === 'FRAME' || node.type === 'GROUP') {
+          const styleSwaps = await swapStylesInNode(node, style.name, normalizedSourceLibrary, normalizedTargetLibrary);
+          styleSwapCount += styleSwaps;
+        }
+      }
+    } catch (err) {
+      errorDetails.push(`Error swapping style '${style.name}': ${err instanceof Error ? err.message : err}`);
+      errorCount++;
+    }
+  }
+
+  // Check if nothing was swapped
+  const totalSwapped = swapCount + styleSwapCount;
+  if (totalSwapped === 0 && errorCount === 0) {
+    figma.ui.postMessage({ type: 'swap-error', message: 'No matching component instances or styles found in selection.', details: [] });
+    console.error('Swap error: No matching items found in selection.');
     return;
   }
 
   if (errorCount > 0) {
-    figma.ui.postMessage({ type: 'swap-error', message: `Swap completed with ${errorCount} errors.`, details: errorDetails });
+    figma.ui.postMessage({ type: 'swap-error', message: `Swap completed with ${errorCount} errors. ${totalSwapped} items swapped.`, details: errorDetails });
     console.error('Swap error details:', errorDetails);
   } else {
-    figma.ui.postMessage({ type: 'swap-complete', message: `Swap completed successfully! ${swapCount} instances swapped.` });
-    figma.notify(`Swap completed successfully! ${swapCount} instances swapped.`);
+    figma.ui.postMessage({ type: 'swap-complete', message: `Swap completed successfully! ${swapCount} components and ${styleSwapCount} styles swapped.` });
+    figma.notify(`Swap completed! ${swapCount} components and ${styleSwapCount} styles swapped.`);
   }
 }
 

@@ -1161,20 +1161,22 @@
       // Update library header with actual library names and determine mapping direction
       const libraryHeader = scanResultsView.querySelector('.library-mapping-header');
       if (libraryHeader) {
-        // Get unique source libraries from components
-        const sourceLibraries = [...new Set(data.components.map(c => c.library))];
-        const sourceLibraryName = sourceLibraries.length > 0 ? sourceLibraries[0] : 'Source Library';
+        // Get unique source libraries from components and tokens
+        const componentLibraries = [...new Set(data.components.map(c => c.library))];
+        const tokenLibraries = data.tokens ? [...new Set(data.tokens.map(t => t.library).filter(l => l))] : [];
+        const allLibraries = [...new Set([...componentLibraries, ...tokenLibraries])];
+        const sourceLibraryName = allLibraries.length > 0 ? allLibraries[0] : 'Source Library';
         
         // Determine target library based on source (Shark ↔ Monkey mapping)
         let targetLibraryName = 'Target Library';
         if (sourceLibraryName.toLowerCase().includes('shark')) {
-          targetLibraryName = 'Monkey Library';
+          targetLibraryName = 'Monkey';
         } else if (sourceLibraryName.toLowerCase().includes('monkey')) {
-          targetLibraryName = 'Shark Library';
+          targetLibraryName = 'Shark';
         } else {
           // If source is neither Shark nor Monkey, default to the opposite of what we detect
           targetLibraryName = sourceLibraryName.toLowerCase().includes('library') ? 
-            (sourceLibraryName.toLowerCase().includes('shark') ? 'Monkey Library' : 'Shark Library') : 
+            (sourceLibraryName.toLowerCase().includes('shark') ? 'Monkey' : 'Shark') : 
             'Target Library';
         }
         
@@ -1197,13 +1199,16 @@
       // Clear existing content and rebuild
       mappingsContainer.innerHTML = '';
       
-      // Determine target library name for components
-      const sourceLibraryName = data.components.length > 0 ? data.components[0].library : '';
+      // Determine target library name for components and tokens
+      const componentLibraries = data.components.length > 0 ? [...new Set(data.components.map(c => c.library))] : [];
+      const tokenLibraries = data.tokens ? [...new Set(data.tokens.map(t => t.library).filter(l => l))] : [];
+      const allSourceLibraries = [...new Set([...componentLibraries, ...tokenLibraries])];
+      const sourceLibraryName = allSourceLibraries.length > 0 ? allSourceLibraries[0] : '';
       let targetLibraryName = 'Target Library';
       if (sourceLibraryName.toLowerCase().includes('shark')) {
-        targetLibraryName = 'Monkey Library';
+        targetLibraryName = 'Monkey';
       } else if (sourceLibraryName.toLowerCase().includes('monkey')) {
-        targetLibraryName = 'Shark Library';
+        targetLibraryName = 'Shark';
       }
 
       // Add Components (deduplicated by variant name)

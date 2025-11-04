@@ -14,11 +14,11 @@ export const COMPONENT_KEY_MAPPING: Record<string, Record<string, string>> = {
 
 export const STYLE_KEY_MAPPING: Record<string, Record<string, string>> = {
   'Shark': {
-    'Background': 'S:d229a7e81e7a05731f1eaa36470abf5a4fae9bf2',
-    'Primary': 'S:82e40649545abfa72bf66cdd4b2f3796dd69a466',
+    'Background': 'd229a7e81e7a05731f1eaa36470abf5a4fae9bf2',
+    'Primary': '82e40649545abfa72bf66cdd4b2f3796dd69a466',
   },
   'Monkey': {
-    'Primary': 'S:ff2ac86fbfdde699eea044a240b1eeacf96d8a4e',
-    'Background': 'S:5c7e364fb93f9409be83e7b52d90bb2fe4663777',
+    'Primary': 'ff2ac86fbfdde699eea044a240b1eeacf96d8a4e',
+    'Background': '5c7e364fb93f9409be83e7b52d90bb2fe4663777',
   },
 };
