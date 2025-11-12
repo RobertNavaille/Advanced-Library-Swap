@@ -330,11 +330,15 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
   if (node.type === 'INSTANCE') {
     try {
       const mainComponent = await node.getMainComponentAsync();
-      if (mainComponent && mainComponent.name === name) {
-        // Check if instance belongs to the source library
-        for (const lib in COMPONENT_KEY_MAPPING) {
-          if (lib === library && COMPONENT_KEY_MAPPING[lib][name] === mainComponent.key) {
-            found.push(node);
+      if (mainComponent) {
+        console.log(`🔍 Found instance: ${mainComponent.name}, key: ${mainComponent.key}, looking for: ${name} in ${library}`);
+        if (mainComponent.name === name) {
+          // Check if instance belongs to the source library
+          for (const lib in COMPONENT_KEY_MAPPING) {
+            if (lib === library && COMPONENT_KEY_MAPPING[lib][name] === mainComponent.key) {
+              console.log(`✅ Match found! Adding instance.`);
+              found.push(node);
+            }
           }
         }
       }
