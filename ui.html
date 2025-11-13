@@ -60,12 +60,12 @@
     /* Base Styles */
     body { 
       font: var(--figma-font-size-12)/var(--figma-line-height-16) var(--figma-font-family); 
-      margin: var(--figma-space-16); 
+      margin: 0; 
       background: var(--figma-color-bg);
       color: var(--figma-color-text);
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 32px);
+      height: 100vh;
     }
     
     h1 { 
@@ -134,7 +134,7 @@
     
     .library-item, .component-item { 
       padding: var(--figma-space-12); 
-      margin: var(--figma-space-4) 0; 
+      margin: var(--figma-space-4) var(--figma-space-16); 
       background: var(--figma-color-bg); 
       border: 1px solid var(--figma-color-border); 
       border-radius: var(--figma-radius-6); 
@@ -485,7 +485,6 @@
     
     .search-icon {
       color: var(--figma-color-icon-secondary);
-      margin-right: var(--figma-space-8);
       flex-shrink: 0;
     }
     
@@ -503,10 +502,77 @@
       color: var(--figma-color-text-tertiary);
     }
     
-    .search-controls {
-      color: var(--figma-color-icon-secondary);
-      margin-left: var(--figma-space-8);
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: var(--figma-space-8);
+      border-bottom: 1px solid var(--figma-color-border);
+      margin-bottom: var(--figma-space-16);
+      padding: var(--figma-space-16);
+    }
+    
+    .search-input-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: var(--figma-color-bg-secondary);
+      height: 24px;
+      padding: 0;
+    }
+    
+    .search-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--figma-color-icon);
       flex-shrink: 0;
+    }
+    
+    .search-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 450;
+      line-height: 16px;
+      color: var(--figma-color-text);
+      font-family: var(--figma-font-family);
+      padding: 0;
+      margin: 0;
+    }
+    
+    .search-input::placeholder {
+      color: var(--figma-color-text-tertiary);
+    }
+    
+    .filter-button {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--figma-color-icon);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+      border-radius: var(--figma-radius-4);
+      transition: background 0.075s ease;
+      box-shadow: none;
+    }
+    
+    .filter-button:hover {
+      background: var(--color-bg-hover, #f5f5f5);
+      box-shadow: none;
     }
     
     .library-mapping-header {
@@ -541,6 +607,7 @@
       gap: 12px;
       padding: 16px var(--figma-space-16);
       border-bottom: 1px solid var(--figma-color-border);
+      margin: 0 var(--figma-space-16);
     }
     
     .mapping-item:hover {
@@ -916,17 +983,19 @@
     <!-- Search Bar -->
     <div class="search-container">
       <div class="search-input-wrapper">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M7.25 2.5C4.90279 2.5 3 4.40279 3 6.75C3 9.09721 4.90279 11 7.25 11C8.44555 11 9.52628 10.5047 10.3003 9.72656L13.287 12.7133C13.4124 12.8387 13.5876 12.8387 13.713 12.7133C13.8384 12.5879 13.8384 12.4121 13.713 12.2867L10.7262 9.30005C11.5047 8.52628 12 7.44555 12 6.75C12 4.40279 10.0972 2.5 7.25 2.5ZM7.25 3.5C9.54493 3.5 11 4.95507 11 6.75C11 8.54493 9.54493 10 7.25 10C4.95507 10 3.5 8.54493 3.5 6.75C3.5 4.95507 4.95507 3.5 7.25 3.5Z" fill="currentColor"/>
-        </svg>
-        <input type="text" class="search-input" placeholder="Search">
-        <div class="search-controls">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M3 6.5C3 6.22386 3.22386 6 3.5 6H12.5C12.7761 6 13 6.22386 13 6.5C13 6.77614 12.7761 7 12.5 7H3.5C3.22386 7 3 6.77614 3 6.5Z" fill="currentColor"/>
-            <path d="M5 9.5C5 9.22386 5.22386 9 5.5 9H10.5C10.7761 9 11 9.22386 11 9.5C11 9.77614 10.7761 10 10.5 10H5.5C5.22386 10 5 9.77614 5 9.5Z" fill="currentColor"/>
+        <div class="search-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M15 10.5C15 12.9853 12.9853 15 10.5 15C8.01472 15 6 12.9853 6 10.5C6 8.01475 8.01472 6.00003 10.5 6.00003C12.9853 6.00003 15 8.01475 15 10.5ZM14.0444 14.7058C13.0872 15.5133 11.8504 16 10.5 16C7.46243 16 5 13.5376 5 10.5C5 7.46246 7.46243 5.00003 10.5 5.00003C13.5376 5.00003 16 7.46246 16 10.5C16 11.8503 15.5134 13.087 14.706 14.0442C14.7596 14.0683 14.8098 14.1024 14.8538 14.1465L17.8538 17.1465C18.0491 17.3417 18.0491 17.6583 17.8538 17.8536C17.6585 18.0488 17.342 18.0488 17.1467 17.8536L14.1467 14.8536C14.1027 14.8095 14.0686 14.7594 14.0444 14.7058Z" fill="currentColor" fill-opacity="0.9"/>
           </svg>
         </div>
+        <input type="text" class="search-input" placeholder="Search">
       </div>
+      <button class="filter-button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M8 18.5C8 18.7761 8.22386 19 8.5 19C8.77614 19 9 18.7761 9 18.5V11.95C10.1411 11.7183 11 10.7094 11 9.49997C11 8.29049 10.1411 7.28161 9 7.04998V5.49997C9 5.22383 8.77614 4.99997 8.5 4.99997C8.22386 4.99997 8 5.22383 8 5.49997V7.04998C6.85888 7.28161 6 8.29049 6 9.49997C6 10.7094 6.85888 11.7183 8 11.95V18.5ZM7 9.49997C7 10.3284 7.67157 11 8.5 11C9.32843 11 10 10.3284 10 9.49997C10 8.67154 9.32843 7.99997 8.5 7.99997C7.67157 7.99997 7 8.67154 7 9.49997Z" fill="currentColor" fill-opacity="0.9"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M15 5.49997C15 5.22383 15.2239 4.99997 15.5 4.99997C15.7761 4.99997 16 5.22383 16 5.49997V12.05C17.1411 12.2816 18 13.2905 18 14.5C18 15.7094 17.1411 16.7183 16 16.95V18.5C16 18.7761 15.7761 19 15.5 19C15.2239 19 15 18.7761 15 18.5V16.95C13.8589 16.7183 13 15.7094 13 14.5C13 13.2905 13.8589 12.2816 15 12.05V5.49997ZM14 14.5C14 13.6715 14.6716 13 15.5 13C16.3284 13 17 13.6715 17 14.5C17 15.3284 16.3284 16 15.5 16C14.6716 16 14 15.3284 14 14.5Z" fill="currentColor" fill-opacity="0.9"/>
+        </svg>
+      </button>
     </div>
     
     <!-- Library Mapping Header -->
