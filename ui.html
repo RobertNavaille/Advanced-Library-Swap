@@ -578,28 +578,114 @@
     .library-mapping-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: var(--figma-space-20);
       margin-bottom: var(--figma-space-16);
-      padding: 0 var(--figma-space-4);
+      padding: 0 var(--figma-space-16);
+    }
+    
+    .header-row-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      min-height: 1px;
+      min-width: 1px;
+    }
+    
+    .header-source-label,
+    .header-target-label {
+      flex-basis: 0;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 1px;
+      min-width: 1px;
+      flex-shrink: 0;
     }
     
     .library-name {
       font-size: var(--figma-font-size-11);
-      font-weight: var(--figma-font-weight-medium);
+      font-weight: 450;
       color: var(--figma-color-text-secondary);
+      font-family: var(--figma-font-family);
+      line-height: 16px;
+      letter-spacing: 0.055px;
+      flex-shrink: 0;
+    }
+    
+    .header-spacer {
+      width: 16px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    
+    .header-arrow-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      overflow: hidden;
     }
     
     .arrow-icon {
       color: var(--figma-color-icon-tertiary);
       flex-shrink: 0;
+      width: 24px;
+      height: 24px;
     }
     
-    .component-mappings {
-      flex: 1;
-      overflow-y: auto;
-      margin-left: calc(-1 * var(--figma-space-16));
-      margin-right: calc(-1 * var(--figma-space-16));
+    .scan-heading-row {
+      display: flex;
+      gap: var(--figma-space-20);
+      align-items: center;
+      width: 100%;
+      padding-left: var(--figma-space-16);
+      padding-right: var(--figma-space-16);
     }
+
+    .row-content {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      min-height: 1px;
+      gap: var(--figma-space-8);
+    }
+
+    .header-label {
+      display: flex;
+      flex: 1;
+      gap: var(--figma-space-8);
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 1px;
+    }
+
+    .header-label-text {
+      font-family: 'Inter', sans-serif;
+      font-weight: 450;
+      font-size: 11px;
+      line-height: 16px;
+      color: var(--figma-color-text-tertiary);
+      width: auto;
+      flex-shrink: 0;
+    }
+
+    .header-spacer {
+      width: 16px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .header-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     
     .mapping-item {
       display: flex;
@@ -607,7 +693,6 @@
       gap: 12px;
       padding: 16px var(--figma-space-16);
       border-bottom: 1px solid var(--figma-color-border);
-      margin: 0 var(--figma-space-16);
     }
     
     .mapping-item:hover {
@@ -998,13 +1083,22 @@
       </button>
     </div>
     
-    <!-- Library Mapping Header -->
-    <div class="library-mapping-header">
-      <span class="library-name">Monkey library</span>
-      <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="library-name">Shark library</span>
+    <!-- Scan Heading Row -->
+    <div class="scan-heading-row">
+      <div class="row-content">
+        <div class="header-label">
+          <div class="header-label-text" id="source-library-label"></div>
+        </div>
+        <div class="header-spacer"></div>
+        <div class="header-icon">
+          <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M14 6L19 11L14 16M5 11H19" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="header-label">
+          <div class="header-label-text" id="target-library-label"></div>
+        </div>
+      </div>
     </div>
     
     <!-- Component Mappings -->
@@ -1301,8 +1395,9 @@
       }
       
       // Update library header with actual library names and determine mapping direction
-      const libraryHeader = scanResultsView.querySelector('.library-mapping-header');
-      if (libraryHeader) {
+      const sourceLibraryLabel = document.getElementById('source-library-label');
+      const targetLibraryLabel = document.getElementById('target-library-label');
+      if (sourceLibraryLabel && targetLibraryLabel) {
         // Get unique source libraries from components and tokens
         const componentLibraries = [...new Set(data.components.map(c => c.library))];
         const tokenLibraries = data.tokens ? [...new Set(data.tokens.map(t => t.library).filter(l => l))] : [];
@@ -1322,13 +1417,8 @@
             'Target Library';
         }
         
-        libraryHeader.innerHTML = `
-          <span class="library-name">${sourceLibraryName}</span>
-          <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="library-name">${targetLibraryName}</span>
-        `;
+        sourceLibraryLabel.textContent = sourceLibraryName;
+        targetLibraryLabel.textContent = targetLibraryName;
       }
       
       // Find the component mappings container
@@ -1869,17 +1959,18 @@
       const stylesToSwap = [];
       console.log('Found mapping items:', mappingItems.length);
       
-      // Get the source and target library names from the header span elements
-      const libraryNameElements = document.querySelectorAll('.library-mapping-header .library-name');
-      console.log('Library name elements:', libraryNameElements);
+      // Get the source and target library names from the header labels
+      const sourceLibraryLabel = document.getElementById('source-library-label');
+      const targetLibraryLabel = document.getElementById('target-library-label');
+      console.log('Library label elements:', sourceLibraryLabel, targetLibraryLabel);
       
-      if (libraryNameElements.length < 2) {
+      if (!sourceLibraryLabel || !targetLibraryLabel) {
         alert('Unable to find source and target library names in header');
         return;
       }
       
-      const sourceLibrary = libraryNameElements[0].textContent?.trim();
-      const targetLibrary = libraryNameElements[1].textContent?.trim();
+      const sourceLibrary = sourceLibraryLabel.textContent?.trim();
+      const targetLibrary = targetLibraryLabel.textContent?.trim();
       
       console.log('Extracted source library:', sourceLibrary);
       console.log('Extracted target library:', targetLibrary);
