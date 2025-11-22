@@ -80,6 +80,10 @@
     #scanResultsView h1 {
       justify-content: space-between;
     }
+
+    #scanResultsView.view.active {
+      padding-bottom: 40px;
+    }
     
     .back-btn { 
       background: none; 
@@ -643,21 +647,27 @@
       padding-right: var(--figma-space-16);
     }
 
-    .row-content {
+    .scan-heading-row .row-content {
       display: flex;
       flex: 1;
+      flex-basis: 0;
       align-items: center;
+      gap: var(--figma-space-20);
       min-height: 1px;
-      gap: var(--figma-space-8);
     }
 
     .header-label {
       display: flex;
       flex: 1;
+      flex-basis: 0;
       gap: var(--figma-space-8);
       align-items: center;
       justify-content: flex-start;
       min-height: 1px;
+    }
+
+    .scan-heading-row .row-content .header-label:first-child {
+      padding-right: 26px;
     }
 
     .header-label-text {
@@ -665,13 +675,13 @@
       font-weight: 450;
       font-size: 11px;
       line-height: 16px;
-      color: var(--figma-color-text-tertiary);
+      color: var(--figma-color-text-secondary);
       width: auto;
       flex-shrink: 0;
     }
 
     .header-spacer {
-      width: 16px;
+      width: 28px;
       height: 24px;
       flex-shrink: 0;
     }
@@ -735,7 +745,7 @@
       background-size: contain;
     }
     
-    .row-content {
+    .mapping-item .row-content {
       display: flex;
       align-items: center;
       gap: 12px;
@@ -845,21 +855,34 @@
     }
     
     .swap-button-container {
-      padding-top: var(--figma-space-16);
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--figma-color-bg);
       border-top: 1px solid var(--figma-color-border);
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      z-index: 100;
+      height: 32px;
     }
     
     .swap-library-btn {
-      width: 100%;
-      height: 32px;
+      height: 24px;
       background: var(--figma-color-bg-brand);
       color: var(--figma-color-text-onbrand);
       border: none;
       border-radius: var(--figma-radius-6);
       font-size: var(--figma-font-size-11);
-      font-weight: 400;
+      font-weight: var(--figma-font-weight-medium);
       font-family: var(--figma-font-family);
+      line-height: 16px;
       cursor: pointer;
+      padding: 0 8px;
+      white-space: nowrap;
+      width: auto;
     }
     
     .swap-library-btn:hover {
@@ -1088,12 +1111,6 @@
       <div class="row-content">
         <div class="header-label">
           <div class="header-label-text" id="source-library-label"></div>
-        </div>
-        <div class="header-spacer"></div>
-        <div class="header-icon">
-          <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M14 6L19 11L14 16M5 11H19" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
         </div>
         <div class="header-label">
           <div class="header-label-text" id="target-library-label"></div>
