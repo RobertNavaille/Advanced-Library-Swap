@@ -1999,8 +1999,13 @@
       }
       
       // Collect all checked items
-      // Check components that have checkboxes checked
+      // Check components that have checkboxes checked AND are visible (not hidden by search)
       mappingItems.forEach(item => {
+        // Skip hidden items (filtered by search)
+        if (item.style.display === 'none') {
+          return;
+        }
+        
         const checkbox = item.querySelector('.mapping-checkbox');
         if (checkbox && checkbox.checked) {
           // Check if it's a color token or regular component
@@ -2494,6 +2499,35 @@
       }
       performLibrarySwap(unifiedData);
     });
+
+    // Search functionality
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
+        
+        mappingItems.forEach(item => {
+          const componentNames = item.querySelectorAll('.component-name');
+          let itemMatches = false;
+          
+          // Check if any component name in this row matches the search term
+          componentNames.forEach(nameElement => {
+            const name = nameElement.textContent.toLowerCase();
+            if (name.includes(searchTerm)) {
+              itemMatches = true;
+            }
+          });
+          
+          // Show or hide the item based on match
+          if (searchTerm === '' || itemMatches) {
+            item.style.display = '';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      });
+    }
     
     // Close the initialize function and call it
     }
