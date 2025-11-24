@@ -235,10 +235,16 @@
     }
     
     .no-items { 
+      display: flex;
+      align-items: center;
+      justify-content: center;
       text-align: center; 
       color: var(--figma-color-text-tertiary); 
       font-style: italic; 
       padding: var(--figma-space-24); 
+      width: 100%;
+      /* give it some vertical space so centering is visible when shown */
+      min-height: 160px;
     }
     
     .view { display: none; }
@@ -324,7 +330,7 @@
       left: 0; 
       width: 100%; 
       height: 100%; 
-      background: rgba(30, 30, 30, 0.4); 
+      background: rgba(0, 0, 0, 0.4);
       display: none; 
       align-items: center; 
       justify-content: center; 
@@ -368,7 +374,7 @@
     
     .target-library-item.selected { 
       border-color: var(--figma-color-border-brand); 
-      background: #e6f3ff;
+      background: var(--figma-color-bg-selected);
       box-shadow: var(--figma-shadow-brand);
     }
     
@@ -487,14 +493,14 @@
       display: flex;
       align-items: center;
       background: var(--figma-color-bg-secondary);
-      border: 1px solid var(--figma-color-border);
+      border: 1px solid var(--figma-color-bg-secondary);
       border-radius: var(--figma-radius-6);
       padding: 0;
       height: 24px;
     }
 
     .search-input-wrapper:focus-within {
-      border-color: var(--figma-color-border-brand);
+      border-color: var(--figma-color-border-selected);
     }
     
     .search-icon {
@@ -543,17 +549,113 @@
       color: var(--figma-color-icon);
       background: none;
       border: none;
+      outline: none;
       padding: 0;
       cursor: pointer;
       flex-shrink: 0;
       border-radius: var(--figma-radius-4);
-      transition: background 0.075s ease;
+      transition: background 0.075s ease, color 0.075s ease;
       box-shadow: none;
     }
     
     .filter-button:hover {
-      background: var(--color-bg-hover, #f5f5f5);
+      background: var(--figma-color-bg-secondary);
       box-shadow: none;
+      outline: none;
+      color: var(--figma-color-icon);
+    }
+    
+    .filter-button:focus {
+      outline: 1px solid var(--figma-color-border-selected);
+      outline-offset: 2px;
+    }
+    
+    .filter-button:active {
+      transform: none;
+      outline: none;
+    }
+    
+    .filter-button.active {
+      background: var(--figma-color-bg-selected);
+      color: var(--figma-color-icon-brand);
+      outline: none;
+      box-shadow: none;
+    }
+    
+    /* Filter Dropdown Blocking Overlay */
+    .filter-dropdown-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 99;
+      display: none;
+    }
+    
+    .filter-dropdown-overlay.active {
+      display: block;
+    }
+    
+    /* Filter Dropdown Menu Styles */
+    .filter-dropdown {
+      position: absolute;
+      top: 52px;
+      right: 16px;
+      z-index: 100;
+      background: #1e1e1e;
+      border-radius: 13px;
+      box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.12), 0px 10px 16px 0px rgba(0,0,0,0.12), 0px 2px 5px 0px rgba(0,0,0,0.15);
+      overflow: hidden;
+      min-width: 208px;
+      padding: 8px;
+    }
+    
+    .filter-menu {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .filter-menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 5px;
+      color: var(--figma-color-text);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: var(--figma-font-family);
+      font-size: var(--figma-font-size-11);
+      font-weight: 450;
+      line-height: 16px;
+    }
+    
+    .filter-menu-item:hover {
+      background: var(--figma-color-bg-brand);
+    }
+    
+    .filter-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 24px;
+      cursor: pointer;
+      padding: 0;
+      color: var(--figma-color-text);
+      font-family: var(--figma-font-family);
+      font-size: var(--figma-font-size-11);
+      font-weight: 450;
+      line-height: 16px;
+      user-select: none;
+      gap: 12px;
+    }
+    
+    .filter-label-text {
+      flex: 1;
     }
     
     .library-mapping-header {
@@ -698,14 +800,14 @@
       flex-shrink: 0;
       vertical-align: middle;
       border: 1px solid var(--figma-color-border);
-      background-color: var(--figma-color-bg);
+      background-color: var(--figma-color-bg-secondary);
       cursor: pointer;
       position: relative;
     }
     
     .mapping-checkbox:checked {
       background-color: var(--figma-color-bg-brand);
-      border-color: var(--figma-color-bg-brand);
+      border-color: var(--figma-color-border);
     }
     
     .mapping-checkbox:checked::after {
@@ -1075,12 +1177,39 @@
         </div>
         <input type="text" class="search-input" placeholder="Search">
       </div>
-      <button class="filter-button">
+      <button class="filter-button" id="filterBtn">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path fill-rule="evenodd" clip-rule="evenodd" d="M8 18.5C8 18.7761 8.22386 19 8.5 19C8.77614 19 9 18.7761 9 18.5V11.95C10.1411 11.7183 11 10.7094 11 9.49997C11 8.29049 10.1411 7.28161 9 7.04998V5.49997C9 5.22383 8.77614 4.99997 8.5 4.99997C8.22386 4.99997 8 5.22383 8 5.49997V7.04998C6.85888 7.28161 6 8.29049 6 9.49997C6 10.7094 6.85888 11.7183 8 11.95V18.5ZM7 9.49997C7 10.3284 7.67157 11 8.5 11C9.32843 11 10 10.3284 10 9.49997C10 8.67154 9.32843 7.99997 8.5 7.99997C7.67157 7.99997 7 8.67154 7 9.49997Z" fill="currentColor" fill-opacity="0.9"/>
           <path fill-rule="evenodd" clip-rule="evenodd" d="M15 5.49997C15 5.22383 15.2239 4.99997 15.5 4.99997C15.7761 4.99997 16 5.22383 16 5.49997V12.05C17.1411 12.2816 18 13.2905 18 14.5C18 15.7094 17.1411 16.7183 16 16.95V18.5C16 18.7761 15.7761 19 15.5 19C15.2239 19 15 18.7761 15 18.5V16.95C13.8589 16.7183 13 15.7094 13 14.5C13 13.2905 13.8589 12.2816 15 12.05V5.49997ZM14 14.5C14 13.6715 14.6716 13 15.5 13C16.3284 13 17 13.6715 17 14.5C17 15.3284 16.3284 16 15.5 16C14.6716 16 14 15.3284 14 14.5Z" fill="currentColor" fill-opacity="0.9"/>
         </svg>
       </button>
+    </div>
+
+    <!-- Filter Dropdown Blocking Overlay -->
+    <div class="filter-dropdown-overlay" id="filterDropdownOverlay"></div>
+
+    <!-- Filter Dropdown Menu -->
+    <div class="filter-dropdown" id="filterDropdown" style="display: none;">
+      <div class="filter-menu">
+        <div class="filter-menu-item">
+          <label class="filter-label">
+            <span class="filter-label-text">Components</span>
+            <input type="checkbox" class="mapping-checkbox filter-option" value="component" checked>
+          </label>
+        </div>
+        <div class="filter-menu-item">
+          <label class="filter-label">
+            <span class="filter-label-text">Color</span>
+            <input type="checkbox" class="mapping-checkbox filter-option" value="color" checked>
+          </label>
+        </div>
+        <div class="filter-menu-item">
+          <label class="filter-label">
+            <span class="filter-label-text">Typography</span>
+            <input type="checkbox" class="mapping-checkbox filter-option" value="typography" checked>
+          </label>
+        </div>
+      </div>
     </div>
     
     <!-- Scan Heading Row -->
@@ -1221,6 +1350,11 @@
           </div>
         </div>
       </div>
+    </div>
+    
+    <!-- Empty State for No Search Results -->
+    <div class="no-items" id="noSearchResults" style="display: none;">
+      No matches for your search
     </div>
     
     <!-- Swap Button -->
@@ -2483,6 +2617,9 @@
       searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
+        const noSearchResults = document.getElementById('noSearchResults');
+        const headingRow = document.querySelector('.scan-heading-row');
+        let hasVisibleItems = false;
         
         mappingItems.forEach(item => {
           const componentNames = item.querySelectorAll('.component-name');
@@ -2496,14 +2633,144 @@
             }
           });
           
-          // Show or hide the item based on match
+          // Mark item as search-hidden or search-visible using data attribute
           if (searchTerm === '' || itemMatches) {
-            item.style.display = '';
+            item.dataset.searchHidden = 'false';
+            hasVisibleItems = true;
           } else {
-            item.style.display = 'none';
+            item.dataset.searchHidden = 'true';
           }
         });
+        
+        // Show or hide the empty state message and heading labels
+        const showEmpty = !hasVisibleItems;
+        noSearchResults.style.display = showEmpty ? '' : 'none';
+        if (headingRow) {
+          headingRow.style.display = showEmpty ? 'none' : '';
+        }
+        
+        // Also apply filter logic if active
+        applyFilterLogic();
       });
+    }
+
+    // Filter button - open on click, close on click again
+    const filterBtn = document.getElementById('filterBtn');
+    const filterDropdown = document.getElementById('filterDropdown');
+    const filterDropdownOverlay = document.getElementById('filterDropdownOverlay');
+    
+    if (filterBtn && filterDropdown && filterDropdownOverlay) {
+      filterBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent event from bubbling to document click handler
+        
+        // Toggle display
+        if (filterDropdown.style.display === '') {
+          filterDropdown.style.display = 'none';
+          filterDropdownOverlay.classList.remove('active');
+          filterBtn.classList.remove('active');
+          filterBtn.blur();
+        } else {
+          filterDropdown.style.display = '';
+          filterDropdownOverlay.classList.add('active');
+          filterBtn.classList.add('active');
+        }
+      });
+      
+      // Overlay click closes dropdown
+      filterDropdownOverlay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        filterDropdown.style.display = 'none';
+        filterDropdownOverlay.classList.remove('active');
+        filterBtn.classList.remove('active');
+        filterBtn.blur();
+      });
+    }
+
+    // Filter checkboxes logic
+    const filterCheckboxes = document.querySelectorAll('.filter-option');
+    filterCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        applyFilterLogic();
+      });
+    });
+
+    // Close filter dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (filterDropdown && filterBtn && filterDropdownOverlay && !filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
+        filterDropdown.style.display = 'none';
+        filterDropdownOverlay.classList.remove('active');
+        filterBtn.classList.remove('active');
+        filterBtn.blur();
+      }
+    });
+
+    // Toggle checkbox when clicking on mapping item row (using event delegation)
+    document.addEventListener('click', (e) => {
+      // Find the closest mapping-item that isn't the header
+      const mappingItem = e.target.closest('.mapping-item:not(.scan-heading-row)');
+      if (!mappingItem) return;
+      
+      // Don't toggle if clicking on the checkbox itself
+      if (e.target.classList.contains('mapping-checkbox')) {
+        return;
+      }
+      
+      // Find the checkbox in this row and toggle it
+      const checkbox = mappingItem.querySelector('.mapping-checkbox');
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        // Trigger change event so swap logic updates
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+
+    // Filter logic function
+    function applyFilterLogic() {
+      const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
+      const selectedFilters = Array.from(document.querySelectorAll('.filter-option:checked')).map(cb => cb.value);
+      
+      let hasVisibleItems = false;
+      
+      mappingItems.forEach(item => {
+        // Check if item is hidden by search
+        const isSearchHidden = item.dataset.searchHidden === 'true';
+        
+        // Determine item type
+        let itemType = 'component';
+        const hasColorSwatch = item.querySelector('.color-swatch') !== null;
+        const hasTextIcon = item.querySelector('.text-icon') !== null;
+        
+        if (hasColorSwatch) {
+          itemType = 'color';
+        } else if (hasTextIcon) {
+          itemType = 'typography';
+        } else {
+          itemType = 'component';
+        }
+        
+        // Check if this item type is selected in the filter
+        const passesFilter = selectedFilters.includes(itemType);
+        
+        // Item is visible only if it passes both search AND filter
+        const shouldShow = !isSearchHidden && passesFilter;
+        
+        if (shouldShow) {
+          item.style.display = '';
+          hasVisibleItems = true;
+        } else {
+          item.style.display = 'none';
+        }
+      });
+      
+      // Show empty state if no visible items
+      const noSearchResults = document.getElementById('noSearchResults');
+      const headingRow = document.querySelector('.scan-heading-row');
+      if (noSearchResults) {
+        noSearchResults.style.display = hasVisibleItems ? 'none' : '';
+      }
+      if (headingRow) {
+        headingRow.style.display = hasVisibleItems ? '' : 'none';
+      }
     }
     
     // Close the initialize function and call it
