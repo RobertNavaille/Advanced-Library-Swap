@@ -1971,7 +1971,8 @@
 
   function performLibrarySwap(data) {
       console.log('🔄 performLibrarySwap called!');
-      const mappingItems = document.querySelectorAll('.mapping-item');
+      // Only get mapping items that are NOT the header row
+      const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
       const componentsToSwap = [];
       const stylesToSwap = [];
       console.log('Found mapping items:', mappingItems.length);
@@ -1998,22 +1999,23 @@
       }
       
       // Collect all checked items
-      // Instead of using the checked rows, always send all variants from the scan results
-      data.components.forEach((component) => {
-        componentsToSwap.push({
-          name: component.name,
-          sourceLibrary: sourceLibrary,
-          targetLibrary: targetLibrary
-        });
-      });
-      // Styles logic remains unchanged
+      // Check components that have checkboxes checked
       mappingItems.forEach(item => {
         const checkbox = item.querySelector('.mapping-checkbox');
         if (checkbox && checkbox.checked) {
+          // Check if it's a color token or regular component
           const isColorToken = item.querySelector('.color-swatch') !== null;
+          const componentName = item.querySelector('.component-name').textContent;
+          
           if (isColorToken) {
-            const componentName = item.querySelector('.component-name').textContent;
             stylesToSwap.push({
+              name: componentName,
+              sourceLibrary: sourceLibrary,
+              targetLibrary: targetLibrary
+            });
+          } else {
+            // It's a regular component
+            componentsToSwap.push({
               name: componentName,
               sourceLibrary: sourceLibrary,
               targetLibrary: targetLibrary
@@ -2021,6 +2023,8 @@
           }
         }
       });
+      
+      // Styles logic remains unchanged (handled above)
       
       console.log('Components to swap:', componentsToSwap);
       console.log('Styles to swap:', stylesToSwap);
