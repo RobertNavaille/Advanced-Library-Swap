@@ -1705,10 +1705,18 @@
       
       console.log('Scan results view updated successfully');
       
-      // Apply filter logic to show/hide items based on current filter selections
+      // Apply search and filter logic to show/hide items based on current selections
       // Use setTimeout to ensure DOM is fully updated before applying filters
       setTimeout(() => {
-        applyFilterLogic();
+        const searchInput = document.querySelector('.search-input');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        
+        // First apply search, which internally calls filter logic
+        if (searchTerm) {
+          applySearchLogic(searchTerm);
+        } else {
+          applyFilterLogic();
+        }
       }, 0);
     }
 
@@ -2492,6 +2500,49 @@
       document.getElementById('show' + level.charAt(0).toUpperCase() + level.slice(1) + 'ConfigBtn').classList.add('active');
     }
 
+    // Search logic function - MUST be global scope for access from multiple places
+    function applySearchLogic(searchTerm) {
+      const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
+      const noSearchResults = document.getElementById('noSearchResults');
+      const headingRow = document.querySelector('.scan-heading-row');
+      let hasVisibleItems = false;
+      
+      console.log('Search logic:', { searchTerm: searchTerm, itemCount: mappingItems.length });
+      
+      mappingItems.forEach(item => {
+        const componentNames = item.querySelectorAll('.component-name');
+        let itemMatches = false;
+        
+        // Check if any component name in this row matches the search term
+        componentNames.forEach(nameElement => {
+          const name = nameElement.textContent.toLowerCase();
+          if (name.includes(searchTerm)) {
+            itemMatches = true;
+          }
+        });
+        
+        // Mark item as search-hidden or search-visible using data attribute
+        if (searchTerm === '' || itemMatches) {
+          item.dataset.searchHidden = 'false';
+          hasVisibleItems = true;
+        } else {
+          item.dataset.searchHidden = 'true';
+        }
+      });
+      
+      // Show or hide the empty state message and heading labels
+      const showEmpty = !hasVisibleItems;
+      if (noSearchResults) {
+        noSearchResults.style.display = showEmpty ? '' : 'none';
+      }
+      if (headingRow) {
+        headingRow.style.display = showEmpty ? 'none' : '';
+      }
+      
+      // Also apply filter logic to respect both search AND filter state
+      applyFilterLogic();
+    }
+
     // Filter logic function - MUST be global scope for access from multiple places
     function applyFilterLogic() {
       const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
@@ -2688,41 +2739,7 @@
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
-        const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
-        const noSearchResults = document.getElementById('noSearchResults');
-        const headingRow = document.querySelector('.scan-heading-row');
-        let hasVisibleItems = false;
-        
-        mappingItems.forEach(item => {
-          const componentNames = item.querySelectorAll('.component-name');
-          let itemMatches = false;
-          
-          // Check if any component name in this row matches the search term
-          componentNames.forEach(nameElement => {
-            const name = nameElement.textContent.toLowerCase();
-            if (name.includes(searchTerm)) {
-              itemMatches = true;
-            }
-          });
-          
-          // Mark item as search-hidden or search-visible using data attribute
-          if (searchTerm === '' || itemMatches) {
-            item.dataset.searchHidden = 'false';
-            hasVisibleItems = true;
-          } else {
-            item.dataset.searchHidden = 'true';
-          }
-        });
-        
-        // Show or hide the empty state message and heading labels
-        const showEmpty = !hasVisibleItems;
-        noSearchResults.style.display = showEmpty ? '' : 'none';
-        if (headingRow) {
-          headingRow.style.display = showEmpty ? 'none' : '';
-        }
-        
-        // Also apply filter logic if active
-        applyFilterLogic();
+        applySearchLogic(searchTerm);
       });
     }
 
