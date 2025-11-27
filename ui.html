@@ -1583,6 +1583,7 @@
         Array.from(parentMap.values()).forEach((component) => {
           const mappingItem = document.createElement('div');
           mappingItem.className = 'mapping-item';
+          mappingItem.dataset.searchHidden = 'false';
           mappingItem.innerHTML = `
             <input type="checkbox" class="mapping-checkbox" checked>
             <div class="row-content">
@@ -1659,6 +1660,7 @@
         data.tokens.forEach((token, index) => {
           const mappingItem = document.createElement('div');
           mappingItem.className = 'mapping-item';
+          mappingItem.dataset.searchHidden = 'false';
           mappingItem.innerHTML = `
             <input type="checkbox" class="mapping-checkbox" checked>
             <div class="row-content">
@@ -1702,6 +1704,12 @@
       }
       
       console.log('Scan results view updated successfully');
+      
+      // Apply filter logic to show/hide items based on current filter selections
+      // Use setTimeout to ensure DOM is fully updated before applying filters
+      setTimeout(() => {
+        applyFilterLogic();
+      }, 0);
     }
 
     // Show library list view
@@ -2484,6 +2492,70 @@
       document.getElementById('show' + level.charAt(0).toUpperCase() + level.slice(1) + 'ConfigBtn').classList.add('active');
     }
 
+    // Filter logic function - MUST be global scope for access from multiple places
+    function applyFilterLogic() {
+      const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
+      const filterCheckboxes = document.querySelectorAll('.filter-option');
+      const selectedFilters = Array.from(filterCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+      
+      console.log('Filter state:', {
+        checkboxes: Array.from(filterCheckboxes).map(cb => ({ value: cb.value, checked: cb.checked })),
+        selectedFilters: selectedFilters,
+        itemCount: mappingItems.length
+      });
+      
+      // If no filters are selected, show all items
+      if (selectedFilters.length === 0) {
+        mappingItems.forEach(item => {
+          const isSearchHidden = item.dataset.searchHidden === 'true';
+          item.style.display = isSearchHidden ? 'none' : '';
+        });
+      } else {
+        let hasVisibleItems = false;
+        
+        mappingItems.forEach(item => {
+          // Check if item is hidden by search
+          const isSearchHidden = item.dataset.searchHidden === 'true';
+          
+          // Determine item type
+          let itemType = 'component';
+          const hasColorSwatch = item.querySelector('.color-swatch') !== null;
+          const hasTextIcon = item.querySelector('.text-icon') !== null;
+          
+          if (hasColorSwatch) {
+            itemType = 'color';
+          } else if (hasTextIcon) {
+            itemType = 'typography';
+          } else {
+            itemType = 'component';
+          }
+          
+          // Check if this item type is selected in the filter
+          const passesFilter = selectedFilters.includes(itemType);
+          
+          // Item is visible only if it passes both search AND filter
+          const shouldShow = !isSearchHidden && passesFilter;
+          
+          if (shouldShow) {
+            item.style.display = '';
+            hasVisibleItems = true;
+          } else {
+            item.style.display = 'none';
+          }
+        });
+        
+        // Show empty state if no visible items
+        const noSearchResults = document.getElementById('noSearchResults');
+        const headingRow = document.querySelector('.scan-heading-row');
+        if (noSearchResults) {
+          noSearchResults.style.display = hasVisibleItems ? 'none' : '';
+        }
+        if (headingRow) {
+          headingRow.style.display = hasVisibleItems ? '' : 'none';
+        }
+      }
+    }
+
     // Event listeners - wrapped in function to ensure DOM is ready
     function initializeEventListeners() {
       // Main navigation
@@ -2723,57 +2795,8 @@
         checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
-
-    // Filter logic function
-    function applyFilterLogic() {
-      const mappingItems = document.querySelectorAll('.mapping-item:not(.scan-heading-row)');
-      const selectedFilters = Array.from(document.querySelectorAll('.filter-option:checked')).map(cb => cb.value);
-      
-      let hasVisibleItems = false;
-      
-      mappingItems.forEach(item => {
-        // Check if item is hidden by search
-        const isSearchHidden = item.dataset.searchHidden === 'true';
-        
-        // Determine item type
-        let itemType = 'component';
-        const hasColorSwatch = item.querySelector('.color-swatch') !== null;
-        const hasTextIcon = item.querySelector('.text-icon') !== null;
-        
-        if (hasColorSwatch) {
-          itemType = 'color';
-        } else if (hasTextIcon) {
-          itemType = 'typography';
-        } else {
-          itemType = 'component';
-        }
-        
-        // Check if this item type is selected in the filter
-        const passesFilter = selectedFilters.includes(itemType);
-        
-        // Item is visible only if it passes both search AND filter
-        const shouldShow = !isSearchHidden && passesFilter;
-        
-        if (shouldShow) {
-          item.style.display = '';
-          hasVisibleItems = true;
-        } else {
-          item.style.display = 'none';
-        }
-      });
-      
-      // Show empty state if no visible items
-      const noSearchResults = document.getElementById('noSearchResults');
-      const headingRow = document.querySelector('.scan-heading-row');
-      if (noSearchResults) {
-        noSearchResults.style.display = hasVisibleItems ? 'none' : '';
-      }
-      if (headingRow) {
-        headingRow.style.display = hasVisibleItems ? '' : 'none';
-      }
-    }
     
-    // Close the initialize function and call it
+    // Close the initialize function
     }
     
     // Initialize all event listeners when DOM is ready
