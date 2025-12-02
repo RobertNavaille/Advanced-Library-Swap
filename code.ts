@@ -76,7 +76,9 @@ figma.ui.onmessage = async (msg: any) => {
 // Scan selected frames for components and tokens
 async function handleScanFrames(): Promise<void> {
   try {
+    console.log('🔍 handleScanFrames called');
     const selection = figma.currentPage.selection;
+    console.log('📦 Selection count:', selection.length);
     if (selection.length === 0) {
       figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: false, error: 'Please select at least one frame to scan' });
       return;
@@ -84,13 +86,17 @@ async function handleScanFrames(): Promise<void> {
     const components: ComponentInfo[] = [];
     const tokens: TokenInfo[] = [];
     for (const node of selection) {
+      console.log('🔍 Checking node:', node.type, node.name);
       if (node.type === 'FRAME') {
         scannedFrame = node;  // Store the frame for later use
+        console.log('✅ Found frame:', node.name);
         await scanNodeForAssets(node, components, tokens);
       }
     }
+    console.log('📊 Scan complete. Found components:', components.length, 'tokens:', tokens.length);
     figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: true, data: { components, tokens, libraries: [] } });
   } catch (error) {
+    console.error('❌ Scan error:', error);
     figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: false, error: `Scan failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
   }
 }
@@ -123,7 +129,7 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
           const variantName = foundName; // The variant key from mapping
           const parentComponentName = parentName || foundName;
           console.log(`✅ Found component mapping: ${variantName} (parent: ${parentComponentName})`);
-          if (!variantName.startsWith('.') && !components.find(c => c.name === variantName && c.library === foundLibrary)) {
+          if (!variantName.startsWith('.')) {
             components.push({ 
               id: component.id, 
               name: variantName,  // Variant name for swapping
