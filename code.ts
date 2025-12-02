@@ -543,8 +543,8 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
     figma.ui.postMessage({ type: 'swap-error', message: `Swap completed with ${errorCount} errors. ${totalSwapped} items swapped.`, details: errorDetails });
     console.error('Swap error details:', errorDetails);
   } else {
-    figma.ui.postMessage({ type: 'swap-complete', message: `Swap completed successfully! ${swapCount} components and ${styleSwapCount} styles swapped.` });
-    figma.notify(`Swap completed! ${swapCount} components and ${styleSwapCount} styles swapped.`);
+    figma.ui.postMessage({ type: 'swap-complete', message: `✅ Swap completed successfully! ${swapCount} components and ${styleSwapCount} styles swapped.` });
+    figma.notify(`✅ Swap completed! ${swapCount} components and ${styleSwapCount} styles swapped.`);
   }
 }
 
