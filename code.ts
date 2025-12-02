@@ -597,12 +597,78 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
             }
             try {
               const importedComponent = await figma.importComponentByKeyAsync(targetKey);
+              console.log(`  ✅ Imported target component`);
+              
+              // Don't try to access componentProperties on the component definition
+              // Properties will be accessible on instances after the swap
               
               // Store position only (not size, which becomes read-only after swap)
               const instanceNode = instance as InstanceNode;
               const x = instanceNode.x;
               const y = instanceNode.y;
               const rotation = instanceNode.rotation;
+              
+              // Capture component property overrides and layout from nested instances
+              const nestedInstanceOverrides = new Map<number, Record<string, any>>();
+              const nestedInstanceLayouts = new Map<number, Record<string, any>>();
+              let nestedInstanceIndex = 0;
+              async function captureNestedOverrides(node: SceneNode) {
+                if (node.type === 'INSTANCE') {
+                  const instNode = node as InstanceNode;
+                  const instAny = instNode as any;
+                  
+                  // Capture component property overrides
+                  if (instAny.componentProperties && typeof instAny.componentProperties === 'object') {
+                    const overrides: Record<string, any> = {};
+                    for (const [propName, propValue] of Object.entries(instAny.componentProperties)) {
+                      if (propValue && typeof propValue === 'object' && 'value' in propValue) {
+                        const cleanPropName = propName.split('#')[0];
+                        overrides[cleanPropName] = (propValue as any).value;
+                      }
+                    }
+                    if (Object.keys(overrides).length > 0) {
+                      nestedInstanceOverrides.set(nestedInstanceIndex, overrides);
+                      console.log(`  ⚙️ Captured overrides for nested instance #${nestedInstanceIndex}: ${Object.keys(overrides).join(', ')}`);
+                    }
+                  }
+                  
+                  // Capture layout overrides
+                  const layoutProps: Record<string, any> = {};
+                  if (instNode.layoutAlign !== 'STRETCH') layoutProps.layoutAlign = instNode.layoutAlign;
+                  if (instNode.layoutGrow !== 0) layoutProps.layoutGrow = instNode.layoutGrow;
+                  if (instNode.layoutMode !== 'NONE') layoutProps.layoutMode = instNode.layoutMode;
+                  if (instNode.layoutPositioning !== 'AUTO') layoutProps.layoutPositioning = instNode.layoutPositioning;
+                  if (instNode.layoutWrap !== 'NO_WRAP') layoutProps.layoutWrap = instNode.layoutWrap;
+                  if ('maxHeight' in instNode && instNode.maxHeight !== null) layoutProps.maxHeight = instNode.maxHeight;
+                  if ('maxWidth' in instNode && instNode.maxWidth !== null) layoutProps.maxWidth = instNode.maxWidth;
+                  if ('minHeight' in instNode && instNode.minHeight !== null) layoutProps.minHeight = instNode.minHeight;
+                  if ('minWidth' in instNode && instNode.minWidth !== null) layoutProps.minWidth = instNode.minWidth;
+                  if (instNode.paddingBottom !== 0) layoutProps.paddingBottom = instNode.paddingBottom;
+                  if (instNode.paddingLeft !== 0) layoutProps.paddingLeft = instNode.paddingLeft;
+                  if (instNode.paddingRight !== 0) layoutProps.paddingRight = instNode.paddingRight;
+                  if (instNode.paddingTop !== 0) layoutProps.paddingTop = instNode.paddingTop;
+                  if (instNode.primaryAxisAlignItems !== 'MIN') layoutProps.primaryAxisAlignItems = instNode.primaryAxisAlignItems;
+                  if (instNode.primaryAxisSizingMode !== 'AUTO') layoutProps.primaryAxisSizingMode = instNode.primaryAxisSizingMode;
+                  if (instNode.secondaryAxisAlignItems !== 'MIN') layoutProps.secondaryAxisAlignItems = instNode.secondaryAxisAlignItems;
+                  if (instNode.secondaryAxisSizingMode !== 'AUTO') layoutProps.secondaryAxisSizingMode = instNode.secondaryAxisSizingMode;
+                  // Always capture width and height for resizing
+                  layoutProps.width = instNode.width;
+                  layoutProps.height = instNode.height;
+                  if (Object.keys(layoutProps).length > 0) {
+                    nestedInstanceLayouts.set(nestedInstanceIndex, layoutProps);
+                    console.log(`  📐 Captured layout for nested instance #${nestedInstanceIndex}: ${Object.keys(layoutProps).join(', ')}`);
+                  }
+                  
+                  nestedInstanceIndex++;
+                }
+                if ('children' in node) {
+                  for (const child of node.children) {
+                    await captureNestedOverrides(child);
+                  }
+                }
+              }
+              console.log('🔄 Capturing nested instance overrides before swap...');
+              await captureNestedOverrides(instanceNode);
               
               // Capture text values from all text nodes in the instance before swap
               // Use unique keys based on index to handle duplicate names
@@ -678,6 +744,118 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               }
               await reapplyTextValues(instanceNode);
               console.log('✅ Text reapplication complete');
+              
+              // Reapply captured nested instance property overrides
+              if (nestedInstanceOverrides.size > 0) {
+                console.log(`🔄 Reapplying nested instance overrides after swap...`);
+                let reapplyOverrideIndex = 0;
+                async function reapplyOverrides(node: SceneNode) {
+                  if (node.type === 'INSTANCE') {
+                    const capturedOverrides = nestedInstanceOverrides.get(reapplyOverrideIndex);
+                    
+                    if (capturedOverrides && Object.keys(capturedOverrides).length > 0) {
+                      try {
+                        // Get property definitions from the swapped target component
+                        const instNode = node as InstanceNode;
+                        const instAny = instNode as any;
+                        const propsByBase: {[base: string]: string} = {};
+                        
+                        if (instAny.componentProperties) {
+                          for (const propName of Object.keys(instAny.componentProperties)) {
+                            const base = propName.split('#')[0];
+                            propsByBase[base] = propName;
+                          }
+                        }
+                        
+                        // Build new properties using target's full property names
+                        const newProps: {[key: string]: any} = {};
+                        for (const [baseName, value] of Object.entries(capturedOverrides)) {
+                          const fullPropName = propsByBase[baseName];
+                          if (fullPropName) {
+                            newProps[fullPropName] = value;
+                          }
+                        }
+                        
+                        if (Object.keys(newProps).length > 0) {
+                          instNode.setProperties(newProps);
+                          console.log(`  ✅ Applied ${Object.keys(newProps).length} properties to nested instance #${reapplyOverrideIndex}`);
+                        }
+                      } catch (e) {
+                        console.warn(`  ❌ Could not reapply overrides for nested instance #${reapplyOverrideIndex}:`, e);
+                      }
+                    }
+                    reapplyOverrideIndex++;
+                  }
+                  if ('children' in node) {
+                    for (const child of node.children) {
+                      await reapplyOverrides(child);
+                    }
+                  }
+                }
+                await reapplyOverrides(instanceNode);
+                console.log('✅ Nested instance override reapplication complete');
+              }
+              
+              // Reapply captured layout overrides
+              if (nestedInstanceLayouts.size > 0) {
+                console.log('🔄 Reapplying layout overrides after swap...');
+                let reapplyLayoutIndex = 0;
+                async function reapplyLayouts(node: SceneNode) {
+                  if (node.type === 'INSTANCE') {
+                    const capturedLayout = nestedInstanceLayouts.get(reapplyLayoutIndex);
+                    if (capturedLayout && Object.keys(capturedLayout).length > 0) {
+                      try {
+                        const instNode = node as InstanceNode;
+                        // Only set properties that are actually settable on nodes
+                        const writableProps = ['layoutAlign', 'layoutGrow', 'layoutMode', 'layoutPositioning', 'layoutWrap', 
+                                             'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingTop'];
+                        let applied = 0;
+                        for (const [key, value] of Object.entries(capturedLayout)) {
+                          if (writableProps.includes(key)) {
+                            try {
+                              (instNode as any)[key] = value;
+                              applied++;
+                            } catch (e) {
+                              // Skip properties that can't be set
+                            }
+                          }
+                        }
+                        
+                        // Handle width and height separately using resizeWithoutConstraints
+                        if ('width' in capturedLayout && 'height' in capturedLayout) {
+                          try {
+                            const instNodeAny = instNode as any;
+                            instNodeAny.resizeWithoutConstraints(capturedLayout.width, capturedLayout.height);
+                            applied++;
+                          } catch (e) {
+                            // Fallback: try setting width and height directly
+                            try {
+                              instNode.resize(capturedLayout.width, capturedLayout.height);
+                              applied++;
+                            } catch (e2) {
+                              // Skip if both methods fail
+                            }
+                          }
+                        }
+                        
+                        if (applied > 0) {
+                          console.log(`  ✅ Applied ${applied} layout properties to nested instance #${reapplyLayoutIndex}`);
+                        }
+                      } catch (e) {
+                        console.warn(`  ❌ Could not reapply layout for nested instance #${reapplyLayoutIndex}:`, e);
+                      }
+                    }
+                    reapplyLayoutIndex++;
+                  }
+                  if ('children' in node) {
+                    for (const child of node.children) {
+                      await reapplyLayouts(child);
+                    }
+                  }
+                }
+                await reapplyLayouts(instanceNode);
+                console.log('✅ Layout override reapplication complete');
+              }
               
               // Restore position only
               instanceNode.x = x;
