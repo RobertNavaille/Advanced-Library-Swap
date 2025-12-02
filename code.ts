@@ -255,12 +255,26 @@ async function getTargetColor(tokenId: string, styleName: string, sourceLibrary:
   const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
   
   // Check if target library uses variables instead of styles
-  const targetVariableId = VARIABLE_ID_MAPPING[normalizedTargetLibrary]?.[styleName];
+  const targetVariableKey = VARIABLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
   
-  if (targetVariableId) {
-    console.log(`✅ Found variable binding for ${styleName}: ${targetVariableId}`);
-    figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color: 'VARIABLE', variableId: targetVariableId });
-    return;
+  if (targetVariableKey) {
+    console.log(`✅ Found variable binding for ${styleName}: ${targetVariableKey}`);
+    try {
+      // Import the variable to get its actual color value
+      const variable = await figma.variables.importVariableByKeyAsync(targetVariableKey);
+      if (variable && variable.resolvedType === 'COLOR') {
+        // Get the color value from the variable
+        const colorValue = variable.valuesByMode[Object.keys(variable.valuesByMode)[0]];
+        if (colorValue && typeof colorValue === 'object' && 'r' in colorValue) {
+          const color = getColorValue({ type: 'SOLID', color: colorValue } as any);
+          console.log(`🎨 Variable color resolved to: ${color}`);
+          figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn(`❌ Failed to import variable ${styleName}:`, err);
+    }
   }
   
   // Otherwise try to import as a style
