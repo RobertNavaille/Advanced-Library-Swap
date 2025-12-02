@@ -452,10 +452,36 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
   return swapCount;
 }
 
-// Reset style overrides while preserving property overrides
-function resetStyleOverrides(node: SceneNode): void {
-  // This function is kept for compatibility but style resets now happen before swap
-  return;
+// Reset paint overrides on nested layers only
+function resetNestedPaintOverrides(node: SceneNode): void {
+  try {
+    // Don't process the root node (instance itself), only its children
+    if ('children' in node) {
+      for (const child of node.children) {
+        // For shape nodes, try to reset overrides
+        if ((child.type === 'RECTANGLE' || child.type === 'ELLIPSE' || child.type === 'POLYGON' || child.type === 'STAR') && 'fills' in child) {
+          try {
+            const fills = child.fills as any[];
+            console.log(`🔍 Nested shape "${child.name}" has ${fills.length} fills`);
+            
+            // Clear the fills array to remove paint overrides
+            // This lets the shape use its component default
+            if (fills.length > 0) {
+              child.fills = [];
+              console.log(`✅ Cleared fills on nested shape: ${child.name}`);
+            }
+          } catch (e) {
+            console.warn(`Could not clear fills on ${child.name}:`, e);
+          }
+        }
+        
+        // Recursively process grandchildren
+        resetNestedPaintOverrides(child);
+      }
+    }
+  } catch (error) {
+    console.warn('Error resetting nested paint overrides:', error);
+  }
 }
 
 // Add detailed swap logic for PERFORM_LIBRARY_SWAP
@@ -510,33 +536,15 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               const y = instanceNode.y;
               const rotation = instanceNode.rotation;
               
-              // Get the component's default fills before swap
-              const componentDefaultFills = importedComponent.fills;
-              console.log('🎨 Component default fills:', JSON.stringify(componentDefaultFills));
-              
               // Perform the swap
               instance.swapComponent(importedComponent);
               console.log(`✅ Swapped component: ${instance.name}`);
               
-              // After swap, restore the component's default fills (removing the override)
-              try {
-                if ('fills' in instanceNode && Array.isArray(componentDefaultFills)) {
-                  instanceNode.fills = componentDefaultFills;
-                  console.log('✅ Restored component default fills');
-                }
-              } catch (e) {
-                console.warn('Could not restore default fills:', e);
-              }
+              // Reset paint overrides on nested layers to use component defaults
+              resetNestedPaintOverrides(instanceNode);
               
-              // Similarly for strokes
-              try {
-                if ('strokes' in instanceNode && Array.isArray(importedComponent.strokes)) {
-                  instanceNode.strokes = importedComponent.strokes;
-                  console.log('✅ Restored component default strokes');
-                }
-              } catch (e) {
-                console.warn('Could not restore default strokes:', e);
-              }
+              // Don't modify the instance root level fills - just let it use the swapped component's defaults
+              // This preserves any styles that were applied
               
               // Restore position only
               instanceNode.x = x;
