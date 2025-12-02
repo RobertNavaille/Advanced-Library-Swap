@@ -154,6 +154,8 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
 // Scan a node for style tokens
 async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<void> {
   console.log(`🔍 Scanning node: ${node.name} (type: ${node.type})`);
+  
+  // Check for paint styles (traditional Shark approach)
   if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
     try {
       const paintStyle = await figma.getStyleByIdAsync(node.fillStyleId);
@@ -179,6 +181,47 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
       }
     } catch {}
   }
+  
+  // Check for variable-bound paints (Monkey approach)
+  const nodeAny = node as any;
+  if (nodeAny.boundVariables && nodeAny.boundVariables.fills && Array.isArray(nodeAny.boundVariables.fills)) {
+    for (const boundVar of nodeAny.boundVariables.fills) {
+      if (boundVar && typeof boundVar === 'object' && boundVar.type === 'VARIABLE_ALIAS') {
+        try {
+          const variable = await figma.variables.getVariableByIdAsync(boundVar.id);
+          if (variable && variable.resolvedType === 'COLOR') {
+            console.log(`🎨 Found variable-bound paint: ${variable.name} (${boundVar.id})`);
+            
+            // Determine library from variable key
+            let library = 'Unknown';
+            for (const libName of Object.keys(VARIABLE_KEY_MAPPING)) {
+              for (const varName of Object.keys(VARIABLE_KEY_MAPPING[libName])) {
+                if (VARIABLE_KEY_MAPPING[libName][varName] === variable.key) {
+                  library = libName;
+                  console.log(`✅ Matched variable key to library: ${library}`);
+                  break;
+                }
+              }
+              if (library !== 'Unknown') break;
+            }
+            
+            // Get the color value from the variable
+            const colorValue = variable.valuesByMode[Object.keys(variable.valuesByMode)[0]];
+            let colorStr = '#000000';
+            if (colorValue && typeof colorValue === 'object' && 'r' in colorValue) {
+              colorStr = getColorValue({ type: 'SOLID', color: colorValue } as any);
+            }
+            
+            const tokenInfo: TokenInfo = { id: variable.id, name: variable.name, type: 'color', value: colorStr, library };
+            if (!tokens.find(t => t.id === tokenInfo.id)) tokens.push(tokenInfo);
+          }
+        } catch (err) {
+          console.log(`⚠️ Failed to get variable: ${err}`);
+        }
+      }
+    }
+  }
+  
   if ('textStyleId' in node && node.textStyleId && typeof node.textStyleId === 'string') {
     try {
       const textStyle = await figma.getStyleByIdAsync(node.textStyleId);
@@ -551,6 +594,56 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
       }
     } catch (styleErr) {
       // Node doesn't have a valid fill style, skip it
+    }
+  }
+  
+  // Process variable-bound fills (swapping FROM Monkey variables TO Shark styles)
+  const nodeAny = node as any;
+  if (nodeAny.boundVariables && nodeAny.boundVariables.fills && Array.isArray(nodeAny.boundVariables.fills)) {
+    try {
+      // Check if any fills are bound to variables matching the source library
+      for (const boundVar of nodeAny.boundVariables.fills) {
+        if (boundVar && typeof boundVar === 'object' && boundVar.type === 'VARIABLE_ALIAS') {
+          try {
+            const variable = await figma.variables.getVariableByIdAsync(boundVar.id);
+            if (variable && variable.resolvedType === 'COLOR' && variable.name === styleName) {
+              // Check if this variable belongs to the source library
+              let isFromSourceLibrary = false;
+              for (const varName of Object.keys(VARIABLE_KEY_MAPPING[sourceLibrary] || {})) {
+                if (varName === styleName) {
+                  isFromSourceLibrary = true;
+                  break;
+                }
+              }
+              
+              if (isFromSourceLibrary) {
+                console.log(`  ✅ Found variable-bound fill: ${styleName} on ${node.type}`);
+                
+                // Try to swap to target style
+                const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+                if (targetStyleKey) {
+                  try {
+                    const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+                    if (targetStyle && targetStyle.type === 'PAINT') {
+                      if (typeof nodeAny.setFillStyleIdAsync === 'function') {
+                        await nodeAny.setFillStyleIdAsync(targetStyle.id);
+                        console.log(`  ✅ Swapped variable-bound fill to Shark style '${styleName}' on ${node.type}`);
+                        swapCount++;
+                      }
+                    }
+                  } catch (styleImportErr) {
+                    console.log(`  ❌ Could not import target style: ${styleImportErr}`);
+                  }
+                }
+              }
+            }
+          } catch (varErr) {
+            // Skip if variable can't be fetched
+          }
+        }
+      }
+    } catch (boundVarErr) {
+      // Skip if boundVariables can't be accessed
     }
   }
 
