@@ -604,6 +604,32 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               const y = instanceNode.y;
               const rotation = instanceNode.rotation;
               
+              // Capture text values from all text nodes in the instance before swap
+              // Use unique keys based on index to handle duplicate names
+              const textValues = new Map<string, { text: string; fontName: any }>();
+              let textNodeIndex = 0;
+              async function captureTextValues(node: SceneNode, path: string = '') {
+                const nodePath = path ? `${path}/${node.name}` : node.name;
+                if (node.type === 'TEXT') {
+                  const textNode = node as TextNode;
+                  // Create unique key for each text node (index-based)
+                  const uniqueKey = `text_${textNodeIndex++}`;
+                  textValues.set(uniqueKey, {
+                    text: textNode.characters,
+                    fontName: textNode.fontName
+                  });
+                  console.log(`  📝 Captured text #${textNodeIndex - 1} from "${nodePath}": "${textNode.characters.substring(0, 30)}..."`);
+                }
+                if ('children' in node) {
+                  for (const child of node.children) {
+                    await captureTextValues(child, nodePath);
+                  }
+                }
+              }
+              console.log('🔄 Capturing text values before swap...');
+              await captureTextValues(instanceNode);
+              console.log(`  Total text nodes captured: ${textValues.size}`);
+              
               // Perform the swap
               instance.swapComponent(importedComponent);
               console.log(`✅ Swapped component: ${instance.name}`);
@@ -622,6 +648,36 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               } catch (e) {
                 console.warn('Error removing overrides:', e);
               }
+              
+              // Reapply captured text values using same index-based approach
+              console.log('🔄 Reapplying text values after swap...');
+              let reapplyIndex = 0;
+              async function reapplyTextValues(node: SceneNode) {
+                if (node.type === 'TEXT') {
+                  const uniqueKey = `text_${reapplyIndex++}`;
+                  const captured = textValues.get(uniqueKey);
+                  if (captured) {
+                    try {
+                      const textNode = node as TextNode;
+                      // Load the font before setting text
+                      if (captured.fontName && typeof captured.fontName === 'object') {
+                        await figma.loadFontAsync(captured.fontName);
+                      }
+                      textNode.characters = captured.text;
+                      console.log(`  ✅ Reapplied text #${reapplyIndex - 1} to "${node.name}": "${captured.text.substring(0, 30)}..."`);
+                    } catch (e) {
+                      console.warn(`  ❌ Could not reapply text #${reapplyIndex - 1}:`, e);
+                    }
+                  }
+                }
+                if ('children' in node) {
+                  for (const child of node.children) {
+                    await reapplyTextValues(child);
+                  }
+                }
+              }
+              await reapplyTextValues(instanceNode);
+              console.log('✅ Text reapplication complete');
               
               // Restore position only
               instanceNode.x = x;
