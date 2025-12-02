@@ -452,35 +452,103 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
   return swapCount;
 }
 
-// Reset paint overrides on nested layers only
-function resetNestedPaintOverrides(node: SceneNode): void {
+// Apply target library styles to instance shapes by matching style names
+function restoreTargetStyles(instanceNode: SceneNode, targetComponent: ComponentNode, targetLibrary: string): void {
   try {
-    // Don't process the root node (instance itself), only its children
-    if ('children' in node) {
-      for (const child of node.children) {
-        // For shape nodes, try to reset overrides
-        if ((child.type === 'RECTANGLE' || child.type === 'ELLIPSE' || child.type === 'POLYGON' || child.type === 'STAR') && 'fills' in child) {
+    console.log('🎨 Applying target library styles to instance');
+    
+    // Map of shape names to their style names in target
+    const targetStyleNames = new Map<string, string>();
+    
+    function collectTargetStyleNames(node: SceneNode): void {
+      if ((node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR')) {
+        const inst = node as any;
+        if (inst.fillStyleId) {
           try {
-            const fills = child.fills as any[];
-            console.log(`🔍 Nested shape "${child.name}" has ${fills.length} fills`);
-            
-            // Clear the fills array to remove paint overrides
-            // This lets the shape use its component default
-            if (fills.length > 0) {
-              child.fills = [];
-              console.log(`✅ Cleared fills on nested shape: ${child.name}`);
+            const style = figma.getStyleById(inst.fillStyleId);
+            if (style) {
+              console.log(`📍 Target shape "${node.name}" uses style: "${style.name}"`);
+              targetStyleNames.set(node.name, style.name);
             }
           } catch (e) {
-            console.warn(`Could not clear fills on ${child.name}:`, e);
+            console.warn(`Could not get style for ${node.name}:`, e);
           }
         }
-        
-        // Recursively process grandchildren
-        resetNestedPaintOverrides(child);
+      }
+      
+      if ('children' in node) {
+        for (const child of node.children) {
+          collectTargetStyleNames(child);
+        }
       }
     }
+    
+    // Collect style names from target component
+    collectTargetStyleNames(targetComponent);
+    console.log('Target style names:', Array.from(targetStyleNames.entries()));
+    
+    // Apply styles to instance shapes by name
+    function applyTargetStyles(node: SceneNode): void {
+      if ((node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR')) {
+        const styleName = targetStyleNames.get(node.name);
+        if (styleName) {
+          try {
+            const inst = node as any;
+            
+            // Search for the style in the imported file/library
+            // The style should be available through the file key mapping
+            console.log(`🔍 Looking for style "${styleName}" in target library...`);
+            
+            // Try to find the style by name in all available styles
+            // We'll iterate through all library files and search
+            const allLibraryFiles = figma.getSharedLibraryFiles();
+            
+            for (const libFile of allLibraryFiles) {
+              console.log(`📚 Checking library file: ${libFile.name}`);
+              
+              // Get all paint styles from this library
+              try {
+                const paintStyles = libFile.getSharedPluginData('figma', 'paintStyles');
+                if (paintStyles) {
+                  const styles = JSON.parse(paintStyles);
+                  console.log(`  Found styles:`, styles);
+                }
+              } catch (e) {
+                console.warn(`  Could not get styles from ${libFile.name}:`, e);
+              }
+            }
+            
+            // Also try getLocalPaintStylesAsync to search for the style
+            const allPaintStyles = figma.getLocalPaintStyles();
+            console.log(`🔎 Searching in ${allPaintStyles.length} local styles for "${styleName}"`);
+            
+            for (const style of allPaintStyles) {
+              console.log(`  Style: ${style.name} (id: ${style.id})`);
+              if (style.name === styleName) {
+                console.log(`✅ Found matching style! Applying to "${node.name}"`);
+                inst.fillStyleId = style.id;
+                return;
+              }
+            }
+            
+            console.log(`⚠️ Style "${styleName}" not found in document`);
+          } catch (e) {
+            console.warn(`Error applying style to ${node.name}:`, e);
+          }
+        }
+      }
+      
+      if ('children' in node) {
+        for (const child of node.children) {
+          applyTargetStyles(child);
+        }
+      }
+    }
+    
+    // Apply styles to instance
+    applyTargetStyles(instanceNode);
   } catch (error) {
-    console.warn('Error resetting nested paint overrides:', error);
+    console.warn('Error applying target styles:', error);
   }
 }
 
@@ -540,11 +608,73 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               instance.swapComponent(importedComponent);
               console.log(`✅ Swapped component: ${instance.name}`);
               
-              // Reset paint overrides on nested layers to use component defaults
-              resetNestedPaintOverrides(instanceNode);
+              // Try to reset all overrides to use component defaults
+              try {
+                const inst = instanceNode as any;
+                if (typeof inst.resetAllOverrides === 'function') {
+                  inst.resetAllOverrides();
+                  console.log('✅ Reset all overrides');
+                }
+              } catch (e) {
+                console.warn('Could not reset all overrides:', e);
+              }
               
-              // Don't modify the instance root level fills - just let it use the swapped component's defaults
-              // This preserves any styles that were applied
+              // Now collect the target component's fill styles and apply them
+              console.log('📋 Collecting target component fill styles...');
+              const targetFillStyles = new Map<string, string>();
+              
+              function collectTargetFillStyles(node: SceneNode): void {
+                if ((node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR')) {
+                  const inst = node as any;
+                  if (inst.fillStyleId && typeof inst.fillStyleId === 'string' && inst.fillStyleId.length > 0) {
+                    console.log(`  Found fill style on "${node.name}": ${inst.fillStyleId}`);
+                    targetFillStyles.set(node.name, inst.fillStyleId);
+                  }
+                }
+                
+                if ('children' in node) {
+                  for (const child of node.children) {
+                    collectTargetFillStyles(child);
+                  }
+                }
+              }
+              
+              collectTargetFillStyles(importedComponent);
+              console.log('Target fill styles:', Array.from(targetFillStyles.entries()));
+              
+              // Try to apply target fill styles to the instance
+              function applyTargetFillStyles(node: SceneNode): void {
+                if ((node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR')) {
+                  const targetStyleId = targetFillStyles.get(node.name);
+                  if (targetStyleId) {
+                    try {
+                      const inst = node as any;
+                      inst.fillStyleId = targetStyleId;
+                      console.log(`✅ Applied fillStyleId to "${node.name}": ${targetStyleId}`);
+                    } catch (e) {
+                      console.warn(`Could not apply fillStyleId to ${node.name}:`, e);
+                    }
+                  }
+                }
+                
+                if ('children' in node) {
+                  for (const child of node.children) {
+                    applyTargetFillStyles(child);
+                  }
+                }
+              }
+              
+              applyTargetFillStyles(instanceNode);
+              
+              // After swap and reset, swap any styles that were from the old library
+              // This ensures that if the instance has nested styles, they get updated
+              console.log('🔄 Swapping styles within swapped component instance...');
+              for (const styleName of Object.keys(STYLE_KEY_MAPPING[normalizedSourceLibrary] || {})) {
+                const swapped = await swapStylesInNode(instanceNode, styleName, normalizedSourceLibrary, normalizedTargetLibrary);
+                if (swapped > 0) {
+                  console.log(`  Updated ${swapped} style references for "${styleName}"`);
+                }
+              }
               
               // Restore position only
               instanceNode.x = x;
