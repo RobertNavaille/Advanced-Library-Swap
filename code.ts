@@ -608,72 +608,19 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               instance.swapComponent(importedComponent);
               console.log(`✅ Swapped component: ${instance.name}`);
               
-              // Try to reset all overrides to use component defaults
+              // Remove all overrides so instance uses only target library defaults
               try {
                 const inst = instanceNode as any;
-                if (typeof inst.resetAllOverrides === 'function') {
+                if (typeof inst.removeOverrides === 'function') {
+                  inst.removeOverrides();
+                  console.log('✅ Removed all overrides');
+                } else if (typeof inst.resetAllOverrides === 'function') {
+                  // Fallback to resetAllOverrides if removeOverrides doesn't exist
                   inst.resetAllOverrides();
-                  console.log('✅ Reset all overrides');
+                  console.log('✅ Reset all overrides (fallback)');
                 }
               } catch (e) {
-                console.warn('Could not reset all overrides:', e);
-              }
-              
-              // Now collect the target component's fill styles and apply them
-              console.log('📋 Collecting target component fill styles...');
-              const targetFillStyles = new Map<string, string>();
-              
-              function collectTargetFillStyles(node: SceneNode): void {
-                if ((node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR')) {
-                  const inst = node as any;
-                  if (inst.fillStyleId && typeof inst.fillStyleId === 'string' && inst.fillStyleId.length > 0) {
-                    console.log(`  Found fill style on "${node.name}": ${inst.fillStyleId}`);
-                    targetFillStyles.set(node.name, inst.fillStyleId);
-                  }
-                }
-                
-                if ('children' in node) {
-                  for (const child of node.children) {
-                    collectTargetFillStyles(child);
-                  }
-                }
-              }
-              
-              collectTargetFillStyles(importedComponent);
-              console.log('Target fill styles:', Array.from(targetFillStyles.entries()));
-              
-              // Try to apply target fill styles to the instance
-              function applyTargetFillStyles(node: SceneNode): void {
-                if ((node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR')) {
-                  const targetStyleId = targetFillStyles.get(node.name);
-                  if (targetStyleId) {
-                    try {
-                      const inst = node as any;
-                      inst.fillStyleId = targetStyleId;
-                      console.log(`✅ Applied fillStyleId to "${node.name}": ${targetStyleId}`);
-                    } catch (e) {
-                      console.warn(`Could not apply fillStyleId to ${node.name}:`, e);
-                    }
-                  }
-                }
-                
-                if ('children' in node) {
-                  for (const child of node.children) {
-                    applyTargetFillStyles(child);
-                  }
-                }
-              }
-              
-              applyTargetFillStyles(instanceNode);
-              
-              // After swap and reset, swap any styles that were from the old library
-              // This ensures that if the instance has nested styles, they get updated
-              console.log('🔄 Swapping styles within swapped component instance...');
-              for (const styleName of Object.keys(STYLE_KEY_MAPPING[normalizedSourceLibrary] || {})) {
-                const swapped = await swapStylesInNode(instanceNode, styleName, normalizedSourceLibrary, normalizedTargetLibrary);
-                if (swapped > 0) {
-                  console.log(`  Updated ${swapped} style references for "${styleName}"`);
-                }
+                console.warn('Error removing overrides:', e);
               }
               
               // Restore position only
@@ -713,6 +660,10 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
       errorCount++;
     }
   }
+  
+  // Note: removeOverrides() is called during component swap above,
+  // which completely removes all overrides and resets instances to library defaults
+  console.log('✅ All component instances reset to target library defaults');
 
   // Check if nothing was swapped
   const totalSwapped = swapCount + styleSwapCount;
