@@ -26,3 +26,23 @@ export const STYLE_KEY_MAPPING: Record<string, Record<string, string>> = {
     'Heading': 'a190e78b22bda4b2067574705f09b42921a38ffb',
   },
 };
+
+// Variable ID mappings - DEPRECATED, use VARIABLE_KEY_MAPPING instead
+// Variable IDs are file-specific and don't work across files
+export const VARIABLE_ID_MAPPING: Record<string, Record<string, string>> = {
+  'Monkey': {
+    'Primary': 'VariableID:92:24',
+    'Background': 'VariableID:92:25',
+    'Heading': 'VariableID:92:26',
+  },
+};
+
+// Variable KEY mappings - maps variable names to their keys in each library
+// Variable keys are permanent identifiers that work across files
+export const VARIABLE_KEY_MAPPING: Record<string, Record<string, string>> = {
+  'Monkey': {
+    'Primary': 'dc69fade742a1338bc34ec90e4081f924f45fbbb',
+    'Background': 'e3731549dd33521e379b6720c78064011ff0c04f',
+    'Heading': 'bdc3548622b342867bc8976b5c780623efcf7f2a',
+  },
+};

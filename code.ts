@@ -1,5 +1,5 @@
 // Main Figma Swap Library Plugin (clean template)
-import { COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING } from './keyMapping';
+import { COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING, VARIABLE_ID_MAPPING, VARIABLE_KEY_MAPPING } from './keyMapping';
 import { copyTextOverrides } from './swapUtils';
 
 // Interface definitions
@@ -253,6 +253,17 @@ async function getTargetColor(tokenId: string, styleName: string, sourceLibrary:
   }
   
   const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
+  
+  // Check if target library uses variables instead of styles
+  const targetVariableId = VARIABLE_ID_MAPPING[normalizedTargetLibrary]?.[styleName];
+  
+  if (targetVariableId) {
+    console.log(`✅ Found variable binding for ${styleName}: ${targetVariableId}`);
+    figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color: 'VARIABLE', variableId: targetVariableId });
+    return;
+  }
+  
+  // Otherwise try to import as a style
   const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
   
   console.log(`📍 Target library: ${normalizedTargetLibrary}, Style key: ${targetStyleKey}`);
@@ -290,12 +301,21 @@ async function syncLibraryDefinitions(): Promise<void> {
   
   const components: { name: string; key: string }[] = [];
   const styles: { name: string; key: string; type: string }[] = [];
+  const variables: { name: string; id: string }[] = [];
   
   // Load all pages first
   await figma.loadAllPagesAsync();
   
-  // Get all local components from current page only (more practical)
-  const localComponents = figma.currentPage.findAll(node => node.type === 'COMPONENT') as ComponentNode[];
+  // Scan ALL pages, not just current, to find components and variables
+  let allNodes: SceneNode[] = [];
+  for (const page of figma.root.children as PageNode[]) {
+    console.log(`📄 Scanning page: ${page.name}`);
+    const pageNodes = page.findAll();
+    allNodes = allNodes.concat(pageNodes);
+  }
+  
+  // Get all local components from all pages
+  const localComponents = allNodes.filter(node => node.type === 'COMPONENT') as ComponentNode[];
   for (const comp of localComponents) {
     if (comp.key) {
       components.push({ name: comp.name, key: comp.key });
@@ -323,6 +343,20 @@ async function syncLibraryDefinitions(): Promise<void> {
       styles.push({ name: style.name, key: style.key, type: 'EFFECT' });
     }
   }
+
+  // Get all local variables using the correct API method
+  try {
+    const allVariables = await figma.variables.getLocalVariablesAsync();
+    console.log(`📊 Found ${allVariables.length} local variables in file`);
+    for (const variable of allVariables) {
+      if (variable.name && variable.id) {
+        variables.push({ name: variable.name, id: variable.id });
+        console.log(`  - ${variable.name}: ${variable.id}`);
+      }
+    }
+  } catch (err) {
+    console.warn(`⚠️ Could not get variables: ${err}`);
+  }
   
   // Output to console for easy copying
   console.log('\n📦 COMPONENT KEYS:');
@@ -334,12 +368,18 @@ async function syncLibraryDefinitions(): Promise<void> {
   styles.forEach(style => {
     console.log(`  '${style.name}': '${style.key}', // ${style.type}`);
   });
+
+  console.log('\n📦 VARIABLE IDs:');
+  variables.forEach(variable => {
+    console.log(`  '${variable.name}': '${variable.id}',`);
+  });
   
-  figma.notify(`Found ${components.length} components and ${styles.length} styles. Check console for keys.`);
+  figma.notify(`Found ${components.length} components, ${styles.length} styles, and ${variables.length} variables. Check console for keys/IDs.`);
   figma.ui.postMessage({ 
     type: 'SYNC_COMPLETE', 
     components: components.length, 
-    styles: styles.length 
+    styles: styles.length,
+    variables: variables.length
   });
 }
 
@@ -375,77 +415,217 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
 async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrary: string, targetLibrary: string): Promise<number> {
   let swapCount = 0;
 
-  // Get the source and target style keys
+  // Get the source style key - we need this to identify which styles to replace
   const sourceStyleKey = STYLE_KEY_MAPPING[sourceLibrary]?.[styleName];
-  const targetStyleKey = STYLE_KEY_MAPPING[targetLibrary]?.[styleName];
-
-  if (!sourceStyleKey || !targetStyleKey) {
-    console.warn(`Style mapping not found for '${styleName}' between ${sourceLibrary} and ${targetLibrary}`);
+  
+  if (!sourceStyleKey) {
+    console.warn(`⚠️ Source style mapping not found for '${styleName}' in ${sourceLibrary}`);
     return 0;
   }
 
-  // Check if this node uses the source style
-  try {
-    // Handle fill/paint styles
-    if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
+  // Normalize target library name
+  function normalizeLibraryName(name: string): string {
+    if (name.toLowerCase().includes('shark')) return 'Shark';
+    if (name.toLowerCase().includes('monkey')) return 'Monkey';
+    return name;
+  }
+  const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
+
+  // Try to get the target variable KEY for this style name
+  const targetVariableKey = VARIABLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+  const targetVariableId = VARIABLE_ID_MAPPING[normalizedTargetLibrary]?.[styleName];
+
+  console.log(`  📋 Processing node: ${node.name} (type: ${node.type}) looking for style: ${styleName}`);
+
+  // Process fill styles on any node that has them (including FRAME)
+  if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
+    try {
       const currentStyle = await figma.getStyleByIdAsync(node.fillStyleId);
       if (currentStyle && currentStyle.key === sourceStyleKey) {
-        // Import and apply the target style
-        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
-        if (targetStyle && targetStyle.type === 'PAINT') {
-          await node.setFillStyleIdAsync(targetStyle.id);
-          swapCount++;
-          console.log(`✅ Swapped fill style '${styleName}' on ${node.type}`);
+        console.log(`  ✅ Found ${styleName} style on ${node.type}`);
+        
+        // If we have a target variable KEY or ID, bind to it
+        if (targetVariableKey || targetVariableId) {
+          try {
+            console.log(`  🔄 Binding to Monkey variable: ${targetVariableKey || targetVariableId}`);
+            const nodeAny = node as any;
+            
+            // Try setting the fill with variable binding directly
+            if (Array.isArray(nodeAny.fills) && nodeAny.fills.length > 0) {
+              try {
+                console.log(`  🔄 Attempting to bind variable: ${styleName} (KEY: ${targetVariableKey}, ID: ${targetVariableId})`);
+                
+                let variable: Variable | null = null;
+                
+                // First, try to import by KEY (most reliable for library variables)
+                if (targetVariableKey) {
+                  try {
+                    console.log(`  🔍 Attempting importVariableByKeyAsync("${targetVariableKey}")...`);
+                    variable = await figma.variables.importVariableByKeyAsync(targetVariableKey);
+                    if (variable) {
+                      console.log(`  ✅ Found variable by KEY: ${variable.name}`);
+                    } else {
+                      console.log(`  ⚠️ importVariableByKeyAsync returned null`);
+                    }
+                  } catch (keyErr) {
+                    console.log(`  ⚠️ importVariableByKeyAsync failed: ${keyErr}`);
+                  }
+                }
+                
+                // Fallback: search by name in local variables (includes imported library variables)
+                if (!variable) {
+                  console.log(`  🔍 Falling back to name search: "${styleName}"...`);
+                  try {
+                    const localVars = await figma.variables.getLocalVariablesAsync();
+                    console.log(`  📊 Searching ${localVars.length} local variables (includes imported library variables)`);
+                    console.log(`  📋 Available names: ${localVars.map(v => v.name).join(', ')}`);
+                    
+                    variable = localVars.find(v => v.name === styleName) || null;
+                    if (variable) {
+                      console.log(`  ✅ Found variable by name: ${variable.name}`);
+                    } else {
+                      console.log(`  ⚠️ No variable named '${styleName}' found in local or library variables`);
+                    }
+                  } catch (searchErr) {
+                    console.log(`  ❌ Name search failed: ${searchErr}`);
+                  }
+                }
+                
+                if (variable) {
+                  console.log(`  📌 Using variable: ${variable.name} (id: ${variable.id}, type: ${variable.resolvedType})`);
+                  // Use the official API to bind the variable to paint
+                  const boundPaint = figma.variables.setBoundVariableForPaint(
+                    { type: 'SOLID', color: { r: 0, g: 0, b: 0 } },  // Base paint (color doesn't matter)
+                    'color',                                          // Field to bind
+                    variable                                          // The variable to use
+                  );
+                  
+                  console.log(`  🎨 Bound paint created, assigning to fills...`);
+                  nodeAny.fills = [boundPaint];
+                  console.log(`  ✅ Swapped fill to variable '${styleName}' on ${node.type}`);
+                  swapCount++;
+                } else {
+                  console.log(`  ❌ Could not find variable '${styleName}' (KEY: ${targetVariableKey}, ID: ${targetVariableId})`);
+                }
+              } catch (bindErr) {
+                console.log(`  ❌ Error binding fill variable: ${bindErr}`);
+              }
+            }
+          } catch (e) {
+            console.log(`  ℹ️ Could not bind variable directly, trying style swap: ${e}`);
+            // Fallback: try to swap to a style in the target library
+            const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+            if (targetStyleKey) {
+              try {
+                const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+                if (targetStyle && targetStyle.type === 'PAINT') {
+                  // Use async method for safer clearing
+                  if (typeof (node as any).setFillStyleIdAsync === 'function') {
+                    await (node as any).setFillStyleIdAsync(targetStyle.id);
+                    console.log(`  ✅ Swapped fill to Monkey style '${styleName}' on ${node.type}`);
+                    swapCount++;
+                  }
+                }
+              } catch (importErr) {
+                console.log(`  ❌ Could not import target style: ${importErr}`);
+              }
+            }
+          }
+        } else {
+          console.log(`  ⚠️ No variable ID found for '${styleName}' in ${normalizedTargetLibrary}`);
         }
       }
+    } catch (styleErr) {
+      // Node doesn't have a valid fill style, skip it
     }
+  }
 
-    // Handle stroke styles
-    if ('strokeStyleId' in node && node.strokeStyleId && typeof node.strokeStyleId === 'string') {
+  // Process stroke styles on any node that has them
+  if ('strokeStyleId' in node && node.strokeStyleId && typeof node.strokeStyleId === 'string') {
+    try {
       const currentStyle = await figma.getStyleByIdAsync(node.strokeStyleId);
       if (currentStyle && currentStyle.key === sourceStyleKey) {
-        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
-        if (targetStyle && targetStyle.type === 'PAINT') {
-          await node.setStrokeStyleIdAsync(targetStyle.id);
-          swapCount++;
-          console.log(`✅ Swapped stroke style '${styleName}' on ${node.type}`);
+        console.log(`  ✅ Found ${styleName} stroke on ${node.type}`);
+        
+        if (targetVariableKey || targetVariableId) {
+          try {
+            console.log(`  🔄 Binding stroke to Monkey variable: ${targetVariableKey || targetVariableId}`);
+            const nodeAny = node as any;
+            
+            if (Array.isArray(nodeAny.strokes) && nodeAny.strokes.length > 0) {
+              try {
+                console.log(`  🔄 Attempting to bind variable: ${styleName} (KEY: ${targetVariableKey}, ID: ${targetVariableId})`);
+                
+                let variable: Variable | null = null;
+                
+                // First, try to import by KEY (most reliable for library variables)
+                if (targetVariableKey) {
+                  try {
+                    console.log(`  🔍 Attempting importVariableByKeyAsync("${targetVariableKey}")...`);
+                    variable = await figma.variables.importVariableByKeyAsync(targetVariableKey);
+                    if (variable) {
+                      console.log(`  ✅ Found variable by KEY: ${variable.name}`);
+                    } else {
+                      console.log(`  ⚠️ importVariableByKeyAsync returned null`);
+                    }
+                  } catch (keyErr) {
+                    console.log(`  ⚠️ importVariableByKeyAsync failed: ${keyErr}`);
+                  }
+                }
+                
+                // Fallback: search by name in local variables (includes imported library variables)
+                if (!variable) {
+                  console.log(`  🔍 Falling back to name search: "${styleName}"...`);
+                  try {
+                    const localVars = await figma.variables.getLocalVariablesAsync();
+                    console.log(`  📊 Searching ${localVars.length} local variables (includes imported library variables)`);
+                    console.log(`  📋 Available names: ${localVars.map(v => v.name).join(', ')}`);
+                    
+                    variable = localVars.find(v => v.name === styleName) || null;
+                    if (variable) {
+                      console.log(`  ✅ Found variable by name: ${variable.name}`);
+                    } else {
+                      console.log(`  ⚠️ No variable named '${styleName}' found in local or library variables`);
+                    }
+                  } catch (searchErr) {
+                    console.log(`  ❌ Name search failed: ${searchErr}`);
+                  }
+                }
+                
+                if (variable) {
+                  console.log(`  📌 Using variable: ${variable.name} (id: ${variable.id}, type: ${variable.resolvedType})`);
+                  // Use the official API to bind the variable to paint
+                  const boundPaint = figma.variables.setBoundVariableForPaint(
+                    { type: 'SOLID', color: { r: 0, g: 0, b: 0 } },  // Base paint (color doesn't matter)
+                    'color',                                          // Field to bind
+                    variable                                          // The variable to use
+                  );
+                  
+                  console.log(`  🎨 Bound paint created, assigning to strokes...`);
+                  nodeAny.strokes = [boundPaint];
+                  console.log(`  ✅ Swapped stroke to variable '${styleName}' on ${node.type}`);
+                  swapCount++;
+                } else {
+                  console.log(`  ❌ Could not find variable '${styleName}' (KEY: ${targetVariableKey}, ID: ${targetVariableId})`);
+                }
+              } catch (bindErr) {
+                console.log(`  ❌ Error binding stroke variable: ${bindErr}`);
+              }
+            }
+          } catch (e) {
+            console.log(`  ⚠️ Could not bind stroke variable: ${e}`);
+          }
         }
       }
+    } catch (styleErr) {
+      // Node doesn't have a valid stroke style, skip it
     }
-
-    // Handle text styles
-    if ('textStyleId' in node && node.textStyleId && typeof node.textStyleId === 'string') {
-      const currentStyle = await figma.getStyleByIdAsync(node.textStyleId);
-      if (currentStyle && currentStyle.key === sourceStyleKey) {
-        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
-        if (targetStyle && targetStyle.type === 'TEXT') {
-          await node.setTextStyleIdAsync(targetStyle.id);
-          swapCount++;
-          console.log(`✅ Swapped text style '${styleName}' on ${node.type}`);
-        }
-      }
-    }
-
-    // Handle effect styles
-    if ('effectStyleId' in node && node.effectStyleId && typeof node.effectStyleId === 'string') {
-      const currentStyle = await figma.getStyleByIdAsync(node.effectStyleId);
-      if (currentStyle && currentStyle.key === sourceStyleKey) {
-        const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
-        if (targetStyle && targetStyle.type === 'EFFECT') {
-          await node.setEffectStyleIdAsync(targetStyle.id);
-          swapCount++;
-          console.log(`✅ Swapped effect style '${styleName}' on ${node.type}`);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn(`Error swapping style on node:`, err);
   }
 
   // Recursively process children
   if ('children' in node && node.children) {
     for (const child of node.children) {
-      swapCount += await swapStylesInNode(child, styleName, sourceLibrary, targetLibrary);
+      swapCount += await swapStylesInNode(child, styleName, sourceLibrary, normalizedTargetLibrary);
     }
   }
 
@@ -579,15 +759,15 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
       // Use the scanned frame if available, otherwise fall back to selection
       const nodesToProcess = scannedFrame ? [scannedFrame] : figma.currentPage.selection;
       
+      let foundInstancesForThisComponent = false;
       for (const node of nodesToProcess) {
         if (node.type === 'FRAME' || node.type === 'GROUP') {
           const instances = await findInstancesByNameAsync(node, comp.name, normalizedSourceLibrary);
           totalInstancesFound += instances.length;
           if (instances.length === 0) {
-            errorDetails.push(`No matching instances found for component '${comp.name}' in selection.`);
-            errorCount++;
-            continue;
+            continue;  // Don't count as error yet, check other nodes
           }
+          foundInstancesForThisComponent = true;
           for (const instance of instances) {
             const targetKey = COMPONENT_KEY_MAPPING[normalizedTargetLibrary]?.[comp.name];
             if (!targetKey) {
@@ -870,6 +1050,11 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
           }
         }
       }
+      // Only report error if no instances were found for this component at all AND nothing has been swapped yet
+      if (!foundInstancesForThisComponent && totalInstancesFound === 0) {
+        errorDetails.push(`No matching instances found for component '${comp.name}' in selection.`);
+        errorCount++;
+      }
     } catch (err) {
       errorDetails.push(`Error processing component '${comp.name}': ${err instanceof Error ? err.message : err}`);
       errorCount++;
@@ -884,10 +1069,9 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
       const nodesToProcess = scannedFrame ? [scannedFrame] : figma.currentPage.selection;
       
       for (const node of nodesToProcess) {
-        if (node.type === 'FRAME' || node.type === 'GROUP') {
-          const styleSwaps = await swapStylesInNode(node, style.name, normalizedSourceLibrary, normalizedTargetLibrary);
-          styleSwapCount += styleSwaps;
-        }
+        // Process any node type that might have styles
+        const styleSwaps = await swapStylesInNode(node, style.name, normalizedSourceLibrary, normalizedTargetLibrary);
+        styleSwapCount += styleSwaps;
       }
     } catch (err) {
       errorDetails.push(`Error swapping style '${style.name}': ${err instanceof Error ? err.message : err}`);
