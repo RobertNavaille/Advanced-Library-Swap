@@ -1,4 +1,3 @@
-"use strict";
 // swapUtils.ts
 // Utility functions for swapping and copying properties between Figma instances
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -10,10 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.copyTextOverrides = copyTextOverrides;
 // Use Figma's global InstanceNode type
-function copyTextOverrides(sourceInstance, targetInstance) {
+export function copyTextOverrides(sourceInstance, targetInstance) {
     return __awaiter(this, void 0, void 0, function* () {
         // Helper to copy variant properties
         function copyVariantProps(source, target) {

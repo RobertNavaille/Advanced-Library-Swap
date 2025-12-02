@@ -19,6 +19,9 @@ interface TokenInfo {
   library?: string;
 }
 
+// Store the scanned frame for later use during swaps
+let scannedFrame: FrameNode | null = null;
+
 // Show the UI
 figma.showUI(__html__, { width: 480, height: 500, themeColors: true });
 
@@ -81,6 +84,7 @@ async function handleScanFrames(): Promise<void> {
     const tokens: TokenInfo[] = [];
     for (const node of selection) {
       if (node.type === 'FRAME') {
+        scannedFrame = node;  // Store the frame for later use
         await scanNodeForAssets(node, components, tokens);
       }
     }
@@ -117,6 +121,7 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
         if (foundLibrary && foundName) {
           const variantName = foundName; // Always use the mapping key (variant)
           const parentComponentName = parentName || foundName;
+          console.log(`✅ Found component mapping: ${variantName} (parent: ${parentComponentName})`);
           if (!variantName.startsWith('.') && !components.find(c => c.name === variantName && c.library === foundLibrary)) {
             components.push({ id: component.id, name: variantName, library: foundLibrary, remote: component.remote, parentName: parentComponentName });
           }
@@ -332,14 +337,11 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
       const mainComponent = await node.getMainComponentAsync();
       if (mainComponent) {
         console.log(`🔍 Found instance: ${mainComponent.name}, key: ${mainComponent.key}, looking for: ${name} in ${library}`);
-        if (mainComponent.name === name) {
-          // Check if instance belongs to the source library
-          for (const lib in COMPONENT_KEY_MAPPING) {
-            if (lib === library && COMPONENT_KEY_MAPPING[lib][name] === mainComponent.key) {
-              console.log(`✅ Match found! Adding instance.`);
-              found.push(node);
-            }
-          }
+        // Check if the main component's key matches the mapping for this component name
+        const expectedKey = COMPONENT_KEY_MAPPING[library]?.[name];
+        if (expectedKey && mainComponent.key === expectedKey) {
+          console.log(`✅ Match found! Adding instance.`);
+          found.push(node);
         }
       }
     } catch (err) {
@@ -459,8 +461,11 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
 
   for (const comp of components) {
     try {
-      const selection = figma.currentPage.selection;
-      for (const node of selection) {
+      console.log(`🔄 Processing component: ${comp.name}`);
+      // Use the scanned frame if available, otherwise fall back to selection
+      const nodesToProcess = scannedFrame ? [scannedFrame] : figma.currentPage.selection;
+      
+      for (const node of nodesToProcess) {
         if (node.type === 'FRAME' || node.type === 'GROUP') {
           const instances = await findInstancesByNameAsync(node, comp.name, normalizedSourceLibrary);
           totalInstancesFound += instances.length;
@@ -497,8 +502,10 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
   let styleSwapCount = 0;
   for (const style of styles) {
     try {
-      const selection = figma.currentPage.selection;
-      for (const node of selection) {
+      // Use the scanned frame if available, otherwise fall back to selection
+      const nodesToProcess = scannedFrame ? [scannedFrame] : figma.currentPage.selection;
+      
+      for (const node of nodesToProcess) {
         if (node.type === 'FRAME' || node.type === 'GROUP') {
           const styleSwaps = await swapStylesInNode(node, style.name, normalizedSourceLibrary, normalizedTargetLibrary);
           styleSwapCount += styleSwaps;
