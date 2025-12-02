@@ -452,6 +452,12 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
   return swapCount;
 }
 
+// Reset style overrides while preserving property overrides
+function resetStyleOverrides(node: SceneNode): void {
+  // This function is kept for compatibility but style resets now happen before swap
+  return;
+}
+
 // Add detailed swap logic for PERFORM_LIBRARY_SWAP
 async function performLibrarySwap(components: any[], styles: any[], sourceLibrary: string, targetLibrary: string) {
   console.log('🔄 performLibrarySwap called!');
@@ -497,7 +503,46 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
             }
             try {
               const importedComponent = await figma.importComponentByKeyAsync(targetKey);
+              
+              // Store position only (not size, which becomes read-only after swap)
+              const instanceNode = instance as InstanceNode;
+              const x = instanceNode.x;
+              const y = instanceNode.y;
+              const rotation = instanceNode.rotation;
+              
+              // Get the component's default fills before swap
+              const componentDefaultFills = importedComponent.fills;
+              console.log('🎨 Component default fills:', JSON.stringify(componentDefaultFills));
+              
+              // Perform the swap
               instance.swapComponent(importedComponent);
+              console.log(`✅ Swapped component: ${instance.name}`);
+              
+              // After swap, restore the component's default fills (removing the override)
+              try {
+                if ('fills' in instanceNode && Array.isArray(componentDefaultFills)) {
+                  instanceNode.fills = componentDefaultFills;
+                  console.log('✅ Restored component default fills');
+                }
+              } catch (e) {
+                console.warn('Could not restore default fills:', e);
+              }
+              
+              // Similarly for strokes
+              try {
+                if ('strokes' in instanceNode && Array.isArray(importedComponent.strokes)) {
+                  instanceNode.strokes = importedComponent.strokes;
+                  console.log('✅ Restored component default strokes');
+                }
+              } catch (e) {
+                console.warn('Could not restore default strokes:', e);
+              }
+              
+              // Restore position only
+              instanceNode.x = x;
+              instanceNode.y = y;
+              instanceNode.rotation = rotation;
+              
               swapCount++;
             } catch (swapErr) {
               errorDetails.push(`Failed to swap '${comp.name}': ${swapErr instanceof Error ? swapErr.message : swapErr}`);
