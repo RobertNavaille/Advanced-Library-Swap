@@ -5,10 +5,11 @@ import { copyTextOverrides } from './swapUtils';
 // Interface definitions
 interface ComponentInfo {
   id: string;
-  name: string;
+  name: string;  // The variant name (mapping key) - used for swapping
+  displayName: string;  // The parent component name - used for UI display
   library: string;
   remote: boolean;
-  parentName: string;
+  parentName: string;  // Kept for backward compatibility
 }
 
 interface TokenInfo {
@@ -119,11 +120,18 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
           if (foundLibrary) break;
         }
         if (foundLibrary && foundName) {
-          const variantName = foundName; // Always use the mapping key (variant)
+          const variantName = foundName; // The variant key from mapping
           const parentComponentName = parentName || foundName;
           console.log(`✅ Found component mapping: ${variantName} (parent: ${parentComponentName})`);
           if (!variantName.startsWith('.') && !components.find(c => c.name === variantName && c.library === foundLibrary)) {
-            components.push({ id: component.id, name: variantName, library: foundLibrary, remote: component.remote, parentName: parentComponentName });
+            components.push({ 
+              id: component.id, 
+              name: variantName,  // Variant name for swapping
+              displayName: parentComponentName,  // Parent name for UI display
+              library: foundLibrary, 
+              remote: component.remote, 
+              parentName: parentComponentName 
+            });
           }
         }
       }
