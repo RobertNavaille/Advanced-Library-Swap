@@ -252,6 +252,9 @@
       display: flex; 
       flex-direction: column;
       flex: 1;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
     }
     .result { margin-top: var(--figma-space-12); }
     
@@ -712,9 +715,10 @@
     }
     
     .arrow-icon {
-      flex-shrink: 0;
+      color: var(--figma-color-icon-tertiary);
       width: 24px;
       height: 24px;
+      flex-shrink: 0;
     }
     
     .scan-heading-row {
@@ -783,6 +787,9 @@
       gap: 12px;
       padding: var(--figma-space-12) var(--figma-space-16);
       border-bottom: 1px solid var(--figma-color-border);
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
     
     .mapping-item:hover {
@@ -1237,6 +1244,15 @@
       flex: 1;
       overflow-y: auto;
       padding-bottom: var(--figma-space-16);
+    }
+
+    .component-mappings {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-width: 0;
+      overflow-y: auto;
+      flex: 1;
     }
     
     .component-icon {
