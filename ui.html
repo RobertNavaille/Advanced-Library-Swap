@@ -1101,6 +1101,114 @@
       color: var(--figma-color-icon-secondary);
       box-shadow: none;
     }
+
+    /* Library Selector View Styles */
+    .library-selector-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    .library-selector-heading {
+      padding: var(--figma-space-24) var(--figma-space-16) var(--figma-space-16) var(--figma-space-16);
+      flex-shrink: 0;
+    }
+    
+    .library-selector-title {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-weight: 550;
+      font-size: 13px;
+      line-height: 22px;
+      letter-spacing: -0.325%;
+      color: var(--figma-color-text);
+      margin: 0;
+      display: block;
+    }
+    
+    .library-selector-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    
+    .library-list {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .library-selector-item {
+      display: flex;
+      align-items: center;
+      padding: var(--figma-space-12) var(--figma-space-16);
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      position: relative;
+      border: none;
+      background: var(--figma-color-bg);
+    }
+    
+    .library-selector-item:hover {
+      background: var(--figma-color-bg-hover);
+    }
+    
+    .library-selector-item::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--figma-color-border);
+    }
+    
+    .library-selector-thumbnail {
+      width: 90px;
+      height: 59px;
+      margin-right: var(--figma-space-12);
+      background: #a7a7a7;
+      border-radius: 7px;
+      flex-shrink: 0;
+    }
+    
+    .library-selector-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .library-selector-name {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-weight: 550;
+      font-size: 11px;
+      line-height: 16px;
+      color: var(--figma-color-text);
+      margin: 0;
+      white-space: nowrap;
+    }
+    
+    .library-selector-count {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-weight: 450;
+      font-size: 11px;
+      line-height: 16px;
+      color: var(--figma-color-text-secondary);
+      margin: 0;
+    }
+    
+    .library-selector-arrow {
+      width: 24px;
+      height: 24px;
+      color: var(--figma-color-icon);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: var(--figma-space-12);
+    }
+    
+    }
     
     /* New scan results styles */
     .close-btn {
@@ -1162,6 +1270,18 @@
       </button>
     </div>
     <div id="scanResult" class="result"></div>
+  </div>
+
+  <!-- Library Selection View -->
+  <div id="librarySelectorView" class="view">
+    <div class="library-selector-wrapper">
+      <div class="library-selector-heading">
+        <h1 class="library-selector-title">Connected Libraries</h1>
+      </div>
+      <div class="library-selector-content">
+        <div id="libraryList" class="library-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Scan Results View -->
@@ -1499,6 +1619,85 @@
     let componentData = null;
     let unifiedData = null;
     let currentSwapData = null;
+    let pendingScanData = null; // Store scan data temporarily for library selection
+
+    // Library Selector Functions
+    function extractUniqueLibraries(scanData) {
+      // Get unique libraries from both components and tokens
+      const componentLibraries = [...new Set(scanData.components?.map(c => c.library).filter(l => l) || [])];
+      const tokenLibraries = [...new Set(scanData.tokens?.map(t => t.library).filter(l => l) || [])];
+      const allLibraries = [...new Set([...componentLibraries, ...tokenLibraries])];
+      
+      // Create library info with counts
+      const libraryInfo = {};
+      allLibraries.forEach(lib => {
+        const componentCount = scanData.components?.filter(c => c.library === lib).length || 0;
+        const tokenCount = scanData.tokens?.filter(t => t.library === lib).length || 0;
+        libraryInfo[lib] = {
+          name: lib,
+          componentCount,
+          tokenCount,
+          totalCount: componentCount + tokenCount
+        };
+      });
+      
+      return Object.values(libraryInfo);
+    }
+
+    function showLibrarySelector(scanData) {
+      console.log('🔄 Showing library selector with scan data');
+      const libraries = extractUniqueLibraries(scanData);
+      
+      if (libraries.length === 0) {
+        alert('No libraries found in scan results');
+        return;
+      }
+      
+      // If only one library, skip selector and go directly to results
+      if (libraries.length === 1) {
+        console.log('📚 Only one library found, skipping selector');
+        unifiedData = scanData;
+        window.unifiedScanData = scanData;
+        showView('scanResultsView');
+        updateScanResultsView(scanData);
+        return;
+      }
+      
+      // Build library list HTML
+      const libraryListEl = document.getElementById('libraryList');
+      libraryListEl.innerHTML = '';
+      
+      libraries.forEach(libInfo => {
+        const div = document.createElement('div');
+        div.className = 'library-selector-item';
+        div.innerHTML = `
+          <div class="library-selector-thumbnail"></div>
+          <div class="library-selector-info">
+            <div class="library-selector-name">${libInfo.name}</div>
+            <div class="library-selector-count">${libInfo.componentCount} component${libInfo.componentCount !== 1 ? 's' : ''} / ${libInfo.tokenCount} Style${libInfo.tokenCount !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="library-selector-arrow">
+            <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.8536 11.6464C18.0488 11.8417 18.0488 12.1583 17.8536 12.3536L14.3536 15.8536C14.1583 16.0488 13.8417 16.0488 13.6464 15.8536C13.4512 15.6583 13.4512 15.3417 13.6464 15.1464L16.2929 12.5H6.5C6.22386 12.5 6 12.2761 6 12C6 11.7239 6.22386 11.5 6.5 11.5H16.2929L13.6464 8.85355C13.4512 8.65829 13.4512 8.34171 13.6464 8.14645C13.8417 7.95118 14.1583 7.95118 14.3536 8.14645L17.8536 11.6464Z" fill="var(--figma-color-icon)"/>
+            </svg>
+          </div>
+        `;
+        
+        div.addEventListener('click', () => {
+          console.log(`✅ Selected library: ${libInfo.name}`);
+          unifiedData = scanData;
+          window.unifiedScanData = scanData;
+          showView('scanResultsView');
+          updateScanResultsView(scanData);
+        });
+        
+        libraryListEl.appendChild(div);
+      });
+      
+      // Store data for potential library selection
+      pendingScanData = scanData;
+      showView('librarySelectorView');
+    }
 
     // View management
     function showView(viewId) {
@@ -2267,18 +2466,12 @@
         const errorDiv = document.getElementById('scanView').querySelector('.error');
         if (errorDiv) errorDiv.remove();
 
-        unifiedData = msg.data;
-        console.log('Scan data:', unifiedData);
+        // Store the scan data
+        const scanData = msg.data;
+        console.log('Scan data:', scanData);
         
-        // Store data globally for detailed view access
-        window.unifiedScanData = unifiedData;
-        
-        // Show the scan results view instead of unified libraries
-        showView('scanResultsView');
-        console.log('Showing scan results view');
-        
-        // Populate the scan results with the found components
-        updateScanResultsView(unifiedData);
+        // Show library selector view (or skip to results if only one library)
+        showLibrarySelector(scanData);
       }
 
       if (msg.type === 'swap-complete') {
@@ -2663,7 +2856,8 @@
       { id: 'backToScanFromStyleLibrariesBtn', view: 'scanView' },
       { id: 'backToStyleLibraries', view: 'styleLibraryView' },
       { id: 'backToScanFromStyles', view: 'scanView' },
-      { id: 'backToScanFromUnified', view: 'scanView' }
+      { id: 'backToScanFromUnified', view: 'scanView' },
+      { id: 'backFromSelectorBtn', view: 'scanView' }
     ];
 
     backElements.forEach(({ id, view }) => {
