@@ -18,31 +18,36 @@ export const STYLE_KEY_MAPPING: Record<string, Record<string, string>> = {
   'Shark': {
     'Background': 'd229a7e81e7a05731f1eaa36470abf5a4fae9bf2',
     'Primary': '82e40649545abfa72bf66cdd4b2f3796dd69a466',
-    'Heading': '19e42894199db9e7eac439f6b25f2775e0ccf651',
+    'HeadingColor': '19e42894199db9e7eac439f6b25f2775e0ccf651', // PAINT
+    'Heading': 'ac4330274941ead0a2d0ffb00d1ea79598d22ab7', // TEXT
+    'Body': '8c5340c46ff3b63418c05f0f3dafcac9e1e40b1e', // TEXT
   },
   'Monkey': {
     'Primary': 'ff2ac86fbfdde699eea044a240b1eeacf96d8a4e',
     'Background': '5c7e364fb93f9409be83e7b52d90bb2fe4663777',
-    'Heading': 'a190e78b22bda4b2067574705f09b42921a38ffb',
+    'HeadingColor': 'a190e78b22bda4b2067574705f09b42921a38ffb', // PAINT (inferred)
+    'Heading': '12c7bf83a29b502cdef4352008bdd1dc87b2f93e', // TEXT
+    'Body': '2f437791c4d64520626bc45e2f24a91dfc5877e9', // TEXT
   },
 };
 
-// Variable ID mappings - DEPRECATED, use VARIABLE_KEY_MAPPING instead
-// Variable IDs are file-specific and don't work across files
 export const VARIABLE_ID_MAPPING: Record<string, Record<string, string>> = {
   'Monkey': {
     'Primary': 'VariableID:92:24',
     'Background': 'VariableID:92:25',
-    'Heading': 'VariableID:92:26',
+    'HeadingColor': 'VariableID:92:26',
   },
 };
 
-// Variable KEY mappings - maps variable names to their keys in each library
-// Variable keys are permanent identifiers that work across files
 export const VARIABLE_KEY_MAPPING: Record<string, Record<string, string>> = {
   'Monkey': {
     'Primary': 'dc69fade742a1338bc34ec90e4081f924f45fbbb',
     'Background': 'e3731549dd33521e379b6720c78064011ff0c04f',
-    'Heading': 'bdc3548622b342867bc8976b5c780623efcf7f2a',
+    'HeadingColor': 'bdc3548622b342867bc8976b5c780623efcf7f2a',
   },
+};
+
+export const LIBRARY_THUMBNAILS: Record<string, string> = {
+  'Shark': 'https://raw.githubusercontent.com/RobertNavaille/Advanced-Library-Swap/main/Images/sharkThumbnail.png',
+  'Monkey': 'https://raw.githubusercontent.com/RobertNavaille/Advanced-Library-Swap/main/Images/monkeyThumbnail.png'
 };

@@ -1623,7 +1623,12 @@
 
     // Library Selector Functions
     function extractUniqueLibraries(scanData) {
-      // Get unique libraries from both components and tokens
+      // If libraries array is provided from backend (with thumbnails), use it
+      if (scanData.libraries && scanData.libraries.length > 0) {
+        return scanData.libraries;
+      }
+      
+      // Fallback: Get unique libraries from both components and tokens
       const componentLibraries = [...new Set(scanData.components?.map(c => c.library).filter(l => l) || [])];
       const tokenLibraries = [...new Set(scanData.tokens?.map(t => t.library).filter(l => l) || [])];
       const allLibraries = [...new Set([...componentLibraries, ...tokenLibraries])];
@@ -1637,7 +1642,8 @@
           name: lib,
           componentCount,
           tokenCount,
-          totalCount: componentCount + tokenCount
+          totalCount: componentCount + tokenCount,
+          thumbnail: null
         };
       });
       
@@ -1670,8 +1676,9 @@
       libraries.forEach(libInfo => {
         const div = document.createElement('div');
         div.className = 'library-selector-item';
+        
         div.innerHTML = `
-          <div class="library-selector-thumbnail"></div>
+          <div class="library-selector-thumbnail" style="background-image: url('${libInfo.thumbnail}'); background-size: cover; background-position: center;"></div>
           <div class="library-selector-info">
             <div class="library-selector-name">${libInfo.name}</div>
             <div class="library-selector-count">${libInfo.componentCount} component${libInfo.componentCount !== 1 ? 's' : ''} / ${libInfo.tokenCount} Style${libInfo.tokenCount !== 1 ? 's' : ''}</div>
@@ -1883,12 +1890,26 @@
           const mappingItem = document.createElement('div');
           mappingItem.className = 'mapping-item';
           mappingItem.dataset.searchHidden = 'false';
+          
+          // Determine icon based on token type
+          let sourceIcon = '';
+          let targetIcon = '';
+          
+          if (token.type === 'typography') {
+            sourceIcon = '<img src="https://raw.githubusercontent.com/RobertNavaille/Advanced-Library-Swap/main/Images/textIcon.svg" class="text-icon" style="width: 24px; height: 24px; color: var(--figma-color-icon); filter: brightness(0) saturate(100%) invert(75%) sepia(0%) saturate(0%);" />';
+            targetIcon = '<img src="https://raw.githubusercontent.com/RobertNavaille/Advanced-Library-Swap/main/Images/textIcon.svg" class="text-icon" style="width: 24px; height: 24px; color: var(--figma-color-icon); filter: brightness(0) saturate(100%) invert(75%) sepia(0%) saturate(0%);" />';
+          } else {
+            // Default to color swatch for color tokens
+            sourceIcon = `<div class="color-swatch" style="background-color: ${token.value || '#E74C3C'};"></div>`;
+            targetIcon = `<div class="color-swatch target-color-swatch" data-token-id="${token.id}" style="background-color: ${token.value || '#E74C3C'};"></div>`;
+          }
+          
           mappingItem.innerHTML = `
             <input type="checkbox" class="mapping-checkbox" checked>
             <div class="row-content">
               <div class="source-element">
                 <div class="icon-container">
-                  <div class="color-swatch" style="background-color: ${token.value || '#E74C3C'};"></div>
+                  ${sourceIcon}
                 </div>
                 <span class="component-name">${token.name}</span>
               </div>
@@ -1897,7 +1918,7 @@
               </svg>
               <div class="target-element">
                 <div class="icon-container">
-                  <div class="color-swatch target-color-swatch" data-token-id="${token.id}" style="background-color: ${token.value || '#E74C3C'};"></div>
+                  ${targetIcon}
                 </div>
                 <span class="component-name">${token.name}</span>
               </div>
@@ -2357,10 +2378,12 @@
         
         const checkbox = item.querySelector('.mapping-checkbox');
         if (checkbox && checkbox.checked) {
-          // Check if it's a color token or regular component
+          // Check if it's a token (color or typography) or a regular component
           const isColorToken = item.querySelector('.color-swatch') !== null;
+          const isTypographyToken = item.querySelector('.text-icon') !== null;
+          const isToken = isColorToken || isTypographyToken;
           
-          if (isColorToken) {
+          if (isToken) {
             const componentName = item.querySelector('.component-name').textContent;
             stylesToSwap.push({
               name: componentName,

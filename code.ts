@@ -1,5 +1,5 @@
 // Main Figma Swap Library Plugin (clean template)
-import { COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING, VARIABLE_ID_MAPPING, VARIABLE_KEY_MAPPING } from './keyMapping';
+import { COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING, VARIABLE_ID_MAPPING, VARIABLE_KEY_MAPPING, LIBRARY_THUMBNAILS } from './keyMapping';
 import { copyTextOverrides } from './swapUtils';
 
 // Interface definitions
@@ -10,6 +10,7 @@ interface ComponentInfo {
   library: string;
   remote: boolean;
   parentName: string;  // Kept for backward compatibility
+  libraryFileId?: string;  // File ID of the library
 }
 
 interface TokenInfo {
@@ -94,7 +95,42 @@ async function handleScanFrames(): Promise<void> {
       }
     }
     console.log('📊 Scan complete. Found components:', components.length, 'tokens:', tokens.length);
-    figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: true, data: { components, tokens, libraries: [] } });
+    
+    // Extract unique libraries and build library metadata with file IDs
+    const libraryMap = new Map<string, { fileId?: string; components: number; tokens: number }>();
+    
+    // Add components to library map
+    components.forEach(c => {
+      if (!libraryMap.has(c.library)) {
+        libraryMap.set(c.library, { fileId: c.libraryFileId, components: 0, tokens: 0 });
+      }
+      const lib = libraryMap.get(c.library)!;
+      lib.components += 1;
+      if (c.libraryFileId && !lib.fileId) {
+        lib.fileId = c.libraryFileId;
+      }
+    });
+    
+    // Add tokens to library map
+    tokens.forEach(t => {
+      if (t.library && !libraryMap.has(t.library)) {
+        libraryMap.set(t.library, { components: 0, tokens: 0 });
+      }
+      if (t.library) {
+        libraryMap.get(t.library)!.tokens += 1;
+      }
+    });
+    
+    // Build libraries array with file IDs
+    const libraries = Array.from(libraryMap.entries()).map(([libName, libInfo]) => ({
+      name: libName,
+      fileId: libInfo.fileId || null,
+      thumbnail: LIBRARY_THUMBNAILS[libName] || null,
+      componentCount: libInfo.components,
+      tokenCount: libInfo.tokens
+    }));
+    
+    figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: true, data: { components, tokens, libraries } });
   } catch (error) {
     console.error('❌ Scan error:', error);
     figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: false, error: `Scan failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
@@ -110,9 +146,17 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
         let foundLibrary: string | null = null;
         let foundName: string | null = null;
         let parentName: string | null = null;
+        
+        // Extract file ID from component key (format: fileId/pageId/componentId)
+        const keyParts = component.key.split('/');
+        const libraryFileId = keyParts[0] || undefined;
+        const componentId = keyParts[keyParts.length - 1] || component.key; // Get the last part (component ID)
+        
+        // Try to match the component using the full key first, then try with extracted component ID
         for (const libName of Object.keys(COMPONENT_KEY_MAPPING)) {
           for (const compName of Object.keys(COMPONENT_KEY_MAPPING[libName])) {
-            if (COMPONENT_KEY_MAPPING[libName][compName] === component.key) {
+            const mappedKey = COMPONENT_KEY_MAPPING[libName][compName];
+            if (mappedKey === component.key || mappedKey === componentId) {
               foundLibrary = libName;
               foundName = compName;
               if (component.parent && component.parent.type === 'COMPONENT_SET') {
@@ -136,7 +180,8 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
               displayName: parentComponentName,  // Parent name for UI display
               library: foundLibrary, 
               remote: component.remote, 
-              parentName: parentComponentName 
+              parentName: parentComponentName,
+              libraryFileId: libraryFileId
             });
           }
         }
@@ -726,6 +771,35 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
       }
     } catch (styleErr) {
       // Node doesn't have a valid stroke style, skip it
+    }
+  }
+
+  // Process text styles on TEXT nodes
+  if (node.type === 'TEXT' && 'textStyleId' in node && node.textStyleId && typeof node.textStyleId === 'string') {
+    try {
+      const currentStyle = await figma.getStyleByIdAsync(node.textStyleId);
+      if (currentStyle && currentStyle.type === 'TEXT' && currentStyle.key === sourceStyleKey) {
+        console.log(`  ✅ Found ${styleName} text style on ${node.type}`);
+        
+        // Get the target text style and apply it
+        const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+        if (targetStyleKey) {
+          try {
+            const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+            if (targetStyle && targetStyle.type === 'TEXT') {
+              const textNode = node as TextNode;
+              // Use async method for text style assignment
+              await textNode.setTextStyleIdAsync(targetStyle.id);
+              console.log(`  ✅ Swapped text style to '${styleName}' on TEXT node`);
+              swapCount++;
+            }
+          } catch (importErr) {
+            console.log(`  ❌ Could not import target text style: ${importErr}`);
+          }
+        }
+      }
+    } catch (styleErr) {
+      // Node doesn't have a valid text style, skip it
     }
   }
 
