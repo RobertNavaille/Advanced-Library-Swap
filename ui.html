@@ -1687,8 +1687,9 @@
           console.log(`✅ Selected library: ${libInfo.name}`);
           unifiedData = scanData;
           window.unifiedScanData = scanData;
+          window.selectedSourceLibrary = libInfo.name;
           showView('scanResultsView');
-          updateScanResultsView(scanData);
+          updateScanResultsView(scanData, libInfo.name);
         });
         
         libraryListEl.appendChild(div);
@@ -1713,8 +1714,9 @@
     }
 
     // Update scan results view with found components and tokens
-    function updateScanResultsView(data) {
+    function updateScanResultsView(data, selectedLibrary) {
       console.log('Updating scan results view with:', data);
+      console.log('Selected library:', selectedLibrary);
       
       const scanResultsView = document.getElementById('scanResultsView');
       if (!scanResultsView) {
@@ -1722,15 +1724,28 @@
         return;
       }
       
+      // Filter data to only include the selected library if specified
+      let filteredData = data;
+      if (selectedLibrary) {
+        filteredData = {
+          components: data.components.filter(c => c.library === selectedLibrary),
+          tokens: data.tokens ? data.tokens.filter(t => t.library === selectedLibrary) : []
+        };
+        console.log('Filtered data for selected library:', filteredData);
+      }
+      
       // Update library header with actual library names and determine mapping direction
       const sourceLibraryLabel = document.getElementById('source-library-label');
       const targetLibraryLabel = document.getElementById('target-library-label');
       if (sourceLibraryLabel && targetLibraryLabel) {
-        // Get unique source libraries from components and tokens
-        const componentLibraries = [...new Set(data.components.map(c => c.library))];
-        const tokenLibraries = data.tokens ? [...new Set(data.tokens.map(t => t.library).filter(l => l))] : [];
-        const allLibraries = [...new Set([...componentLibraries, ...tokenLibraries])];
-        const sourceLibraryName = allLibraries.length > 0 ? allLibraries[0] : 'Source Library';
+        // Use selected library or get unique source libraries from components and tokens
+        let sourceLibraryName = selectedLibrary;
+        if (!sourceLibraryName) {
+          const componentLibraries = [...new Set(filteredData.components.map(c => c.library))];
+          const tokenLibraries = filteredData.tokens ? [...new Set(filteredData.tokens.map(t => t.library).filter(l => l))] : [];
+          const allLibraries = [...new Set([...componentLibraries, ...tokenLibraries])];
+          sourceLibraryName = allLibraries.length > 0 ? allLibraries[0] : 'Source Library';
+        }
         
         // Determine target library based on source (Shark ↔ Monkey mapping)
         let targetLibraryName = 'Target Library';
@@ -1760,8 +1775,8 @@
       mappingsContainer.innerHTML = '';
       
       // Determine target library name for components and tokens
-      const componentLibraries = data.components.length > 0 ? [...new Set(data.components.map(c => c.library))] : [];
-      const tokenLibraries = data.tokens ? [...new Set(data.tokens.map(t => t.library).filter(l => l))] : [];
+      const componentLibraries = filteredData.components.length > 0 ? [...new Set(filteredData.components.map(c => c.library))] : [];
+      const tokenLibraries = filteredData.tokens ? [...new Set(filteredData.tokens.map(t => t.library).filter(l => l))] : [];
       const allSourceLibraries = [...new Set([...componentLibraries, ...tokenLibraries])];
       const sourceLibraryName = allSourceLibraries.length > 0 ? allSourceLibraries[0] : '';
       let targetLibraryName = 'Target Library';
@@ -1772,10 +1787,10 @@
       }
 
       // Add Components (deduplicated by parent name, but track all variants)
-      if (data.components && data.components.length > 0) {
+      if (filteredData.components && filteredData.components.length > 0) {
         // Group all variants by parent name
         const parentMap = new Map();
-        data.components.forEach((component) => {
+        filteredData.components.forEach((component) => {
           const key = component.displayName + '|' + component.library;
           if (!parentMap.has(key)) {
             parentMap.set(key, []);
@@ -1820,9 +1835,9 @@
       }
       
       // Add Tokens as color styles
-      if (data.tokens && data.tokens.length > 0) {
+      if (filteredData.tokens && filteredData.tokens.length > 0) {
         // Collect all target color requests
-        const targetColorRequests = data.tokens.map(token => ({
+        const targetColorRequests = filteredData.tokens.map(token => ({
           token,
           styleName: token.name
         }));
@@ -1864,7 +1879,7 @@
         });
 
         // Render all tokens immediately with source colors
-        data.tokens.forEach((token, index) => {
+        filteredData.tokens.forEach((token, index) => {
           const mappingItem = document.createElement('div');
           mappingItem.className = 'mapping-item';
           mappingItem.dataset.searchHidden = 'false';
@@ -1898,7 +1913,7 @@
       }
       
       // If no components or tokens found, show placeholder
-      if ((!data.components || data.components.length === 0) && (!data.tokens || data.tokens.length === 0)) {
+      if ((!filteredData.components || filteredData.components.length === 0) && (!filteredData.tokens || filteredData.tokens.length === 0)) {
         mappingsContainer.innerHTML = `
           <div class="mapping-item">
             <div class="mapping-left">
