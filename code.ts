@@ -325,7 +325,8 @@ function getColorValue(paint: Paint): string {
     const r = Math.round(paint.color.r * 255);
     const g = Math.round(paint.color.g * 255);
     const b = Math.round(paint.color.b * 255);
-    return `rgb(${r}, ${g}, ${b})`;
+    const hex = '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+    return hex;
   }
   return '#000000';
 }
@@ -333,6 +334,7 @@ function getColorValue(paint: Paint): string {
 // Get target color for UI display
 async function getTargetColor(tokenId: string, styleName: string, sourceLibrary: string, targetLibrary: string): Promise<void> {
   console.log(`🎨 Getting target color for: ${styleName}, from ${sourceLibrary} to ${targetLibrary}`);
+  console.log(`📦 tokenId: ${tokenId}`);
   
   function normalizeLibraryName(name: string): string {
     if (name.toLowerCase().includes('shark')) return 'Shark';
@@ -341,18 +343,22 @@ async function getTargetColor(tokenId: string, styleName: string, sourceLibrary:
   }
   
   const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
+  console.log(`📋 Normalized target library: ${normalizedTargetLibrary}`);
   
   // Check if target library uses variables instead of styles
   const targetVariableKey = VARIABLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+  console.log(`🔍 VARIABLE_KEY_MAPPING[${normalizedTargetLibrary}][${styleName}] = ${targetVariableKey}`);
   
   if (targetVariableKey) {
     console.log(`✅ Found variable binding for ${styleName}: ${targetVariableKey}`);
     try {
       // Import the variable to get its actual color value
       const variable = await figma.variables.importVariableByKeyAsync(targetVariableKey);
+      console.log(`📥 Imported variable: ${variable?.name}, resolved type: ${variable?.resolvedType}`);
       if (variable && variable.resolvedType === 'COLOR') {
         // Get the color value from the variable
         const colorValue = variable.valuesByMode[Object.keys(variable.valuesByMode)[0]];
+        console.log(`🎨 Variable color value object:`, colorValue);
         if (colorValue && typeof colorValue === 'object' && 'r' in colorValue) {
           const color = getColorValue({ type: 'SOLID', color: colorValue } as any);
           console.log(`🎨 Variable color resolved to: ${color}`);
@@ -389,6 +395,7 @@ async function getTargetColor(tokenId: string, styleName: string, sourceLibrary:
   }
   
   // Fallback: return null if target not found
+  console.log(`⚠️ Sending null color for tokenId: ${tokenId}`);
   figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color: null });
 }
 
