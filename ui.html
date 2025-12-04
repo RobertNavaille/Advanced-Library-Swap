@@ -236,7 +236,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      padding: 0 var(--figma-space-8);
+      padding: 0 16px;
       border-bottom: 1px solid var(--figma-color-border);
       gap: var(--figma-space-8);
     }
@@ -313,7 +313,7 @@
       flex-direction: column;
       gap: 4px;
       flex: 1;
-      padding: var(--figma-space-12) var(--figma-space-16);
+      padding: var(--figma-space-12) 0;
     }
 
     .settings-row-title {
@@ -630,11 +630,9 @@
     /* New Scan Results View Styles */
     .search-container {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: var(--figma-space-8);
-      border-bottom: 1px solid var(--figma-color-border);
-      margin-bottom: var(--figma-space-8);
-      padding: 12px var(--figma-space-16) 12px var(--figma-space-16);
+      padding: 0 var(--figma-space-16);
     }
     
     .search-input-wrapper {
@@ -647,6 +645,7 @@
       border-radius: var(--figma-radius-6);
       padding: 0;
       height: 22px;
+      margin-top: 0;
     }
 
     .search-input-wrapper:focus-within {
@@ -1459,7 +1458,14 @@
 
   <!-- Scan Results View -->
     <div id="scanResultsView" class="view">
-      <!-- Heading and close icon removed as requested -->
+      <div class="settings-header">
+        <button class="icon-btn" id="backToLibraries">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.8536 7.14645C14.0488 7.34171 14.0488 7.65829 13.8536 7.85355L9.70711 12L13.8536 16.1464C14.0488 16.3417 14.0488 16.6583 13.8536 16.8536C13.6583 17.0488 13.3417 17.0488 13.1464 16.8536L8.64645 12.3535C8.55268 12.2598 8.5 12.1326 8.5 12C8.5 11.8674 8.55268 11.7402 8.64645 11.6464L13.1464 7.14645C13.3417 6.95118 13.6583 6.95118 13.8536 7.14645Z" fill="black" fill-opacity="0.9"/>
+          </svg>
+        </button>
+        <h1 class="library-selector-title">Scan details</h1>
+      </div>
     
     <!-- Search Bar -->
     <div class="search-container">
@@ -3061,7 +3067,7 @@
     const backElements = [
       { id: 'backToScan', view: 'scanView' },
       { id: 'backToScanFromConfig', view: 'scanView' },
-      { id: 'backToLibraries', view: 'libraryView' },
+      { id: 'backToLibraries', view: 'librarySelectorView' },
       { id: 'backToScanFromLibraries', view: 'scanView' },
       { id: 'backToScanFromComponents', view: 'scanView' },
       { id: 'backToScanFromStyleLibraries', view: 'scanView' },
