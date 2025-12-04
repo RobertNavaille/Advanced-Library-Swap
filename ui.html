@@ -230,6 +230,20 @@
       justify-content: flex-start;
       padding: var(--figma-space-16) var(--figma-space-8);
       gap: var(--figma-space-8);
+      border-bottom: 1px solid var(--figma-color-border);
+    }
+
+    .connected-libraries-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: calc(var(--figma-space-16) + 1px) var(--figma-space-8) calc(var(--figma-space-16) + 1px) 16px;
+      gap: var(--figma-space-8);
+      border-bottom: 1px solid var(--figma-color-border);
+    }
+
+    .library-selector-wrapper .settings-header {
+      gap: 0;
     }
 
     .settings-row {
@@ -269,15 +283,15 @@
     }
 
     .icon-btn svg path {
-      fill: black !important;
+      fill: var(--figma-color-icon) !important;
     }
 
     .icon-btn:hover {
-      background: var(--color-bghovertransparent, rgba(0, 0, 0, 0.05)) !important;
+      background: var(--figma-color-bg-hover) !important;
     }
 
     .icon-btn:focus {
-      outline: 2px solid var(--color-border-selected, #0d99ff) !important;
+      outline: 2px solid var(--figma-color-border-brand) !important;
       outline-offset: -2px;
     }
 
@@ -633,7 +647,6 @@
       align-items: flex-start;
       gap: var(--figma-space-8);
       padding: 16px var(--figma-space-16);
-      border-top: 1px solid var(--figma-color-border);
       border-bottom: 1px solid var(--figma-color-border);
     }
     
@@ -752,7 +765,7 @@
     /* Filter Dropdown Menu Styles */
     .filter-dropdown {
       position: absolute;
-      top: 52px;
+      top: 104px;
       right: 16px;
       z-index: 100;
       background: #1e1e1e;
@@ -1450,7 +1463,7 @@
   <!-- Library Selection View -->
   <div id="librarySelectorView" class="view">
     <div class="library-selector-wrapper">
-      <div class="library-selector-heading">
+      <div class="connected-libraries-header">
         <h1 class="library-selector-title">Connected Libraries</h1>
       </div>
       <div class="library-selector-content">
