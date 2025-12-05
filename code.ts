@@ -80,7 +80,7 @@ async function fetchMappingsFromJSONBin(): Promise<void> {
 }
 
 // Upload mappings to JSONBin
-async function uploadToJSONBin(components: { name: string; key: string }[], styles: { name: string; key: string; type: string }[], variables: { name: string; id: string }[]): Promise<void> {
+async function uploadToJSONBin(components: { name: string; key: string }[], styles: { name: string; key: string; type: string }[], variables: { name: string; id: string; key?: string }[]): Promise<void> {
   try {
     console.log('📤 Uploading to JSONBin...');
     
@@ -106,11 +106,11 @@ async function uploadToJSONBin(components: { name: string; key: string }[], styl
       styleMapping[style.name] = style.key;
     });
     
-    // Build variable mappings
+    // Build variable mappings (use key if available, fall back to id)
     const variableKeyMapping: Record<string, string> = {};
     const variableIdMapping: Record<string, string> = {};
     variables.forEach(variable => {
-      variableKeyMapping[variable.name] = variable.id;
+      variableKeyMapping[variable.name] = variable.key || variable.id;
       variableIdMapping[variable.name] = variable.id;
     });
     
@@ -541,7 +541,7 @@ async function syncLibraryDefinitions(): Promise<void> {
   
   const components: { name: string; key: string }[] = [];
   const styles: { name: string; key: string; type: string }[] = [];
-  const variables: { name: string; id: string }[] = [];
+  const variables: { name: string; id: string; key?: string }[] = [];
   
   // Load all pages first
   await figma.loadAllPagesAsync();
@@ -590,8 +590,8 @@ async function syncLibraryDefinitions(): Promise<void> {
     console.log(`📊 Found ${allVariables.length} local variables in file`);
     for (const variable of allVariables) {
       if (variable.name && variable.id) {
-        variables.push({ name: variable.name, id: variable.id });
-        console.log(`  - ${variable.name}: ${variable.id}`);
+        variables.push({ name: variable.name, id: variable.id, key: variable.key });
+        console.log(`  - ${variable.name}: ${variable.id} (key: ${variable.key})`);
       }
     }
   } catch (err) {
