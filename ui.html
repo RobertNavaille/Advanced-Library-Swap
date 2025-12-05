@@ -3080,10 +3080,10 @@
       }
 
       // Settings screen event listeners
-      const settingsUpdateLibraryBtn = document.getElementById('settingsUpdateLibraryBtn');
+      const settingsExportBtn = document.getElementById('settingsExportBtn');
 
-      if (settingsUpdateLibraryBtn) {
-        settingsUpdateLibraryBtn.addEventListener('click', () => {
+      if (settingsExportBtn) {
+        settingsExportBtn.addEventListener('click', () => {
           parent.postMessage({ pluginMessage: { type: 'UPDATE_LIBRARY_DEFINITIONS' } }, '*');
         });
       }

@@ -4,7 +4,7 @@ import { copyTextOverrides } from './swapUtils';
 
 // JSONBin configuration
 const JSONBIN_BIN_ID = '69324103d0ea881f4013bbac';
-const JSONBIN_ACCOUNT_ID = '6284eb0a97bd37404d48b334';
+const JSONBIN_ACCESS_KEY = '$2a$10$LO/AIA/nruYOWBg5fzDPLOZI1Y8vv.Yucd1KsJBl6BquPRecLEf5C';
 const JSONBIN_API_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 // Global mapping variables - will be populated from JSONBin
@@ -40,7 +40,7 @@ async function fetchMappingsFromJSONBin(): Promise<void> {
     const response = await fetch(JSONBIN_API_URL, {
       method: 'GET',
       headers: {
-        'X-Master-Key': JSONBIN_ACCOUNT_ID,
+        'X-Access-Key': JSONBIN_ACCESS_KEY,
       }
     });
     
@@ -76,6 +76,76 @@ async function fetchMappingsFromJSONBin(): Promise<void> {
   } catch (error) {
     console.error('❌ Error fetching from JSONBin, using local defaults:', error);
     // Mappings remain as defaults from keyMapping.ts
+  }
+}
+
+// Upload mappings to JSONBin
+async function uploadToJSONBin(components: { name: string; key: string }[], styles: { name: string; key: string; type: string }[], variables: { name: string; id: string }[]): Promise<void> {
+  try {
+    console.log('📤 Uploading to JSONBin...');
+    
+    // Detect library name from file name
+    const fileName = figma.root.name.toLowerCase();
+    let detectedLibrary = 'Custom';
+    if (fileName.includes('shark')) {
+      detectedLibrary = 'Shark';
+    } else if (fileName.includes('monkey')) {
+      detectedLibrary = 'Monkey';
+    }
+    console.log(`🏷️ Detected library from file name: ${detectedLibrary}`);
+    
+    // Build component mapping (name -> key)
+    const componentMapping: Record<string, string> = {};
+    components.forEach(comp => {
+      componentMapping[comp.name] = comp.key;
+    });
+    
+    // Build style mapping (name -> key)
+    const styleMapping: Record<string, string> = {};
+    styles.forEach(style => {
+      styleMapping[style.name] = style.key;
+    });
+    
+    // Build variable mappings
+    const variableKeyMapping: Record<string, string> = {};
+    const variableIdMapping: Record<string, string> = {};
+    variables.forEach(variable => {
+      variableKeyMapping[variable.name] = variable.id;
+      variableIdMapping[variable.name] = variable.id;
+    });
+    
+    // Create updated mappings structure, updating the detected library
+    const updatedMappings = {
+      themes: {
+        ...COMPONENT_KEY_MAPPING,
+        [detectedLibrary]: {
+          componentKeyMapping: componentMapping,
+          styleKeyMapping: styleMapping,
+          variableKeyMapping: variableKeyMapping,
+          variableIdMapping: variableIdMapping,
+          thumbnail: LIBRARY_THUMBNAILS[detectedLibrary] || ''
+        }
+      }
+    };
+    
+    const response = await fetch(JSONBIN_API_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Access-Key': JSONBIN_ACCESS_KEY,
+      },
+      body: JSON.stringify(updatedMappings)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`JSONBin upload failed: ${response.status} ${response.statusText}`);
+    }
+    
+    console.log('✅ Successfully uploaded mappings to JSONBin');
+    console.log(`🎨 Updated ${detectedLibrary} theme with synced components and styles`);
+  } catch (error) {
+    console.error('❌ Error uploading to JSONBin:', error);
+    console.log('⚠️ Mappings were not uploaded, but sync is complete.');
   }
 }
 
@@ -543,6 +613,9 @@ async function syncLibraryDefinitions(): Promise<void> {
   variables.forEach(variable => {
     console.log(`  '${variable.name}': '${variable.id}',`);
   });
+  
+  // Try to upload to JSONBin
+  await uploadToJSONBin(components, styles, variables);
   
   figma.notify(`Found ${components.length} components, ${styles.length} styles, and ${variables.length} variables. Check console for keys/IDs.`);
   figma.ui.postMessage({ 
