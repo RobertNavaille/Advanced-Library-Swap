@@ -1,6 +1,18 @@
 // Main Figma Swap Library Plugin (clean template)
-import { COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING, VARIABLE_ID_MAPPING, VARIABLE_KEY_MAPPING, LIBRARY_THUMBNAILS } from './keyMapping';
+import { COMPONENT_KEY_MAPPING as DEFAULT_COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING as DEFAULT_STYLE_KEY_MAPPING, VARIABLE_ID_MAPPING as DEFAULT_VARIABLE_ID_MAPPING, VARIABLE_KEY_MAPPING as DEFAULT_VARIABLE_KEY_MAPPING, LIBRARY_THUMBNAILS as DEFAULT_LIBRARY_THUMBNAILS } from './keyMapping';
 import { copyTextOverrides } from './swapUtils';
+
+// JSONBin configuration
+const JSONBIN_BIN_ID = '69324103d0ea881f4013bbac';
+const JSONBIN_ACCOUNT_ID = '6284eb0a97bd37404d48b334';
+const JSONBIN_API_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+
+// Global mapping variables - will be populated from JSONBin
+let COMPONENT_KEY_MAPPING = DEFAULT_COMPONENT_KEY_MAPPING;
+let STYLE_KEY_MAPPING = DEFAULT_STYLE_KEY_MAPPING;
+let VARIABLE_ID_MAPPING = DEFAULT_VARIABLE_ID_MAPPING;
+let VARIABLE_KEY_MAPPING = DEFAULT_VARIABLE_KEY_MAPPING;
+let LIBRARY_THUMBNAILS = DEFAULT_LIBRARY_THUMBNAILS;
 
 // Interface definitions
 interface ComponentInfo {
@@ -21,11 +33,60 @@ interface TokenInfo {
   library?: string;
 }
 
+// Fetch mappings from JSONBin
+async function fetchMappingsFromJSONBin(): Promise<void> {
+  try {
+    console.log('📡 Fetching mappings from JSONBin...');
+    const response = await fetch(JSONBIN_API_URL, {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': JSONBIN_ACCOUNT_ID,
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`JSONBin fetch failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    const themes = data.record?.themes || data.themes;
+    
+    if (!themes) {
+      throw new Error('No themes found in JSONBin response');
+    }
+    
+    console.log('✅ Successfully fetched mappings from JSONBin');
+    
+    // Extract and build the mapping objects from themes
+    COMPONENT_KEY_MAPPING = {};
+    STYLE_KEY_MAPPING = {};
+    VARIABLE_KEY_MAPPING = {};
+    VARIABLE_ID_MAPPING = {};
+    LIBRARY_THUMBNAILS = {};
+    
+    for (const [themeName, themeData]: [string, any] of Object.entries(themes)) {
+      COMPONENT_KEY_MAPPING[themeName] = themeData.componentKeyMapping || {};
+      STYLE_KEY_MAPPING[themeName] = themeData.styleKeyMapping || {};
+      VARIABLE_KEY_MAPPING[themeName] = themeData.variableKeyMapping || {};
+      VARIABLE_ID_MAPPING[themeName] = themeData.variableIdMapping || {};
+      LIBRARY_THUMBNAILS[themeName] = themeData.thumbnail || '';
+    }
+    
+    console.log('🎨 Loaded themes:', Object.keys(COMPONENT_KEY_MAPPING));
+  } catch (error) {
+    console.error('❌ Error fetching from JSONBin, using local defaults:', error);
+    // Mappings remain as defaults from keyMapping.ts
+  }
+}
+
 // Store the scanned frame for later use during swaps
 let scannedFrame: FrameNode | null = null;
 
 // Show the UI
 figma.showUI(__html__, { width: 480, height: 500, themeColors: true });
+
+// Fetch mappings from JSONBin on plugin load
+fetchMappingsFromJSONBin();
 
 // Auto-scan when a frame is selected
 figma.on('selectionchange', async () => {
