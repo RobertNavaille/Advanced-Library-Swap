@@ -12,7 +12,8 @@
         "Primary": "82e40649545abfa72bf66cdd4b2f3796dd69a466",
         "HeadingColor": "19e42894199db9e7eac439f6b25f2775e0ccf651",
         "Heading": "ac4330274941ead0a2d0ffb00d1ea79598d22ab7",
-        "Body": "8c5340c46ff3b63418c05f0f3dafcac9e1e40b1e"
+        "Body": "8c5340c46ff3b63418c05f0f3dafcac9e1e40b1e",
+        "Accent": "6d69169d91298492f4e6000644cde46812e14201"
       },
       "variableKeyMapping": {},
       "variableIdMapping": {},
@@ -35,7 +36,8 @@
       "variableKeyMapping": {
         "Primary": "dc69fade742a1338bc34ec90e4081f924f45fbbb",
         "Background": "e3731549dd33521e379b6720c78064011ff0c04f",
-        "HeadingColor": "bdc3548622b342867bc8976b5c780623efcf7f2a"
+        "HeadingColor": "bdc3548622b342867bc8976b5c780623efcf7f2a",
+        "Accent": "0fc2017c19612dc5bec85f2169c740c37516cfea"
       },
       "variableIdMapping": {
         "Primary": "VariableID:92:24",

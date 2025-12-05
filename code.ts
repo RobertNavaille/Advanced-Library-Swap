@@ -84,6 +84,20 @@ async function uploadToJSONBin(components: { name: string; key: string }[], styl
   try {
     console.log('📤 Uploading to JSONBin...');
     
+    // First, fetch current data to preserve other themes
+    const fetchResponse = await fetch(JSONBIN_API_URL, {
+      method: 'GET',
+      headers: {
+        'X-Access-Key': JSONBIN_ACCESS_KEY,
+      }
+    });
+    
+    let existingThemes: Record<string, any> = {};
+    if (fetchResponse.ok) {
+      const data = await fetchResponse.json();
+      existingThemes = data.record?.themes || data.themes || {};
+    }
+    
     // Detect library name from file name
     const fileName = figma.root.name.toLowerCase();
     let detectedLibrary = 'Custom';
@@ -114,19 +128,19 @@ async function uploadToJSONBin(components: { name: string; key: string }[], styl
       variableIdMapping[variable.name] = variable.id;
     });
     
-    // Create updated mappings structure, updating the detected library
-    const updatedMappings = {
-      themes: {
-        ...COMPONENT_KEY_MAPPING,
-        [detectedLibrary]: {
-          componentKeyMapping: componentMapping,
-          styleKeyMapping: styleMapping,
-          variableKeyMapping: variableKeyMapping,
-          variableIdMapping: variableIdMapping,
-          thumbnail: LIBRARY_THUMBNAILS[detectedLibrary] || ''
-        }
+    // Update only the detected library, preserve all others
+    const updatedThemes = {
+      ...existingThemes,
+      [detectedLibrary]: {
+        componentKeyMapping: componentMapping,
+        styleKeyMapping: styleMapping,
+        variableKeyMapping: variableKeyMapping,
+        variableIdMapping: variableIdMapping,
+        thumbnail: existingThemes[detectedLibrary]?.thumbnail || LIBRARY_THUMBNAILS[detectedLibrary] || ''
       }
     };
+    
+    const updatedMappings = { themes: updatedThemes };
     
     const response = await fetch(JSONBIN_API_URL, {
       method: 'PUT',
@@ -379,6 +393,20 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
                 }
               }
               if (library !== 'Unknown') break;
+            }
+            
+            // Fallback: check if this variable key matches any style key (handles cross-type tokens)
+            if (library === 'Unknown') {
+              for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
+                for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
+                  if (STYLE_KEY_MAPPING[libName][styleName] === variable.key) {
+                    library = libName;
+                    console.log(`✅ Matched variable key to style in library: ${library}`);
+                    break;
+                  }
+                }
+                if (library !== 'Unknown') break;
+              }
             }
             
             // Get the color value from the variable
@@ -659,10 +687,18 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
   let swapCount = 0;
 
   // Get the source style key - we need this to identify which styles to replace
-  const sourceStyleKey = STYLE_KEY_MAPPING[sourceLibrary]?.[styleName];
+  let sourceStyleKey = STYLE_KEY_MAPPING[sourceLibrary]?.[styleName];
+  
+  // Fallback: check if source is a variable in the source library
+  if (!sourceStyleKey) {
+    sourceStyleKey = VARIABLE_KEY_MAPPING[sourceLibrary]?.[styleName];
+    if (sourceStyleKey) {
+      console.log(`  📌 Found source as variable in ${sourceLibrary}: ${styleName} -> ${sourceStyleKey}`);
+    }
+  }
   
   if (!sourceStyleKey) {
-    console.warn(`⚠️ Source style mapping not found for '${styleName}' in ${sourceLibrary}`);
+    console.warn(`⚠️ Source style/variable mapping not found for '${styleName}' in ${sourceLibrary}`);
     return 0;
   }
 
