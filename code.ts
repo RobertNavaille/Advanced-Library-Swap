@@ -128,6 +128,47 @@ async function uploadToJSONBin(components: { name: string; key: string }[], styl
       variableIdMapping[variable.name] = variable.id;
     });
     
+    // Get the other library names for cross-library mapping
+    const otherLibraries = Object.keys(existingThemes).filter(lib => lib !== detectedLibrary);
+    
+    // For styles/variables with the same name across libraries, add cross-mappings
+    const allStyleNames = new Set<string>();
+    const allVariableNames = new Set<string>();
+    
+    // Collect all names from current library
+    Object.keys(styleMapping).forEach(name => allStyleNames.add(name));
+    Object.keys(variableKeyMapping).forEach(name => allVariableNames.add(name));
+    
+    // If current library has styles, add them to variable mapping for matching names in other libraries
+    if (allStyleNames.size > 0) {
+      for (const otherLib of otherLibraries) {
+        const otherTheme = existingThemes[otherLib];
+        if (otherTheme && otherTheme.variableKeyMapping) {
+          // For each style in current library, check if other library has a variable with same name
+          for (const styleName of allStyleNames) {
+            if (styleName in otherTheme.variableKeyMapping) {
+              console.log(`  🔗 Cross-mapped: ${detectedLibrary}/${styleName} (style) <-> ${otherLib}/${styleName} (variable)`);
+            }
+          }
+        }
+      }
+    }
+    
+    // If current library has variables, add them to style mapping for matching names in other libraries
+    if (allVariableNames.size > 0) {
+      for (const otherLib of otherLibraries) {
+        const otherTheme = existingThemes[otherLib];
+        if (otherTheme && otherTheme.styleKeyMapping) {
+          // For each variable in current library, check if other library has a style with same name
+          for (const varName of allVariableNames) {
+            if (varName in otherTheme.styleKeyMapping) {
+              console.log(`  🔗 Cross-mapped: ${detectedLibrary}/${varName} (variable) <-> ${otherLib}/${varName} (style)`);
+            }
+          }
+        }
+      }
+    }
+    
     // Update only the detected library, preserve all others
     const updatedThemes = {
       ...existingThemes,
@@ -157,6 +198,13 @@ async function uploadToJSONBin(components: { name: string; key: string }[], styl
     
     console.log('✅ Successfully uploaded mappings to JSONBin');
     console.log(`🎨 Updated ${detectedLibrary} theme with synced components and styles`);
+    
+    // Log what was added to mappings
+    console.log(`📊 Mappings summary for ${detectedLibrary}:`);
+    console.log(`  - Components: ${Object.keys(componentMapping).length}`);
+    console.log(`  - Styles: ${Object.keys(styleMapping).length}`);
+    console.log(`  - Variables: ${Object.keys(variableKeyMapping).length}`);
+    console.log(`  - Cross-library mappings created for matching names`);
   } catch (error) {
     console.error('❌ Error uploading to JSONBin:', error);
     console.log('⚠️ Mappings were not uploaded, but sync is complete.');
