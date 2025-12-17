@@ -237,9 +237,23 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      padding: calc(var(--figma-space-16) + 1px) var(--figma-space-8) calc(var(--figma-space-16) + 1px) 16px;
+      padding: 16px 8px 16px 16px;
       gap: var(--figma-space-8);
       border-bottom: 1px solid var(--figma-color-border);
+      box-sizing: border-box;
+      min-height: 57px;
+    }
+
+    .settings-connected-libraries-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 16px 8px 16px 16px !important;
+      gap: 8px;
+      border-bottom: 1px solid var(--figma-color-border);
+      box-sizing: border-box;
+      min-height: 57px;
+      width: 100%;
     }
 
     .library-selector-wrapper .settings-header {
@@ -253,6 +267,187 @@
       padding: 0 16px;
       border-bottom: 1px solid var(--figma-color-border);
       gap: var(--figma-space-8);
+    }
+
+    /* New Settings Styles */
+    .settings-header-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      position: relative;
+      height: 40px;
+      box-sizing: border-box;
+      border-bottom: 1px solid var(--figma-color-border);
+      background: var(--figma-color-bg);
+    }
+
+    .header-title {
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--figma-color-text);
+    }
+
+    .settings-header-main .icon-btn {
+      position: absolute;
+      left: 8px; /* Back button on left */
+    }
+
+    .settings-content-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Input Row Styles */
+    .settings-input-group {
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 8px;
+      border-bottom: 1px solid var(--figma-color-border);
+    }
+
+    .input-label {
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--figma-color-text);
+    }
+
+    .input-row-container {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .settings-input-wrapper {
+      flex: 1;
+      background: var(--figma-color-bg-secondary);
+      padding: 8px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--figma-color-bg-secondary);
+    }
+
+    .settings-input-wrapper:focus-within {
+      border-color: var(--figma-color-border-selected);
+    }
+
+    .settings-input {
+      width: 100%;
+      background: transparent;
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      appearance: none;
+      -webkit-appearance: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      line-height: 16px;
+      color: var(--figma-color-text);
+      padding: 0;
+    }
+    
+    .settings-input:focus {
+      outline: none !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .settings-input::placeholder {
+      color: var(--figma-color-text-tertiary);
+    }
+
+    .settings-set-key-btn {
+      background: var(--figma-color-bg-brand);
+      color: var(--figma-color-text-onbrand);
+      border: none;
+      border-radius: 6px;
+      padding: 4px 12px;
+      height: 32px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      width: auto;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .settings-set-key-btn:hover {
+      background: var(--figma-color-bg-brand-hover);
+    }
+
+    /* Connected Libraries List */
+
+    .connected-library-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      gap: 16px;
+      border-bottom: 1px solid var(--figma-color-border);
+    }
+
+    .connected-library-item:first-child {
+      border-top: none;
+    }
+
+    .library-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .library-name-text {
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--figma-color-text);
+    }
+
+    .library-stats {
+      font-weight: 400;
+      font-size: 11px;
+      color: var(--figma-color-text-secondary);
+    }
+
+    /* Footer */
+    .settings-footer {
+      height: 40px;
+      border-top: 1px solid var(--figma-color-border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 4px 8px;
+      background: var(--figma-color-bg);
+    }
+
+    .add-library-footer-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      color: var(--figma-color-text);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .add-library-footer-btn:hover {
+      background: var(--figma-color-bg-hover);
+      border-radius: 4px;
+    }
+
+    .context-menu-item:hover {
+      background: var(--figma-color-bg-brand);
+      color: var(--figma-color-text-onbrand) !important;
     }
 
     /* Generic icon button (reusable for any icon) */
@@ -1710,21 +1905,35 @@
 
   <!-- Settings View -->
   <div id="settingsView" class="view">
-    <div class="settings-content">
-      <div class="settings-header">
-        <button class="icon-btn" id="backToScanFromSettings">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M13.8536 7.14645C14.0488 7.34171 14.0488 7.65829 13.8536 7.85355L9.70711 12L13.8536 16.1464C14.0488 16.3417 14.0488 16.6583 13.8536 16.8536C13.6583 17.0488 13.3417 17.0488 13.1464 16.8536L8.64645 12.3535C8.55268 12.2598 8.5 12.1326 8.5 12C8.5 11.8674 8.55268 11.7402 8.64645 11.6464L13.1464 7.14645C13.3417 6.95118 13.6583 6.95118 13.8536 7.14645Z" fill="black" fill-opacity="0.9"/>
-          </svg>
-        </button>
-        <h1 class="library-selector-title">Settings</h1>
-      </div>
-      <div class="settings-row">
-        <div class="settings-row-content">
-          <p class="settings-row-title">Library Metadata</p>
-          <p class="settings-row-description">Export library metadata to sync libraries</p>
+    <!-- Header -->
+    <div class="settings-header">
+      <button class="icon-btn" id="backToScanFromSettings">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13.8536 7.14645C14.0488 7.34171 14.0488 7.65829 13.8536 7.85355L9.70711 12L13.8536 16.1464C14.0488 16.3417 14.0488 16.6583 13.8536 16.8536C13.6583 17.0488 13.3417 17.0488 13.1464 16.8536L8.64645 12.3535C8.55268 12.2598 8.5 12.1326 8.5 12C8.5 11.8674 8.55268 11.7402 8.64645 11.6464L13.1464 7.14645C13.3417 6.95118 13.6583 6.95118 13.8536 7.14645Z" fill="var(--figma-color-icon-tertiary)" fill-opacity="0.9"/>
+        </svg>
+      </button>
+      <h1 class="library-selector-title">Settings</h1>
+    </div>
+
+    <!-- Content -->
+    <div class="settings-content-container">
+      <!-- Add Library Section -->
+      <div class="settings-input-group">
+        <div class="input-label">Figma Access Token</div>
+        <div class="input-row-container">
+          <div class="settings-input-wrapper">
+            <input type="password" id="accessTokenInput" class="settings-input" placeholder="Enter your personal access token">
+          </div>
+          <button id="saveAccessTokenBtn" class="settings-set-key-btn">Save</button>
         </div>
-        <button class="settings-button" id="settingsExportBtn">Export</button>
+      </div>
+
+      <!-- Connected Libraries Section -->
+      <div class="settings-connected-libraries-header" style="padding-left: 16px !important;">
+        <h1 class="library-selector-title">Connected libraries</h1>
+      </div>
+      <div id="connectedLibrariesList">
+        <!-- Library items will be injected here -->
       </div>
     </div>
   </div>
@@ -3269,8 +3478,227 @@
     // Close the initialize function
     }
     
+    // --- Settings View Logic ---
+
+    // State for connected libraries (mocked initially, will be updated from backend)
+    let connectedLibraries = [];
+    
+    let libraryToRemove = null;
+
+    function renderConnectedLibraries() {
+      const listContainer = document.getElementById('connectedLibrariesList');
+      if (!listContainer) return;
+      
+      listContainer.innerHTML = '';
+      
+      if (connectedLibraries.length === 0) {
+        listContainer.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--figma-color-text-secondary); font-size: 11px;">No libraries connected</div>';
+        return;
+      }
+      
+      connectedLibraries.forEach(lib => {
+        const item = document.createElement('div');
+        item.className = 'connected-library-item';
+        item.dataset.id = lib.id;
+        
+        // Icon based on type (simplified)
+        const iconSvg = `
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M2 17L12 22L22 17" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        `;
+        
+        item.innerHTML = `
+          <div class="library-info">
+            <div class="library-name-text">${lib.name}</div>
+            <div class="library-stats">${lib.type || 'Remote'} • ${lib.key ? 'Connected' : 'Local'}</div>
+          </div>
+          <button class="library-more-btn filter-button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7.5 12C7.5 12.8284 6.82843 13.5 6 13.5C5.17157 13.5 4.5 12.8284 4.5 12C4.5 11.1716 5.17157 10.5 6 10.5C6.82843 10.5 7.5 11.1716 7.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+              <path d="M13.5 12C13.5 12.8284 12.8284 13.5 12 13.5C11.1716 13.5 10.5 12.8284 10.5 12C10.5 11.1716 11.1716 10.5 12 10.5C12.8284 10.5 13.5 11.1716 13.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+              <path d="M18 13.5C18.8284 13.5 19.5 12.8284 19.5 12C19.5 11.1716 18.8284 10.5 18 10.5C17.1716 10.5 16.5 11.1716 16.5 12C16.5 12.8284 17.1716 13.5 18 13.5Z" fill="currentColor" fill-opacity="0.9"/>
+            </svg>
+          </button>
+        `;
+        
+        // Context menu handler
+        const moreBtn = item.querySelector('.library-more-btn');
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showLibraryContextMenu(e, lib);
+        });
+        
+        listContainer.appendChild(item);
+      });
+    }
+
+    function handleAccessTokenAction() {
+      const btn = document.getElementById('saveAccessTokenBtn');
+      const mode = btn.dataset.mode || 'save';
+      
+      if (mode === 'remove') {
+        handleRemoveAccessToken();
+      } else {
+        handleSaveAccessToken();
+      }
+    }
+
+    function handleRemoveAccessToken() {
+      if (confirm('Are you sure you want to remove the access token?')) {
+        parent.postMessage({ pluginMessage: { type: 'REMOVE_ACCESS_TOKEN' } }, '*');
+        
+        const input = document.getElementById('accessTokenInput');
+        input.value = '';
+        
+        const btn = document.getElementById('saveAccessTokenBtn');
+        btn.textContent = 'Save';
+        btn.dataset.mode = 'save';
+      }
+    }
+
+    function handleSaveAccessToken() {
+      const input = document.getElementById('accessTokenInput');
+      const token = input.value.trim();
+      
+      if (!token) {
+        alert('Please enter a Figma access token');
+        return;
+      }
+      
+      // Send to backend to save
+      parent.postMessage({ pluginMessage: { type: 'SAVE_ACCESS_TOKEN', token: token } }, '*');
+      
+      // Update UI state
+      const btn = document.getElementById('saveAccessTokenBtn');
+      btn.textContent = 'Remove token';
+      btn.dataset.mode = 'remove';
+    }
+
+    function showLibraryContextMenu(e, lib) {
+      const menu = document.getElementById('libraryContextMenu');
+      if (!menu) return;
+      
+      // Add active state to button
+      const btn = e.currentTarget;
+      if (btn && btn.classList.contains('filter-button')) {
+        btn.classList.add('active');
+      }
+
+      libraryToRemove = lib;
+      
+      // Position menu
+      const rect = btn.getBoundingClientRect();
+      menu.style.top = `${rect.bottom + window.scrollY}px`;
+      menu.style.left = `${rect.right - 208}px`; // Align right edge
+      menu.style.display = 'block';
+      
+      // Close on click outside
+      const closeMenu = () => {
+        menu.style.display = 'none';
+        if (btn) btn.classList.remove('active');
+        document.removeEventListener('click', closeMenu);
+      };
+      
+      // Delay slightly to avoid immediate close from the click that opened it
+      setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+      }, 0);
+    }
+
+    function handleRemoveLibrary() {
+      if (libraryToRemove) {
+        if (confirm(`Remove library "${libraryToRemove.name}"?`)) {
+          // Send to backend
+          parent.postMessage({ pluginMessage: { type: 'REMOVE_LIBRARY', libraryId: libraryToRemove.id } }, '*');
+          
+          // Optimistically remove
+          connectedLibraries = connectedLibraries.filter(l => l.id !== libraryToRemove.id);
+          renderConnectedLibraries();
+        }
+      }
+      document.getElementById('libraryContextMenu').style.display = 'none';
+    }
+
+    function initializeSettingsLogic() {
+      // Save/Remove Token Button
+      const saveBtn = document.getElementById('saveAccessTokenBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', handleAccessTokenAction);
+      }
+      
+      // Remove Library Button (Context Menu)
+      const removeBtn = document.getElementById('removeLibraryBtn');
+      if (removeBtn) {
+        removeBtn.addEventListener('click', handleRemoveLibrary);
+      }
+      
+      // Hook into settings button to refresh list
+      const settingsBtn = document.getElementById('settingsBtn');
+      if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+          renderConnectedLibraries();
+          // Fetch access token
+          parent.postMessage({ pluginMessage: { type: 'GET_ACCESS_TOKEN' } }, '*');
+        });
+      }
+      
+      // Initial render
+      renderConnectedLibraries();
+      
+      // Fetch from backend
+      parent.postMessage({ pluginMessage: { type: 'GET_CONNECTED_LIBRARIES' } }, '*');
+    }
+    
+    // Extend onmessage to handle library updates
+    const originalOnMessage = onmessage;
+    onmessage = (event) => {
+      if (originalOnMessage) originalOnMessage(event);
+      
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+      
+      if (msg.type === 'LIBRARIES_UPDATED') {
+        connectedLibraries = msg.libraries;
+        renderConnectedLibraries();
+      }
+      
+      if (msg.type === 'ACCESS_TOKEN_LOADED') {
+        const input = document.getElementById('accessTokenInput');
+        const btn = document.getElementById('saveAccessTokenBtn');
+        
+        if (input && msg.token) {
+          input.value = msg.token;
+          if (btn) {
+            btn.textContent = 'Remove token';
+            btn.dataset.mode = 'remove';
+          }
+        } else {
+          if (input) input.value = '';
+          if (btn) {
+            btn.textContent = 'Save';
+            btn.dataset.mode = 'save';
+          }
+        }
+      }
+    };
+
+    // Call init
+    initializeSettingsLogic();
+    
     // Initialize all event listeners when DOM is ready
     initializeEventListeners();
   </script>
+  <!-- Context Menu -->
+  <div id="libraryContextMenu" class="filter-dropdown" style="display: none; position: fixed; z-index: 2000; right: auto;">
+    <div class="filter-menu">
+      <div class="filter-menu-item" id="removeLibraryBtn">
+        <span class="filter-label-text">Remove</span>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

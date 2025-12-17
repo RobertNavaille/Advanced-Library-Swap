@@ -238,6 +238,117 @@ figma.on('selectionchange', async () => {
   if (selectedFrame) await handleScanFrames();
 })();
 
+// Connected Libraries Management
+let CONNECTED_LIBRARIES: { name: string; id: string; key: string; type: string }[] = [];
+
+async function loadConnectedLibraries() {
+  const stored = await figma.clientStorage.getAsync('connected_libraries');
+  if (stored && Array.isArray(stored)) {
+    CONNECTED_LIBRARIES = stored;
+  } else {
+    // Default to keys from mapping if available, or empty
+    // We'll wait for mappings to load
+    if (Object.keys(COMPONENT_KEY_MAPPING).length > 0) {
+       CONNECTED_LIBRARIES = Object.keys(COMPONENT_KEY_MAPPING).map(name => ({
+         name,
+         id: name,
+         key: '',
+         type: 'Remote'
+       }));
+    }
+  }
+  // Send to UI
+  sendConnectedLibraries();
+}
+
+async function saveConnectedLibraries() {
+  await figma.clientStorage.setAsync('connected_libraries', CONNECTED_LIBRARIES);
+}
+
+function sendConnectedLibraries() {
+  figma.ui.postMessage({
+    type: 'LIBRARIES_UPDATED',
+    libraries: CONNECTED_LIBRARIES
+  });
+}
+
+async function handleAddLibraryByKey(fileKey: string) {
+  // 1. Check if we have a token
+  const token = await figma.clientStorage.getAsync('figma_access_token');
+  
+  // If no token, we can't fetch name, but we can still add it with a placeholder
+  // Or we can ask user to add token.
+  // For now, if no token, add with ID as name
+  
+  let name = `Library ${fileKey.substring(0, 6)}`;
+  
+  if (token) {
+    try {
+      // Use fetch if available in environment (Figma plugins support fetch)
+      const response = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
+        headers: { 'X-Figma-Token': token }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        name = data.name;
+      }
+    } catch (err) {
+      console.error('Failed to fetch library name:', err);
+    }
+  }
+  
+  const newLib = {
+    name: name,
+    id: fileKey,
+    key: fileKey,
+    type: 'Remote'
+  };
+  
+  if (!CONNECTED_LIBRARIES.find(l => l.id === fileKey)) {
+    CONNECTED_LIBRARIES.push(newLib);
+    await saveConnectedLibraries();
+    sendConnectedLibraries();
+    figma.notify(`Library "${name}" added!`);
+  } else {
+    figma.notify(`Library "${name}" is already connected.`);
+  }
+}
+
+async function handleRemoveLibrary(libraryId: string) {
+  CONNECTED_LIBRARIES = CONNECTED_LIBRARIES.filter(l => l.id !== libraryId);
+  await saveConnectedLibraries();
+  sendConnectedLibraries();
+  figma.notify('Library removed.');
+}
+
+async function handleSaveAccessToken(token: string) {
+  await figma.clientStorage.setAsync('figma_access_token', token);
+  figma.notify('Access token saved securely.');
+}
+
+async function handleRemoveAccessToken() {
+  await figma.clientStorage.deleteAsync('figma_access_token');
+  figma.notify('Access token removed.');
+}
+
+async function handleGetAccessToken() {
+  const token = await figma.clientStorage.getAsync('figma_access_token');
+  figma.ui.postMessage({ type: 'ACCESS_TOKEN_LOADED', token: token || '' });
+}
+
+async function handleTestAccessToken() {
+  const token = await figma.clientStorage.getAsync('figma_access_token');
+  if (token) {
+    figma.notify(`Success! Token found: ${token.substring(0, 4)}...`);
+  } else {
+    figma.notify('No access token found in storage.');
+  }
+}
+
+// Call load on start
+loadConnectedLibraries();
+
 // Handle messages from the UI
 figma.ui.onmessage = async (msg: any) => {
   switch (msg.type) {
@@ -255,6 +366,27 @@ figma.ui.onmessage = async (msg: any) => {
       break;
     case 'UPDATE_LIBRARY_DEFINITIONS':
       await syncLibraryDefinitions();
+      break;
+    case 'ADD_LIBRARY_BY_KEY':
+      await handleAddLibraryByKey(msg.fileKey);
+      break;
+    case 'REMOVE_LIBRARY':
+      await handleRemoveLibrary(msg.libraryId);
+      break;
+    case 'GET_CONNECTED_LIBRARIES':
+      sendConnectedLibraries();
+      break;
+    case 'SAVE_ACCESS_TOKEN':
+      await handleSaveAccessToken(msg.token);
+      break;
+    case 'REMOVE_ACCESS_TOKEN':
+      await handleRemoveAccessToken();
+      break;
+    case 'GET_ACCESS_TOKEN':
+      await handleGetAccessToken();
+      break;
+    case 'TEST_ACCESS_TOKEN':
+      await handleTestAccessToken();
       break;
     case 'SHOW_NATIVE_TOAST':
       figma.notify(msg.message || 'Swap completed successfully!');
