@@ -3591,8 +3591,8 @@
       
       // Position menu
       const rect = btn.getBoundingClientRect();
-      menu.style.top = `${rect.bottom + window.scrollY}px`;
-      menu.style.left = `${rect.right - 208}px`; // Align right edge
+      menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+      menu.style.left = `${rect.right - 224}px`; // Align right edge
       menu.style.display = 'block';
       
       // Close on click outside
