@@ -962,7 +962,7 @@
       position: absolute;
       top: 104px;
       right: 16px;
-      z-index: 100;
+      z-index: 200;
       background: #1e1e1e;
       border-radius: 13px;
       box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.12), 0px 10px 16px 0px rgba(0,0,0,0.12), 0px 2px 5px 0px rgba(0,0,0,0.15);
@@ -1095,7 +1095,7 @@
       flex: 1;
       flex-basis: 0;
       align-items: center;
-      gap: var(--figma-space-20);
+      gap: 76px;
       min-height: 1px;
     }
 
@@ -1110,9 +1110,7 @@
       box-sizing: border-box;
     }
 
-    .scan-heading-row .row-content .header-label:first-child {
-      padding-right: 26px;
-    }
+    /* Removed .scan-heading-row .row-content .header-label:first-child padding-right override */
 
     .header-label-text {
       font-family: 'Inter', sans-serif;
@@ -1132,6 +1130,7 @@
       height: 24px;
       width: 100%;
       box-sizing: border-box;
+      z-index: 100;
     }
 
     .dropdown-trigger {
@@ -1147,7 +1146,7 @@
       color: var(--figma-color-text);
       font-size: 11px;
       font-weight: 500;
-      transition: all 0.2s ease;
+      transition: all 0.075s ease;
       background-color: var(--figma-color-bg);
       box-sizing: border-box;
       user-select: none;
@@ -1179,17 +1178,19 @@
     .dropdown-menu {
       position: absolute;
       top: 100%;
-      left: 0;
-      margin-top: 4px;
-      background: var(--figma-color-bg);
-      border: 1px solid var(--figma-color-border);
-      border-radius: 2px;
-      box-shadow: var(--figma-shadow-md);
-      min-width: 160px;
+      right: 0;
+      margin-top: 8px;
+      background: #1e1e1e;
+      border-radius: 13px;
+      box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.12), 0px 10px 16px 0px rgba(0,0,0,0.12), 0px 2px 5px 0px rgba(0,0,0,0.15);
+      width: 254px;
       z-index: 100;
       display: none;
       max-height: 200px;
       overflow-y: auto;
+      overflow-x: hidden;
+      padding: 8px;
+      box-sizing: border-box;
     }
 
     .dropdown-menu.show {
@@ -1197,21 +1198,184 @@
     }
 
     .dropdown-option {
-      padding: 8px 12px;
-      font-size: 11px;
-      color: var(--figma-color-text);
-      cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 4px;
+      height: 24px;
+      padding: 0 8px 0 4px;
+      border-radius: 5px;
+      color: var(--figma-color-text);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: var(--figma-font-family);
+      font-size: var(--figma-font-size-11);
+      font-weight: 450;
+      line-height: 16px;
+    }
+
+    .dropdown-check-icon {
+      width: 16px;
+      height: 16px;
+      opacity: 0;
+      flex-shrink: 0;
+      color: var(--figma-color-text);
+    }
+
+    .dropdown-option.selected .dropdown-check-icon {
+      opacity: 1;
     }
 
     .dropdown-option:hover {
-      background-color: var(--figma-color-bg-hover);
+      background: var(--figma-color-bg-brand);
+    }
+
+    .dropdown-divider {
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: calc(100% + 16px);
+      margin-left: -8px;
+      margin-right: -8px;
+      flex-shrink: 0;
     }
     
-    .dropdown-option.selected {
-        background-color: var(--figma-color-bg-selected);
+    .dropdown-divider::after {
+      content: '';
+      height: 1px;
+      width: 100%;
+      background-color: #383838;
+    }
+
+    /* Add Library Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-container {
+      width: 320px;
+      background: var(--figma-color-bg);
+      border-radius: 13px;
+      box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.08), 0px 10px 24px 0px rgba(0,0,0,0.18), 0px 2px 5px 0px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      border-bottom: 1px solid var(--figma-color-border);
+      background: var(--figma-color-bg);
+    }
+
+    .modal-title {
+      font-weight: 550;
+      font-size: 11px;
+      color: var(--figma-color-text);
+      margin-left: 8px;
+    }
+
+    .modal-close-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--figma-color-icon);
+      padding: 0;
+    }
+
+    .modal-close-btn:hover {
+      background: var(--figma-color-bg-hover);
+      border-radius: var(--figma-radius-4);
+    }
+
+    .modal-body {
+      padding: 0 16px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-label {
+      font-weight: 550;
+      font-size: 11px;
+      color: var(--figma-color-text);
+      margin-bottom: 8px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 8px;
+      background: var(--figma-color-bg-secondary);
+      border: 1px solid transparent;
+      border-radius: 5px;
+      font-family: var(--figma-font-family);
+      font-size: 11px;
+      color: var(--figma-color-text);
+      box-sizing: border-box;
+      outline: none;
+    }
+    
+    .modal-input:focus {
+        border-color: var(--figma-color-border-selected);
+    }
+
+    .input-helper-text {
+      font-size: 11px;
+      color: var(--figma-color-text-secondary);
+      margin-top: 8px;
+    }
+
+    .modal-footer {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 8px;
+      border-top: 1px solid var(--figma-color-border);
+      background: var(--figma-color-bg);
+    }
+
+    .modal-connect-btn {
+      background: var(--figma-color-bg-brand);
+      color: var(--figma-color-text-onbrand);
+      border: none;
+      border-radius: 6px;
+      padding: 0 8px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      width: auto;
+    }
+
+    .modal-connect-btn:hover {
+      background: var(--figma-color-bg-brand-hover);
     }
 
     .header-spacer {
@@ -2233,6 +2397,7 @@
       const trigger = document.getElementById('targetLibraryTrigger');
       const label = document.getElementById('target-library-label');
       const menu = document.getElementById('targetLibraryMenu');
+      const overlay = document.getElementById('filterDropdownOverlay');
       
       if (!dropdown || !trigger || !label || !menu) return;
       
@@ -2267,7 +2432,9 @@
         const option = document.createElement('div');
         option.className = 'dropdown-option';
         if (lib.name === selectedLib.name) option.classList.add('selected');
-        option.textContent = lib.name;
+        
+        const checkIcon = `<svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg>`;
+        option.innerHTML = `${checkIcon}<span>${lib.name}</span>`;
         
         option.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -2281,11 +2448,89 @@
           menu.classList.remove('show');
           trigger.classList.remove('active');
           
+          // Hide overlay
+          if (overlay) {
+            overlay.classList.remove('active');
+            if (menu._closeHandler) {
+                overlay.removeEventListener('click', menu._closeHandler);
+                menu._closeHandler = null;
+            }
+          }
+          
           console.log('Target library changed to:', lib.name);
         });
         
         menu.appendChild(option);
       });
+
+      // Add Divider
+      const divider = document.createElement('div');
+      divider.className = 'dropdown-divider';
+      menu.appendChild(divider);
+
+      // Add "Add library" option
+      const addOption = document.createElement('div');
+      addOption.className = 'dropdown-option';
+      
+      const plusIcon = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 2.5C8.5 2.22386 8.27614 2 8 2C7.72386 2 7.5 2.22386 7.5 2.5V7.5H2.5C2.22386 7.5 2 7.72386 2 8C2 8.27614 2.22386 8.5 2.5 8.5H7.5V13.5C7.5 13.7761 7.72386 14 8 14C8.27614 14 8.5 13.7761 8.5 13.5V8.5H13.5C13.7761 8.5 14 8.27614 14 8C14 7.72386 13.7761 7.5 13.5 7.5H8.5V2.5Z" fill="currentColor" fill-opacity="0.9"/></svg>`;
+      
+      addOption.innerHTML = `${plusIcon}<span>Add library</span>`;
+      
+      addOption.addEventListener('click', (e) => {
+          e.stopPropagation();
+          console.log('Add library clicked');
+          
+          // Close menu
+          menu.classList.remove('show');
+          trigger.classList.remove('active');
+          
+          // Hide overlay
+          if (overlay) {
+            overlay.classList.remove('active');
+            if (menu._closeHandler) {
+                overlay.removeEventListener('click', menu._closeHandler);
+                menu._closeHandler = null;
+            }
+          }
+
+          // Open Modal
+          const modal = document.getElementById('addLibraryModal');
+          if (modal) {
+              modal.classList.add('active');
+              
+              const closeBtn = document.getElementById('closeAddLibraryModal');
+              const connectBtn = document.getElementById('connectLibraryBtn');
+              const input = modal.querySelector('.modal-input');
+              
+              // Focus input
+              if (input) setTimeout(() => input.focus(), 50);
+
+              const closeModal = () => {
+                  modal.classList.remove('active');
+                  if (input) input.value = ''; // Clear input
+              };
+              
+              if (closeBtn) closeBtn.onclick = closeModal;
+              
+              // Close on click outside (overlay)
+              modal.onclick = (e) => {
+                  if (e.target === modal) {
+                      closeModal();
+                  }
+              };
+
+              if (connectBtn) {
+                  connectBtn.onclick = () => {
+                      const link = input ? input.value : '';
+                      console.log('Connect library clicked with link:', link);
+                      // Here we would typically validate and add the library
+                      closeModal();
+                  };
+              }
+          }
+      });
+      
+      menu.appendChild(addOption);
       
       // Toggle menu
       trigger.onclick = (e) => {
@@ -2297,8 +2542,33 @@
             if (m !== menu) m.classList.remove('show');
         });
         
+        const isOpening = !menu.classList.contains('show');
         menu.classList.toggle('show');
         trigger.classList.toggle('active');
+        
+        // Toggle overlay
+        if (overlay) {
+            if (isOpening) {
+                overlay.classList.add('active');
+                
+                // Handler to close this specific dropdown
+                const closeHandler = () => {
+                    menu.classList.remove('show');
+                    trigger.classList.remove('active');
+                    overlay.classList.remove('active');
+                    overlay.removeEventListener('click', closeHandler);
+                    menu._closeHandler = null;
+                };
+                overlay.addEventListener('click', closeHandler);
+                menu._closeHandler = closeHandler;
+            } else {
+                overlay.classList.remove('active');
+                if (menu._closeHandler) {
+                    overlay.removeEventListener('click', menu._closeHandler);
+                    menu._closeHandler = null;
+                }
+            }
+        }
       };
       
       // Close on click outside
@@ -3881,6 +4151,30 @@
     <div class="filter-menu">
       <div class="filter-menu-item" id="removeLibraryBtn">
         <span class="filter-label-text">Remove</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Library Modal -->
+  <div class="modal-overlay" id="addLibraryModal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <span class="modal-title">Connect library</span>
+        <button class="modal-close-btn" id="closeAddLibraryModal">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.3536 6.64645C17.5488 6.84171 17.5488 7.15829 17.3536 7.35355L12.7071 12L17.3536 16.6464C17.5488 16.8417 17.5488 17.1583 17.3536 17.3536C17.1583 17.5488 16.8417 17.5488 16.6464 17.3536L12 12.7071L7.35355 17.3536C7.15829 17.5488 6.84171 17.5488 6.64645 17.3536C6.45118 17.1583 6.45118 16.8417 6.64645 16.6464L11.2929 12L6.64645 7.35365C6.45119 7.15839 6.45118 6.84181 6.64644 6.64654C6.84171 6.45128 7.15829 6.45128 7.35355 6.64654L12 11.2929L16.6464 6.64645C16.8417 6.45118 17.1583 6.45118 17.3536 6.64645Z" fill="currentColor" fill-opacity="0.9"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div>
+            <div class="input-label">Library share link</div>
+            <input type="text" class="modal-input" placeholder="Add an optional description">
+            <div class="input-helper-text">Connect your Figma library with a share link</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-connect-btn" id="connectLibraryBtn">Connect</button>
       </div>
     </div>
   </div>
