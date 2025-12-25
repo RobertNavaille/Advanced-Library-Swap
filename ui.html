@@ -4278,6 +4278,12 @@
              // Pass the currently selected source library if available
              updateScanResultsView(window.unifiedScanData, window.selectedSourceLibrary);
         }
+
+        // Automatically dismiss "Connect library" screen if libraries are now connected
+        const connectLibraryView = document.getElementById('connectLibraryView');
+        if (connectLibraryView && connectLibraryView.classList.contains('active') && connectedLibraries.length > 0) {
+            showView('scanView');
+        }
       }
       
       if (msg.type === 'ACCESS_TOKEN_LOADED') {
