@@ -800,14 +800,15 @@ function getColorValue(paint: Paint): string {
   return '#000000';
 }
 
+// Helper to normalize library names
+function normalizeLibraryName(name: string): string {
+  return name;
+}
+
 // Get target color for UI display
 async function getTargetColor(tokenId: string, styleName: string, sourceLibrary: string, targetLibrary: string): Promise<void> {
   console.log(`🎨 Getting target color for: ${styleName}, from ${sourceLibrary} to ${targetLibrary}`);
   console.log(`📦 tokenId: ${tokenId}`);
-  
-  function normalizeLibraryName(name: string): string {
-    return name;
-  }
   
   const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
   console.log(`📋 Normalized target library: ${normalizedTargetLibrary}`);
