@@ -1,13 +1,9 @@
 // Main Figma Swap Library Plugin (clean template)
+console.log('🚀 Plugin starting... Version: No-Legacy-Cleanup-Fix');
 import { COMPONENT_KEY_MAPPING as DEFAULT_COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING as DEFAULT_STYLE_KEY_MAPPING, VARIABLE_ID_MAPPING as DEFAULT_VARIABLE_ID_MAPPING, VARIABLE_KEY_MAPPING as DEFAULT_VARIABLE_KEY_MAPPING, LIBRARY_THUMBNAILS as DEFAULT_LIBRARY_THUMBNAILS } from './keyMapping';
 import { copyTextOverrides } from './swapUtils';
 
-// JSONBin configuration
-const JSONBIN_BIN_ID = '69324103d0ea881f4013bbac';
-const JSONBIN_ACCESS_KEY = '$2a$10$LO/AIA/nruYOWBg5fzDPLOZI1Y8vv.Yucd1KsJBl6BquPRecLEf5C';
-const JSONBIN_API_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
-
-// Global mapping variables - will be populated from JSONBin
+// Global mapping variables
 let COMPONENT_KEY_MAPPING = DEFAULT_COMPONENT_KEY_MAPPING;
 let STYLE_KEY_MAPPING = DEFAULT_STYLE_KEY_MAPPING;
 let VARIABLE_ID_MAPPING = DEFAULT_VARIABLE_ID_MAPPING;
@@ -33,192 +29,11 @@ interface TokenInfo {
   library?: string;
 }
 
-// Fetch mappings from JSONBin
-async function fetchMappingsFromJSONBin(): Promise<void> {
-  try {
-    console.log('📡 Fetching mappings from JSONBin...');
-    const response = await fetch(JSONBIN_API_URL, {
-      method: 'GET',
-      headers: {
-        'X-Access-Key': JSONBIN_ACCESS_KEY,
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`JSONBin fetch failed: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    const themes = data.record?.themes || data.themes;
-    
-    if (!themes) {
-      throw new Error('No themes found in JSONBin response');
-    }
-    
-    console.log('✅ Successfully fetched mappings from JSONBin');
-    
-    // Extract and build the mapping objects from themes
-    COMPONENT_KEY_MAPPING = {};
-    STYLE_KEY_MAPPING = {};
-    VARIABLE_KEY_MAPPING = {};
-    VARIABLE_ID_MAPPING = {};
-    LIBRARY_THUMBNAILS = {};
-    
-    for (const [themeName, themeData]: [string, any] of Object.entries(themes)) {
-      COMPONENT_KEY_MAPPING[themeName] = themeData.componentKeyMapping || {};
-      STYLE_KEY_MAPPING[themeName] = themeData.styleKeyMapping || {};
-      VARIABLE_KEY_MAPPING[themeName] = themeData.variableKeyMapping || {};
-      VARIABLE_ID_MAPPING[themeName] = themeData.variableIdMapping || {};
-      LIBRARY_THUMBNAILS[themeName] = themeData.thumbnail || '';
-    }
-    
-    console.log('🎨 Loaded themes:', Object.keys(COMPONENT_KEY_MAPPING));
-  } catch (error) {
-    console.error('❌ Error fetching from JSONBin, using local defaults:', error);
-    // Mappings remain as defaults from keyMapping.ts
-  }
-}
-
-// Upload mappings to JSONBin
-async function uploadToJSONBin(components: { name: string; key: string }[], styles: { name: string; key: string; type: string }[], variables: { name: string; id: string; key?: string }[]): Promise<void> {
-  try {
-    console.log('📤 Uploading to JSONBin...');
-    
-    // First, fetch current data to preserve other themes
-    const fetchResponse = await fetch(JSONBIN_API_URL, {
-      method: 'GET',
-      headers: {
-        'X-Access-Key': JSONBIN_ACCESS_KEY,
-      }
-    });
-    
-    let existingThemes: Record<string, any> = {};
-    if (fetchResponse.ok) {
-      const data = await fetchResponse.json();
-      existingThemes = data.record?.themes || data.themes || {};
-    }
-    
-    // Detect library name from file name
-    const fileName = figma.root.name.toLowerCase();
-    let detectedLibrary = 'Custom';
-    if (fileName.includes('shark')) {
-      detectedLibrary = 'Shark';
-    } else if (fileName.includes('monkey')) {
-      detectedLibrary = 'Monkey';
-    }
-    console.log(`🏷️ Detected library from file name: ${detectedLibrary}`);
-    
-    // Build component mapping (name -> key)
-    const componentMapping: Record<string, string> = {};
-    components.forEach(comp => {
-      componentMapping[comp.name] = comp.key;
-    });
-    
-    // Build style mapping (name -> key)
-    const styleMapping: Record<string, string> = {};
-    styles.forEach(style => {
-      styleMapping[style.name] = style.key;
-    });
-    
-    // Build variable mappings (use key if available, fall back to id)
-    const variableKeyMapping: Record<string, string> = {};
-    const variableIdMapping: Record<string, string> = {};
-    variables.forEach(variable => {
-      variableKeyMapping[variable.name] = variable.key || variable.id;
-      variableIdMapping[variable.name] = variable.id;
-    });
-    
-    // Get the other library names for cross-library mapping
-    const otherLibraries = Object.keys(existingThemes).filter(lib => lib !== detectedLibrary);
-    
-    // For styles/variables with the same name across libraries, add cross-mappings
-    const allStyleNames = new Set<string>();
-    const allVariableNames = new Set<string>();
-    
-    // Collect all names from current library
-    Object.keys(styleMapping).forEach(name => allStyleNames.add(name));
-    Object.keys(variableKeyMapping).forEach(name => allVariableNames.add(name));
-    
-    // If current library has styles, add them to variable mapping for matching names in other libraries
-    if (allStyleNames.size > 0) {
-      for (const otherLib of otherLibraries) {
-        const otherTheme = existingThemes[otherLib];
-        if (otherTheme && otherTheme.variableKeyMapping) {
-          // For each style in current library, check if other library has a variable with same name
-          for (const styleName of allStyleNames) {
-            if (styleName in otherTheme.variableKeyMapping) {
-              console.log(`  🔗 Cross-mapped: ${detectedLibrary}/${styleName} (style) <-> ${otherLib}/${styleName} (variable)`);
-            }
-          }
-        }
-      }
-    }
-    
-    // If current library has variables, add them to style mapping for matching names in other libraries
-    if (allVariableNames.size > 0) {
-      for (const otherLib of otherLibraries) {
-        const otherTheme = existingThemes[otherLib];
-        if (otherTheme && otherTheme.styleKeyMapping) {
-          // For each variable in current library, check if other library has a style with same name
-          for (const varName of allVariableNames) {
-            if (varName in otherTheme.styleKeyMapping) {
-              console.log(`  🔗 Cross-mapped: ${detectedLibrary}/${varName} (variable) <-> ${otherLib}/${varName} (style)`);
-            }
-          }
-        }
-      }
-    }
-    
-    // Update only the detected library, preserve all others
-    const updatedThemes = {
-      ...existingThemes,
-      [detectedLibrary]: {
-        componentKeyMapping: componentMapping,
-        styleKeyMapping: styleMapping,
-        variableKeyMapping: variableKeyMapping,
-        variableIdMapping: variableIdMapping,
-        thumbnail: existingThemes[detectedLibrary]?.thumbnail || LIBRARY_THUMBNAILS[detectedLibrary] || ''
-      }
-    };
-    
-    const updatedMappings = { themes: updatedThemes };
-    
-    const response = await fetch(JSONBIN_API_URL, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Access-Key': JSONBIN_ACCESS_KEY,
-      },
-      body: JSON.stringify(updatedMappings)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`JSONBin upload failed: ${response.status} ${response.statusText}`);
-    }
-    
-    console.log('✅ Successfully uploaded mappings to JSONBin');
-    console.log(`🎨 Updated ${detectedLibrary} theme with synced components and styles`);
-    
-    // Log what was added to mappings
-    console.log(`📊 Mappings summary for ${detectedLibrary}:`);
-    console.log(`  - Components: ${Object.keys(componentMapping).length}`);
-    console.log(`  - Styles: ${Object.keys(styleMapping).length}`);
-    console.log(`  - Variables: ${Object.keys(variableKeyMapping).length}`);
-    console.log(`  - Cross-library mappings created for matching names`);
-  } catch (error) {
-    console.error('❌ Error uploading to JSONBin:', error);
-    console.log('⚠️ Mappings were not uploaded, but sync is complete.');
-  }
-}
-
 // Store the scanned frame for later use during swaps
 let scannedFrame: FrameNode | null = null;
 
 // Show the UI
 figma.showUI(__html__, { width: 480, height: 500, themeColors: true });
-
-// Fetch mappings from JSONBin on plugin load
-fetchMappingsFromJSONBin();
 
 // Auto-scan when a frame is selected
 figma.on('selectionchange', async () => {
@@ -239,80 +54,177 @@ figma.on('selectionchange', async () => {
 })();
 
 // Connected Libraries Management
-let CONNECTED_LIBRARIES: { name: string; id: string; key: string; type: string }[] = [];
+let CONNECTED_LIBRARIES: { 
+  name: string; 
+  id: string; 
+  key: string; 
+  type: string;
+  lastSynced?: string;
+  components?: Record<string, string>;
+  styles?: Record<string, string>;
+}[] = [];
 
 async function loadConnectedLibraries() {
-  const stored = await figma.clientStorage.getAsync('connected_libraries');
-  if (stored && Array.isArray(stored)) {
-    CONNECTED_LIBRARIES = stored;
-  } else {
-    // Default to keys from mapping if available, or empty
-    // We'll wait for mappings to load
-    if (Object.keys(COMPONENT_KEY_MAPPING).length > 0) {
-       CONNECTED_LIBRARIES = Object.keys(COMPONENT_KEY_MAPPING).map(name => ({
-         name,
-         id: name,
-         key: '',
-         type: 'Remote'
-       }));
+  console.log('📥 Loading connected libraries...');
+  try {
+    const stored = await figma.clientStorage.getAsync('connected_libraries');
+    console.log('📦 Raw stored libraries:', stored);
+    
+    if (stored && Array.isArray(stored)) {
+      CONNECTED_LIBRARIES = stored;
+      console.log(`✅ Loaded ${CONNECTED_LIBRARIES.length} libraries`);
+      CONNECTED_LIBRARIES.forEach((lib, index) => {
+          const compCount = lib.components ? Object.keys(lib.components).length : 0;
+          const styleCount = lib.styles ? Object.keys(lib.styles).length : 0;
+          console.log(`   📚 Library [${index}] "${lib.name}": ${compCount} components, ${styleCount} styles.`);
+          if (compCount === 0) console.warn(`   ⚠️ Library "${lib.name}" has 0 components! It might not have been fetched correctly.`);
+      });
+    } else {
+      console.log('⚠️ No libraries found in storage or invalid format');
+      CONNECTED_LIBRARIES = [];
     }
+  } catch (err) {
+    console.error('❌ Error loading connected libraries:', err);
+    CONNECTED_LIBRARIES = [];
   }
+
   // Send to UI
   sendConnectedLibraries();
+  
+  // Update global mappings so scan can find these libraries
+  updateMappingsFromConnected();
+}
+
+function updateMappingsFromConnected() {
+  CONNECTED_LIBRARIES.forEach(lib => {
+    if (lib.components) {
+      COMPONENT_KEY_MAPPING[lib.name] = { ...COMPONENT_KEY_MAPPING[lib.name], ...lib.components };
+    }
+    if (lib.styles) {
+      STYLE_KEY_MAPPING[lib.name] = { ...STYLE_KEY_MAPPING[lib.name], ...lib.styles };
+    }
+  });
+  console.log('🔄 Updated global mappings from connected libraries');
+  console.log('Component Mappings Keys:', Object.keys(COMPONENT_KEY_MAPPING));
+  Object.keys(COMPONENT_KEY_MAPPING).forEach(lib => {
+      console.log(`Library ${lib} has ${Object.keys(COMPONENT_KEY_MAPPING[lib]).length} components`);
+  });
 }
 
 async function saveConnectedLibraries() {
-  await figma.clientStorage.setAsync('connected_libraries', CONNECTED_LIBRARIES);
+  try {
+    await figma.clientStorage.setAsync('connected_libraries', CONNECTED_LIBRARIES);
+    console.log(`💾 Saved ${CONNECTED_LIBRARIES.length} libraries to storage`);
+  } catch (err) {
+    console.error('❌ Error saving connected libraries:', err);
+  }
 }
 
 function sendConnectedLibraries() {
+  console.log(`📤 Sending ${CONNECTED_LIBRARIES.length} connected libraries to UI`);
   figma.ui.postMessage({
     type: 'LIBRARIES_UPDATED',
     libraries: CONNECTED_LIBRARIES
   });
 }
 
+async function handleAddLibraryByLink(link: string) {
+  // Extract file key from link
+  // Supports:
+  // https://www.figma.com/file/ByKey123/Name
+  // https://www.figma.com/design/ByKey123/Name
+  const match = link.match(/figma\.com\/(?:file|design)\/([a-zA-Z0-9]{22,})/);
+  
+  if (match && match[1]) {
+    const fileKey = match[1];
+    console.log('🔗 Extracted file key:', fileKey);
+    await handleAddLibraryByKey(fileKey);
+  } else {
+    figma.notify('Invalid Figma link. Could not extract file key.');
+    console.error('Could not extract key from link:', link);
+  }
+}
+
 async function handleAddLibraryByKey(fileKey: string) {
+  console.log(`➕ Adding library by key: ${fileKey}`);
   // 1. Check if we have a token
   const token = await figma.clientStorage.getAsync('figma_access_token');
   
-  // If no token, we can't fetch name, but we can still add it with a placeholder
-  // Or we can ask user to add token.
-  // For now, if no token, add with ID as name
-  
   let name = `Library ${fileKey.substring(0, 6)}`;
+  let components: Record<string, string> = {};
+  let styles: Record<string, string> = {};
   
   if (token) {
     try {
-      // Use fetch if available in environment (Figma plugins support fetch)
-      const response = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
+      // Fetch File Metadata
+      const fileResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
         headers: { 'X-Figma-Token': token }
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (fileResponse.ok) {
+        const data = await fileResponse.json();
         name = data.name;
       }
+
+      // Fetch Components
+      const compResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}/components`, {
+        headers: { 'X-Figma-Token': token }
+      });
+      if (compResponse.ok) {
+        const compData = await compResponse.json();
+        if (compData.meta && compData.meta.components) {
+             compData.meta.components.forEach((c: any) => {
+                 components[c.name] = c.key;
+             });
+        }
+      }
+
+      // Fetch Styles
+      const styleResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}/styles`, {
+        headers: { 'X-Figma-Token': token }
+      });
+      if (styleResponse.ok) {
+        const styleData = await styleResponse.json();
+        if (styleData.meta && styleData.meta.styles) {
+             styleData.meta.styles.forEach((s: any) => {
+                 styles[s.name] = s.key;
+             });
+        }
+      }
+
     } catch (err) {
-      console.error('Failed to fetch library name:', err);
+      console.error('Failed to fetch library details:', err);
+      figma.notify('Failed to fetch full library details. Check your token.');
     }
+  } else {
+      figma.notify('No access token found. Please add one in settings to fetch library details.');
   }
   
   const newLib = {
     name: name,
     id: fileKey,
     key: fileKey,
-    type: 'Remote'
+    type: 'Remote',
+    lastSynced: new Date().toISOString(),
+    components: components,
+    styles: styles
   };
   
-  if (!CONNECTED_LIBRARIES.find(l => l.id === fileKey)) {
-    CONNECTED_LIBRARIES.push(newLib);
-    await saveConnectedLibraries();
-    sendConnectedLibraries();
-    figma.notify(`Library "${name}" added!`);
+  // Remove existing if present (update)
+  const existingIndex = CONNECTED_LIBRARIES.findIndex(l => l.id === fileKey);
+  if (existingIndex >= 0) {
+      CONNECTED_LIBRARIES[existingIndex] = newLib;
+      figma.notify(`Library "${name}" updated!`);
   } else {
-    figma.notify(`Library "${name}" is already connected.`);
+      CONNECTED_LIBRARIES.push(newLib);
+      figma.notify(`Library "${name}" added!`);
   }
+  
+  console.log('💾 Saving updated libraries list...');
+  await saveConnectedLibraries();
+  console.log('📤 Sending updated libraries to UI...');
+  sendConnectedLibraries();
+  updateMappingsFromConnected();
 }
 
 async function handleRemoveLibrary(libraryId: string) {
@@ -367,6 +279,16 @@ figma.ui.onmessage = async (msg: any) => {
     case 'UPDATE_LIBRARY_DEFINITIONS':
       await syncLibraryDefinitions();
       break;
+    case 'add-library-by-link':
+      await handleAddLibraryByLink(msg.link);
+      break;
+    case 'RESET_PLUGIN':
+      await figma.clientStorage.setAsync('connected_libraries', []);
+      CONNECTED_LIBRARIES = [];
+      sendConnectedLibraries();
+      figma.notify('Plugin data reset');
+      await handleScanFrames();
+      break;
     case 'ADD_LIBRARY_BY_KEY':
       await handleAddLibraryByKey(msg.fileKey);
       break;
@@ -374,6 +296,7 @@ figma.ui.onmessage = async (msg: any) => {
       await handleRemoveLibrary(msg.libraryId);
       break;
     case 'GET_CONNECTED_LIBRARIES':
+      console.log('📩 Received GET_CONNECTED_LIBRARIES request');
       sendConnectedLibraries();
       break;
     case 'SAVE_ACCESS_TOKEN':
@@ -421,11 +344,46 @@ async function handleScanFrames(): Promise<void> {
     }
     console.log('📊 Scan complete. Found components:', components.length, 'tokens:', tokens.length);
     
+    // Filter components and tokens to only include those from connected libraries
+    const connectedLibraryNames = new Set(CONNECTED_LIBRARIES.map(l => l.name));
+    
+    // Also include libraries from JSONBin if they are considered "connected" or if we want to allow them
+    // But user requirement is "ignore ... not included in connected libraries"
+    // So we strictly filter by CONNECTED_LIBRARIES
+    
+    const filteredComponents = components.filter(c => connectedLibraryNames.has(c.library));
+    const filteredTokens = tokens.filter(t => t.library && connectedLibraryNames.has(t.library));
+    
+    console.log('🔍 Filtered scan results:', {
+        originalComponents: components.length,
+        filteredComponents: filteredComponents.length,
+        originalTokens: tokens.length,
+        filteredTokens: filteredTokens.length
+    });
+
     // Extract unique libraries and build library metadata with file IDs
     const libraryMap = new Map<string, { fileId?: string; components: number; tokens: number }>();
     
+    // If no components or tokens found (after filtering), and we have a frame selected, check if we have any connected libraries
+    console.log('📊 Checking for empty scan:', { 
+        components: filteredComponents.length, 
+        tokens: filteredTokens.length, 
+        connectedLibsCount: CONNECTED_LIBRARIES.length,
+        connectedLibsNames: CONNECTED_LIBRARIES.map(l => l.name)
+    });
+    
+    if (filteredComponents.length === 0 && filteredTokens.length === 0) {
+        if (CONNECTED_LIBRARIES.length === 0) {
+            console.log('🚀 Sending SHOW_CONNECT_LIBRARY_VIEW');
+            figma.ui.postMessage({ type: 'SHOW_CONNECT_LIBRARY_VIEW' });
+            return;
+        } else {
+            console.log('⚠️ Scan empty, but libraries connected. Sending empty result.');
+        }
+    }
+
     // Add components to library map
-    components.forEach(c => {
+    filteredComponents.forEach(c => {
       if (!libraryMap.has(c.library)) {
         libraryMap.set(c.library, { fileId: c.libraryFileId, components: 0, tokens: 0 });
       }
@@ -437,7 +395,7 @@ async function handleScanFrames(): Promise<void> {
     });
     
     // Add tokens to library map
-    tokens.forEach(t => {
+    filteredTokens.forEach(t => {
       if (t.library && !libraryMap.has(t.library)) {
         libraryMap.set(t.library, { components: 0, tokens: 0 });
       }
@@ -455,7 +413,7 @@ async function handleScanFrames(): Promise<void> {
       tokenCount: libInfo.tokens
     }));
     
-    figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: true, data: { components, tokens, libraries } });
+    figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: true, data: { components: filteredComponents, tokens: filteredTokens, libraries } });
   } catch (error) {
     console.error('❌ Scan error:', error);
     figma.ui.postMessage({ type: 'SCAN_ALL_RESULT', ok: false, error: `Scan failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
@@ -464,9 +422,16 @@ async function handleScanFrames(): Promise<void> {
 
 // Recursively scan nodes for components and design tokens
 async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], tokens: TokenInfo[]): Promise<void> {
+  if (Object.keys(COMPONENT_KEY_MAPPING).length === 0) {
+      console.warn("⚠️ scanNodeForAssets: COMPONENT_KEY_MAPPING is empty! No components can be matched.");
+  }
+
   if (node.type === 'INSTANCE') {
     try {
       const component = await node.getMainComponentAsync();
+      if (!component) {
+          // console.log(`⚠️ Instance ${node.name} has no main component.`);
+      }
       if (component) {
         let foundLibrary: string | null = null;
         let foundName: string | null = null;
@@ -478,21 +443,46 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
         const componentId = keyParts[keyParts.length - 1] || component.key; // Get the last part (component ID)
         
         // Try to match the component using the full key first, then try with extracted component ID
+        let bestMatch = { library: null as string | null, name: null as string | null, score: 0, parentName: null as string | null };
+
         for (const libName of Object.keys(COMPONENT_KEY_MAPPING)) {
           for (const compName of Object.keys(COMPONENT_KEY_MAPPING[libName])) {
             const mappedKey = COMPONENT_KEY_MAPPING[libName][compName];
-            if (mappedKey === component.key || mappedKey === componentId) {
-              foundLibrary = libName;
-              foundName = compName;
-              if (component.parent && component.parent.type === 'COMPONENT_SET') {
-                parentName = component.parent.name;
-              } else {
-                parentName = foundName;
-              }
-              break;
+            
+            // Debug logging for key matching
+            // console.log(`🔍 Checking ${compName} in ${libName}: mapped=${mappedKey}, actual=${component.key}, id=${componentId}`);
+            
+            // Match scoring:
+            // 5. Exact key match
+            // 4. Component ID match (last part of key)
+            // 3. Mapped key is contained in component key (for some remote library formats)
+            // 2. Component key is contained in mapped key (reverse check)
+            // 1. Name match (fallback) - CAUTION: This can be risky if names are not unique
+            
+            let score = 0;
+            if (mappedKey === component.key) score = 5;
+            else if (mappedKey === componentId) score = 4;
+            else if (component.key.includes(mappedKey)) score = 3;
+            else if (mappedKey.includes(componentId)) score = 2;
+            else if (component.name === compName) score = 1;
+
+            if (score > bestMatch.score) {
+                let pName = null;
+                if (component.parent && component.parent.type === 'COMPONENT_SET') {
+                    pName = component.parent.name;
+                } else {
+                    pName = compName; // Use the mapped name as parent name if no component set
+                }
+                bestMatch = { library: libName, name: compName, score, parentName: pName };
             }
           }
-          if (foundLibrary) break;
+        }
+        
+        if (bestMatch.library && bestMatch.name) {
+          foundLibrary = bestMatch.library;
+          foundName = bestMatch.name;
+          parentName = bestMatch.parentName;
+          console.log(`🏆 Best match for ${component.name}: ${foundLibrary} (Score: ${bestMatch.score})`);
         }
         if (foundLibrary && foundName) {
           const variantName = foundName; // The variant key from mapping
@@ -535,6 +525,7 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
         let library = 'Unknown';
         for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
           for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
+            console.log(`Checking style ${styleName} in ${libName}: ${STYLE_KEY_MAPPING[libName][styleName]} vs ${paintStyle.key}`);
             if (STYLE_KEY_MAPPING[libName][styleName] === paintStyle.key) {
               library = libName;
               console.log(`✅ Matched style key to library: ${library}`);
@@ -676,8 +667,6 @@ async function getTargetColor(tokenId: string, styleName: string, sourceLibrary:
   console.log(`📦 tokenId: ${tokenId}`);
   
   function normalizeLibraryName(name: string): string {
-    if (name.toLowerCase().includes('shark')) return 'Shark';
-    if (name.toLowerCase().includes('monkey')) return 'Monkey';
     return name;
   }
   
@@ -823,7 +812,7 @@ async function syncLibraryDefinitions(): Promise<void> {
   });
   
   // Try to upload to JSONBin
-  await uploadToJSONBin(components, styles, variables);
+  // await uploadToJSONBin(components, styles, variables);
   
   figma.notify(`Found ${components.length} components, ${styles.length} styles, and ${variables.length} variables. Check console for keys/IDs.`);
   figma.ui.postMessage({ 
@@ -866,8 +855,18 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
 async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrary: string, targetLibrary: string): Promise<number> {
   let swapCount = 0;
 
-  // Get the source style key - we need this to identify which styles to replace
-  let sourceStyleKey = STYLE_KEY_MAPPING[sourceLibrary]?.[styleName];
+  // Find source library metadata
+  const sourceLibObj = CONNECTED_LIBRARIES.find(l => l.name === sourceLibrary);
+  let sourceStyleKey: string | undefined;
+  
+  if (sourceLibObj && sourceLibObj.styles) {
+      sourceStyleKey = sourceLibObj.styles[styleName];
+  }
+  
+  // Fallback to legacy mapping
+  if (!sourceStyleKey) {
+      sourceStyleKey = STYLE_KEY_MAPPING[sourceLibrary]?.[styleName];
+  }
   
   // Fallback: check if source is a variable in the source library
   if (!sourceStyleKey) {
@@ -882,17 +881,22 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
     return 0;
   }
 
-  // Normalize target library name
-  function normalizeLibraryName(name: string): string {
-    if (name.toLowerCase().includes('shark')) return 'Shark';
-    if (name.toLowerCase().includes('monkey')) return 'Monkey';
-    return name;
+  // Find target library metadata
+  const targetLibObj = CONNECTED_LIBRARIES.find(l => l.name === targetLibrary);
+  let targetStyleKey: string | undefined;
+  
+  if (targetLibObj && targetLibObj.styles) {
+      targetStyleKey = targetLibObj.styles[styleName];
   }
-  const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
+  
+  // Fallback to legacy mapping
+  if (!targetStyleKey) {
+      targetStyleKey = STYLE_KEY_MAPPING[targetLibrary]?.[styleName];
+  }
 
-  // Try to get the target variable KEY for this style name
-  const targetVariableKey = VARIABLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
-  const targetVariableId = VARIABLE_ID_MAPPING[normalizedTargetLibrary]?.[styleName];
+  // Try to get the target variable KEY for this style name (Legacy fallback)
+  const targetVariableKey = VARIABLE_KEY_MAPPING[targetLibrary]?.[styleName];
+  const targetVariableId = VARIABLE_ID_MAPPING[targetLibrary]?.[styleName];
 
   console.log(`  📋 Processing node: ${node.name} (type: ${node.type}) looking for style: ${styleName}`);
 
@@ -903,7 +907,22 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
       if (currentStyle && currentStyle.key === sourceStyleKey) {
         console.log(`  ✅ Found ${styleName} style on ${node.type}`);
         
-        // If we have a target variable KEY or ID, bind to it
+        // If we have a target style key from dynamic metadata, use it
+        if (targetStyleKey) {
+             try {
+                 const importedStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+                 if (importedStyle) {
+                     (node as any).fillStyleId = importedStyle.id;
+                     swapCount++;
+                     console.log(`  ✅ Swapped style to ${targetLibrary}/${styleName}`);
+                     return swapCount; // Return early if swapped
+                 }
+             } catch (e) {
+                 console.warn(`  ⚠️ Failed to import target style: ${e}`);
+             }
+        }
+
+        // If we have a target variable KEY or ID, bind to it (Legacy/Variable logic)
         if (targetVariableKey || targetVariableId) {
           try {
             console.log(`  🔄 Binding to Monkey variable: ${targetVariableKey || targetVariableId}`);
@@ -1278,13 +1297,11 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
   console.log('Source Library:', sourceLibrary);
   console.log('Target Library:', targetLibrary);
 
-  function normalizeLibraryName(name: string): string {
-    if (name.toLowerCase().includes('shark')) return 'Shark';
-    if (name.toLowerCase().includes('monkey')) return 'Monkey';
-    return name;
+  // Find target library in connected libraries
+  const targetLibObj = CONNECTED_LIBRARIES.find(l => l.name === targetLibrary);
+  if (!targetLibObj) {
+      console.warn(`Target library "${targetLibrary}" not found in connected libraries.`);
   }
-  const normalizedSourceLibrary = normalizeLibraryName(sourceLibrary);
-  const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
 
   let swapCount = 0;
   let errorCount = 0;
@@ -1300,16 +1317,29 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
       let foundInstancesForThisComponent = false;
       for (const node of nodesToProcess) {
         if (node.type === 'FRAME' || node.type === 'GROUP') {
-          const instances = await findInstancesByNameAsync(node, comp.name, normalizedSourceLibrary);
+          const instances = await findInstancesByNameAsync(node, comp.name, sourceLibrary);
           totalInstancesFound += instances.length;
           if (instances.length === 0) {
             continue;  // Don't count as error yet, check other nodes
           }
           foundInstancesForThisComponent = true;
           for (const instance of instances) {
-            const targetKey = COMPONENT_KEY_MAPPING[normalizedTargetLibrary]?.[comp.name];
+            // Look up target key in connected library metadata
+            let targetKey: string | undefined;
+            if (targetLibObj && targetLibObj.components) {
+                targetKey = targetLibObj.components[comp.name];
+            }
+            
+            // Fallback to legacy mapping if not found in dynamic metadata
             if (!targetKey) {
-              errorDetails.push(`No mapping for component '${comp.name}' in target library '${normalizedTargetLibrary}'`);
+                 // Try legacy mapping if it exists
+                 if (COMPONENT_KEY_MAPPING[targetLibrary] && COMPONENT_KEY_MAPPING[targetLibrary][comp.name]) {
+                     targetKey = COMPONENT_KEY_MAPPING[targetLibrary][comp.name];
+                 }
+            }
+
+            if (!targetKey) {
+              errorDetails.push(`No mapping for component '${comp.name}' in target library '${targetLibrary}'`);
               errorCount++;
               continue;
             }
