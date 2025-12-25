@@ -4283,6 +4283,8 @@
         const connectLibraryView = document.getElementById('connectLibraryView');
         if (connectLibraryView && connectLibraryView.classList.contains('active') && connectedLibraries.length > 0) {
             showView('scanView');
+            // Automatically trigger scan if we have a frame selected
+            parent.postMessage({ pluginMessage: { type: 'SCAN_ALL' } }, '*');
         }
       }
       
