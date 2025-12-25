@@ -2350,8 +2350,9 @@
         console.log('📚 Only one library found, skipping selector');
         unifiedData = scanData;
         window.unifiedScanData = scanData;
+        window.selectedSourceLibrary = libraries[0].name;
         showView('scanResultsView');
-        updateScanResultsView(scanData);
+        updateScanResultsView(scanData, libraries[0].name);
         return;
       }
       
@@ -2648,8 +2649,8 @@
       if (!targetLibraryName) {
           targetLibraryName = 'Select Target';
           // Try to find a different library in connectedLibraries
-          if (window.connectedLibraries && window.connectedLibraries.length > 0) {
-               const otherLib = window.connectedLibraries.find(l => l.name !== sourceLibraryName);
+          if (connectedLibraries && connectedLibraries.length > 0) {
+               const otherLib = connectedLibraries.find(l => l.name !== sourceLibraryName);
                if (otherLib) {
                    targetLibraryName = otherLib.name;
                }
@@ -2693,18 +2694,41 @@
           // Store all variant names (separated by comma) for swap logic
           mappingItem.dataset.variantNames = variants.map(v => v.name).join(',');
           const firstVariant = variants[0];
-          const targetElementHTML = isTargetValid ? `
+          // Check if target library has this component
+          let targetComponentName = '-';
+          let isMatchFound = false;
+          
+          if (isTargetValid) {
+              // Use the global connectedLibraries variable directly
+              const targetLibObj = connectedLibraries ? connectedLibraries.find(l => l.name === targetLibraryName) : null;
+              
+              if (targetLibObj && targetLibObj.components) {
+                  // Check if any variant in the group exists in the target library
+                  // Note: targetLibObj.components is a map of Name -> Key
+                  const hasMatch = variants.some(v => {
+                      const match = targetLibObj.components[v.name];
+                      return match;
+                  });
+                  
+                  if (hasMatch) {
+                      targetComponentName = firstVariant.displayName;
+                      isMatchFound = true;
+                  }
+              }
+          }
+
+          const targetElementHTML = isMatchFound ? `
               <div class="target-element">
                 <div class="icon-container">
                   <svg class="component-icon" viewBox="0 0 24 24" fill="none">
                     <path d="M11.1163 13.5907C11.6045 13.1027 12.3958 13.1026 12.8839 13.5907L14.2628 14.9696C14.7506 15.4577 14.7507 16.2491 14.2628 16.7372L12.8839 18.1161C12.3958 18.604 11.6045 18.6039 11.1163 18.1161L9.73741 16.7372C9.24928 16.249 9.24935 15.4577 9.73741 14.9696L11.1163 13.5907ZM12.1769 14.2977C12.0793 14.2001 11.921 14.2002 11.8233 14.2977L10.4444 15.6766C10.3469 15.7743 10.3468 15.9325 10.4444 16.0301L11.8233 17.409C11.921 17.5064 12.0793 17.5065 12.1769 17.409L13.5558 16.0301C13.6531 15.9326 13.6531 15.7742 13.5558 15.6766L12.1769 14.2977ZM7.2628 9.73716C7.75097 9.24916 8.54227 9.24906 9.03038 9.73716L10.4093 11.1161C10.8972 11.6042 10.8972 12.3956 10.4093 12.8836L9.03038 14.2626C8.54229 14.7505 7.75094 14.7504 7.2628 14.2626L5.88389 12.8836C5.39577 12.3955 5.39583 11.6042 5.88389 11.1161L7.2628 9.73716ZM14.9698 9.73716C15.458 9.2491 16.2493 9.24904 16.7374 9.73716L18.1163 11.1161C18.6042 11.6042 18.6043 12.3956 18.1163 12.8836L16.7374 14.2626C16.2493 14.7506 15.458 14.7504 14.9698 14.2626L13.5909 12.8836C13.1028 12.3955 13.1028 11.6042 13.5909 11.1161L14.9698 9.73716ZM8.32334 10.4442C8.22576 10.3466 8.06747 10.3467 7.96983 10.4442L6.59092 11.8231C6.49339 11.9207 6.49332 12.079 6.59092 12.1766L7.96983 13.5555C8.06745 13.6529 8.22578 13.653 8.32334 13.5555L9.70257 12.1766C9.79965 12.0791 9.7996 11.9207 9.70225 11.8231L8.32334 10.4442ZM16.0304 10.4442C15.9328 10.3466 15.7745 10.3467 15.6769 10.4442L14.298 11.8231C14.2004 11.9207 14.2003 12.079 14.298 12.1766L15.6769 13.5555C15.7745 13.6529 15.9328 13.653 16.0304 13.5555L17.4093 12.1766C17.5067 12.0791 17.5066 11.9207 17.4093 11.8231L16.0304 10.4442ZM11.1163 5.88365C11.6045 5.39559 12.3958 5.39552 12.8839 5.88365L14.2628 7.26255C14.7507 7.7507 14.7508 8.54205 14.2628 9.03013L12.8839 10.409C12.3958 10.8971 11.6045 10.8969 11.1163 10.409L9.73741 9.03013C9.24926 8.54199 9.24929 7.75071 9.73741 7.26255L11.1163 5.88365ZM12.1769 6.59068C12.0793 6.49308 11.921 6.49314 11.8233 6.59068L10.4444 7.96959C10.3468 8.06722 10.3468 8.22548 10.4444 8.3231L11.8233 9.70201C11.921 9.79939 12.0793 9.79953 12.1769 9.70201L13.5558 8.3231C13.6532 8.22554 13.6531 8.0672 13.5558 7.96959L12.1769 6.59068Z" fill="currentColor"/>
                   </svg>
                 </div>
-                <span class="component-name">${firstVariant.displayName}</span>
+                <span class="component-name">${targetComponentName}</span>
               </div>
           ` : `
-              <div class="target-element" style="justify-content: center;">
-                <span class="component-name" style="color: var(--figma-color-text-tertiary); font-size: 16px;">-</span>
+              <div class="target-element">
+                <span class="component-name" style="color: var(--figma-color-text-tertiary); font-size: 13px; font-style: italic;">${isTargetValid ? 'No matching component' : '—'}</span>
               </div>
           `;
 
@@ -2810,8 +2834,8 @@
                 <span class="component-name">${token.name}</span>
               </div>
           ` : `
-              <div class="target-element" style="justify-content: center;">
-                <span class="component-name" style="color: var(--figma-color-text-tertiary); font-size: 16px;">-</span>
+              <div class="target-element">
+                <span class="component-name" style="color: var(--figma-color-text-tertiary); font-size: 13px; font-style: italic;">${isTargetValid ? 'No matching style' : '—'}</span>
               </div>
           `;
 
@@ -2886,8 +2910,8 @@
         // Determine target library for swapping
         let targetLibrary = null;
         // Try to find a different library in connectedLibraries
-        if (window.connectedLibraries && window.connectedLibraries.length > 0) {
-             const otherLib = window.connectedLibraries.find(l => l.name !== lib.name);
+        if (connectedLibraries && connectedLibraries.length > 0) {
+             const otherLib = connectedLibraries.find(l => l.name !== lib.name);
              if (otherLib) {
                  targetLibrary = otherLib.name;
              }
@@ -2990,8 +3014,8 @@
       const swappableLibrary = libraries.length > 0 ? libraries[0] : null;
       let targetLibrary = null;
       
-      if (swappableLibrary && window.connectedLibraries && window.connectedLibraries.length > 0) {
-         const otherLib = window.connectedLibraries.find(l => l.name !== swappableLibrary.name);
+      if (swappableLibrary && connectedLibraries && connectedLibraries.length > 0) {
+         const otherLib = connectedLibraries.find(l => l.name !== swappableLibrary.name);
          if (otherLib) {
              targetLibrary = otherLib.name;
          }
@@ -3115,8 +3139,8 @@
       });
       
       // Add connected libraries
-      if (window.connectedLibraries) {
-          window.connectedLibraries.forEach(function(lib) {
+      if (connectedLibraries) {
+          connectedLibraries.forEach(function(lib) {
             if (lib.name !== sourceLibrary) {
               const existsInFrame = frameLibraries.some(function(fl) {
                 return fl.name === lib.name;
@@ -3565,8 +3589,8 @@
       libraries.forEach(lib => {
         // Determine target library for swapping
         let targetLibrary = null;
-        if (window.connectedLibraries && window.connectedLibraries.length > 0) {
-             const otherLib = window.connectedLibraries.find(l => l.name !== lib.name);
+        if (connectedLibraries && connectedLibraries.length > 0) {
+             const otherLib = connectedLibraries.find(l => l.name !== lib.name);
              if (otherLib) {
                  targetLibrary = otherLib.name;
              }
@@ -4221,6 +4245,12 @@
         console.log('📚 UI received LIBRARIES_UPDATED:', msg.libraries);
         connectedLibraries = msg.libraries;
         renderConnectedLibraries();
+        
+        // If we have scan results visible, re-render them to update target names
+        if (window.unifiedScanData && document.getElementById('scanResultsView').classList.contains('active')) {
+             // Pass the currently selected source library if available
+             updateScanResultsView(window.unifiedScanData, window.selectedSourceLibrary);
+        }
       }
       
       if (msg.type === 'ACCESS_TOKEN_LOADED') {

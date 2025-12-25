@@ -93,6 +93,83 @@ async function loadConnectedLibraries() {
   
   // Update global mappings so scan can find these libraries
   updateMappingsFromConnected();
+  
+  // Trigger a background refresh to ensure data is up-to-date
+  refreshConnectedLibraries();
+}
+
+async function refreshConnectedLibraries() {
+  console.log('🔄 Refreshing connected libraries in background...');
+  const token = await figma.clientStorage.getAsync('figma_access_token');
+  if (!token) {
+      console.log('⚠️ Cannot refresh libraries: No access token.');
+      return;
+  }
+
+  let updatedCount = 0;
+  for (let i = 0; i < CONNECTED_LIBRARIES.length; i++) {
+      const lib = CONNECTED_LIBRARIES[i];
+      // Only refresh remote libraries that have a key/id
+      if (lib.id && lib.type === 'Remote') {
+          try {
+              console.log(`   - Refreshing ${lib.name} (${lib.id})...`);
+              // Fetch Components
+              const compResponse = await fetch(`https://api.figma.com/v1/files/${lib.id}/components`, {
+                  headers: { 'X-Figma-Token': token }
+              });
+              
+              let components: Record<string, string> = {};
+              if (compResponse.ok) {
+                  const compData = await compResponse.json();
+                  if (compData.meta && compData.meta.components) {
+                      compData.meta.components.forEach((c: any) => {
+                          components[c.name] = c.key;
+                      });
+                  }
+              }
+
+              // Fetch Styles
+              const styleResponse = await fetch(`https://api.figma.com/v1/files/${lib.id}/styles`, {
+                  headers: { 'X-Figma-Token': token }
+              });
+              
+              let styles: Record<string, string> = {};
+              if (styleResponse.ok) {
+                  const styleData = await styleResponse.json();
+                  if (styleData.meta && styleData.meta.styles) {
+                      styleData.meta.styles.forEach((s: any) => {
+                          styles[s.name] = s.key;
+                      });
+                  }
+              }
+              
+              // Update the library object
+              CONNECTED_LIBRARIES[i] = {
+                  ...lib,
+                  components: components,
+                  styles: styles,
+                  lastSynced: new Date().toISOString()
+              };
+              updatedCount++;
+              console.log(`   ✅ Refreshed ${lib.name}: ${Object.keys(components).length} components, ${Object.keys(styles).length} styles`);
+              
+          } catch (err) {
+              console.error(`   ❌ Failed to refresh ${lib.name}:`, err);
+          }
+      }
+  }
+
+  if (updatedCount > 0) {
+      saveConnectedLibraries();
+      updateMappingsFromConnected();
+      sendConnectedLibraries();
+      // Trigger a re-scan if we have a selection
+      const selection = figma.currentPage.selection;
+      if (selection.length > 0) {
+          console.log('🔄 Re-scanning after library refresh...');
+          await handleScanFrames();
+      }
+  }
 }
 
 function updateMappingsFromConnected() {
@@ -442,6 +519,11 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
         const libraryFileId = keyParts[0] || undefined;
         const componentId = keyParts[keyParts.length - 1] || component.key; // Get the last part (component ID)
         
+        console.log(`🔎 Inspecting component: ${component.name}`);
+        console.log(`   - Key: ${component.key}`);
+        console.log(`   - Remote: ${component.remote}`);
+        console.log(`   - Extracted File ID: ${libraryFileId}`);
+        
         // Try to match the component using the full key first, then try with extracted component ID
         let bestMatch = { library: null as string | null, name: null as string | null, score: 0, parentName: null as string | null };
 
@@ -476,6 +558,63 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
                 bestMatch = { library: libName, name: compName, score, parentName: pName };
             }
           }
+        }
+
+        // Fallback: If no match found in mapping, try to match by file ID directly
+        if (!bestMatch.library) {
+             // Check connected libraries for exact component key match
+             console.log(`   - No mapping match. Checking ${CONNECTED_LIBRARIES.length} connected libraries...`);
+             for (const lib of CONNECTED_LIBRARIES) {
+                 if (lib.components) {
+                     // Iterate entries to find key match
+                     for (const [compName, compKey] of Object.entries(lib.components)) {
+                         if (compKey === component.key) {
+                             console.log(`✅ Found exact component key match in connected library: ${lib.name}`);
+                             bestMatch.library = lib.name;
+                             bestMatch.name = compName;
+                             bestMatch.score = 5;
+                             
+                             // Try to determine parent name
+                             if (component.parent && component.parent.type === 'COMPONENT_SET') {
+                                 bestMatch.parentName = component.parent.name;
+                             } else {
+                                 bestMatch.parentName = compName;
+                             }
+                             break;
+                         }
+                     }
+                 }
+                 if (bestMatch.library) break;
+             }
+        }
+
+        // Secondary Fallback: If still no match, try to match by file ID directly (less reliable)
+        if (!bestMatch.library && libraryFileId) {
+             const connectedLib = CONNECTED_LIBRARIES.find(lib => lib.id === libraryFileId || lib.key === libraryFileId);
+             if (connectedLib) {
+                 console.log(`⚠️ No component mapping found, but matched library by file ID: ${connectedLib.name}`);
+                 bestMatch.library = connectedLib.name;
+                 bestMatch.name = component.name;
+                 bestMatch.score = 0.5; // Low score but enough to exist
+                 
+                 // Try to get a better parent name
+                 if (component.parent && component.parent.type === 'COMPONENT_SET') {
+                     bestMatch.parentName = component.parent.name;
+                 } else {
+                     bestMatch.parentName = component.name;
+                 }
+             } else {
+                 // Last resort: Check if the file ID matches any connected library ID even partially
+                 // This handles cases where the key format might be slightly different
+                 const partialMatchLib = CONNECTED_LIBRARIES.find(lib => libraryFileId.includes(lib.id) || (lib.key && libraryFileId.includes(lib.key)));
+                 if (partialMatchLib) {
+                     console.log(`⚠️ Partial file ID match found: ${partialMatchLib.name}`);
+                     bestMatch.library = partialMatchLib.name;
+                     bestMatch.name = component.name;
+                     bestMatch.score = 0.2;
+                     bestMatch.parentName = component.name;
+                 }
+             }
         }
         
         if (bestMatch.library && bestMatch.name) {
