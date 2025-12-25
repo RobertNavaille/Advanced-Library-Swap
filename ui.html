@@ -2219,10 +2219,6 @@
       <div id="connectedLibrariesList">
         <!-- Library items will be injected here -->
       </div>
-      
-      <div style="margin-top: 24px; padding: 0 16px;">
-        <button id="resetPluginBtn" class="secondary-button" style="width: 100%; color: #e74c3c; border-color: #e74c3c;">Reset Plugin Data</button>
-      </div>
     </div>
   </div>
 
@@ -4253,14 +4249,6 @@
                     };
                 }
             }
-        });
-      }
-
-      // Reset Plugin Button
-      const resetPluginBtn = document.getElementById('resetPluginBtn');
-      if (resetPluginBtn) {
-        resetPluginBtn.addEventListener('click', () => {
-            parent.postMessage({ pluginMessage: { type: 'RESET_PLUGIN' } }, '*');
         });
       }
       
