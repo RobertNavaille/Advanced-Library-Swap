@@ -1321,7 +1321,7 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
   // Recursively process children
   if ('children' in node && node.children) {
     for (const child of node.children) {
-      swapCount += await swapStylesInNode(child, styleName, sourceLibrary, normalizedTargetLibrary);
+      swapCount += await swapStylesInNode(child, styleName, sourceLibrary, targetLibrary);
     }
   }
 
