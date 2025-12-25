@@ -993,6 +993,10 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
 // Recursively swap styles in a node and its children
 async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrary: string, targetLibrary: string): Promise<number> {
   let swapCount = 0;
+  
+  // Normalize library names for legacy lookups
+  const normalizedSourceLibrary = normalizeLibraryName(sourceLibrary);
+  const normalizedTargetLibrary = normalizeLibraryName(targetLibrary);
 
   // Find source library metadata
   const sourceLibObj = CONNECTED_LIBRARIES.find(l => l.name === sourceLibrary);
