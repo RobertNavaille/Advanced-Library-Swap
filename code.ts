@@ -1777,7 +1777,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
       
       for (const node of nodesToProcess) {
         // Process any node type that might have styles
-        const styleSwaps = await swapStylesInNode(node, style.name, normalizedSourceLibrary, normalizedTargetLibrary);
+        const styleSwaps = await swapStylesInNode(node, style.name, sourceLibrary, targetLibrary);
         styleSwapCount += styleSwaps;
       }
     } catch (err) {
