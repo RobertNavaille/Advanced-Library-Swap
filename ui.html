@@ -316,73 +316,6 @@
       color: var(--figma-color-text);
     }
 
-    .input-row-container {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .settings-input-wrapper {
-      flex: 1;
-      background: var(--figma-color-bg-secondary);
-      padding: 8px;
-      border-radius: 5px;
-      display: flex;
-      align-items: center;
-      border: 1px solid var(--figma-color-bg-secondary);
-    }
-
-    .settings-input-wrapper:focus-within {
-      border-color: var(--figma-color-border-selected);
-    }
-
-    .settings-input {
-      width: 100%;
-      background: transparent;
-      border: none !important;
-      outline: none !important;
-      box-shadow: none !important;
-      appearance: none;
-      -webkit-appearance: none;
-      font-family: 'Inter', sans-serif;
-      font-size: 11px;
-      line-height: 16px;
-      color: var(--figma-color-text);
-      padding: 0;
-    }
-    
-    .settings-input:focus {
-      outline: none !important;
-      border: none !important;
-      box-shadow: none !important;
-    }
-
-    .settings-input::placeholder {
-      color: var(--figma-color-text-tertiary);
-    }
-
-    .settings-set-key-btn {
-      background: var(--figma-color-bg-brand);
-      color: var(--figma-color-text-onbrand);
-      border: none;
-      border-radius: 6px;
-      padding: 4px 12px;
-      height: 32px;
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
-      width: auto;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .settings-set-key-btn:hover {
-      background: var(--figma-color-bg-brand-hover);
-    }
-
     /* Connected Libraries List */
 
     .connected-library-item {
@@ -1189,7 +1122,7 @@
       max-height: 200px;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 8px;
+      padding: 4px;
       box-sizing: border-box;
     }
 
@@ -1589,6 +1522,27 @@
     .swap-library-btn:hover {
       background: var(--figma-color-bg-brand-hover);
     }
+
+    .secondary-btn {
+      height: 24px;
+      background: transparent;
+      color: var(--figma-color-text);
+      border: 1px solid var(--figma-color-border);
+      border-radius: var(--figma-radius-6);
+      font-size: var(--figma-font-size-11);
+      font-weight: var(--figma-font-weight-medium);
+      font-family: var(--figma-font-family);
+      line-height: 16px;
+      cursor: pointer;
+      padding: 0 8px;
+      white-space: nowrap;
+      width: auto;
+      margin-right: 8px;
+    }
+    
+    .secondary-btn:hover {
+      background: var(--figma-color-bg-hover);
+    }
     
     /* Figma-style dividers */
     .divider {
@@ -1910,8 +1864,14 @@
     </div>
     <div id="scanResult" class="result"></div>
   </div>
+  
+  <script>
+    // Global variable to store the last scan data
+    window.lastScanData = null;
+  </script>
 
-  <!-- Connect Library View -->
+  <!-- Connect Library View - REMOVED -->
+  <!--
   <div id="connectLibraryView" class="view">
     <div class="scan-container">
       <div class="scan-content">
@@ -1928,6 +1888,7 @@
       </button>
     </div>
   </div>
+  -->
 
   <!-- Library Selection View -->
   <div id="librarySelectorView" class="view">
@@ -2201,17 +2162,6 @@
 
     <!-- Content -->
     <div class="settings-content-container">
-      <!-- Add Library Section -->
-      <div class="settings-input-group">
-        <div class="input-label">Figma Access Token</div>
-        <div class="input-row-container">
-          <div class="settings-input-wrapper">
-            <input type="password" id="accessTokenInput" class="settings-input" placeholder="Enter your personal access token">
-          </div>
-          <button id="saveAccessTokenBtn" class="settings-set-key-btn">Save</button>
-        </div>
-      </div>
-
       <!-- Connected Libraries Section -->
       <div class="settings-connected-libraries-header" style="padding-left: 16px !important;">
         <h1 class="library-selector-title">Connected libraries</h1>
@@ -2219,6 +2169,18 @@
       <div id="connectedLibrariesList">
         <!-- Library items will be injected here -->
       </div>
+      
+      <!-- Debug Section -->
+      <div class="settings-input-group" style="display: none; margin-top: 20px; border-top: 1px solid var(--figma-color-border); padding-top: 16px;">
+        <div class="input-label">Debug</div>
+        <button id="debugStorageBtn" class="secondary-button" onclick="debugDumpStorage()" style="width: 100%;">Debug: Dump Storage</button>
+        <button id="clearAllBtn" class="secondary-button" style="width: 100%; margin-top: 8px; background-color: var(--figma-color-bg-danger);">Clear All Libraries</button>
+      </div>
+    </div>
+
+    <!-- Add Library Footer -->
+    <div class="swap-button-container">
+      <button id="syncCurrentFileBtn" class="swap-library-btn">Sync library</button>
     </div>
   </div>
 
@@ -2242,7 +2204,8 @@
     <button id="backToScanFromStyles" class="secondary-button">Back to Scan</button>
   </div>
 
-  <!-- Configuration View -->
+  <!-- Configuration View - REMOVED -->
+  <!--
   <div id="configView" class="view">
     <h1>
       <button class="back-btn" id="backToScanFromConfig">←</button>
@@ -2255,7 +2218,6 @@
       <button class="config-tab-btn" id="showOrgConfigBtn">Organization</button>
     </div>
 
-    <!-- User Config -->
     <div id="userConfigSection" class="config-section active">
       <div id="userLibrariesList"></div>
       <button id="addUserLibraryBtn">Add Library</button>
@@ -2265,7 +2227,6 @@
       </div>
     </div>
 
-    <!-- Team Config -->
     <div id="teamConfigSection" class="config-section">
       <div id="teamLibrariesList"></div>
       <button id="addTeamLibraryBtn">Add Library</button>
@@ -2275,14 +2236,13 @@
       </div>
     </div>
 
-    <!-- Organization Config -->
     <div id="orgConfigSection" class="config-section">
       <div class="hint">Organization libraries are predefined</div>
       <div id="orgLibrariesList">
-        <!-- Removed hardcoded Shark/Monkey -->
       </div>
     </div>
   </div>
+  -->
 
   <!-- Swap Modal -->
   <div id="swapModal" class="modal">
@@ -2306,7 +2266,8 @@
     </div>
   </div>
 
-  <!-- Add Library Modal -->
+  <!-- Add Library Modal - REMOVED -->
+  <!--
   <div class="modal-overlay" id="addLibraryModal">
     <div class="modal-container">
       <div class="modal-header">
@@ -2329,6 +2290,7 @@
       </div>
     </div>
   </div>
+  -->
 
   <script>
     let componentData = null;
@@ -2509,19 +2471,36 @@
           }
           
           console.log('Target library changed to:', lib.name);
+          
+          // Trigger update of scan results view with new target
+          // We need to access the current scan data. It's stored in currentScanData global variable?
+          // Let's check if we have access to the data.
+          // The updateScanResultsView function takes (data, selectedLibrary, explicitTargetLibrary)
+          // We need to find where the data is stored.
+          // Looking at previous code, 'data' is passed to updateScanResultsView.
+          // We should store it globally or pass it around.
+          
+          if (window.lastScanData) {
+              updateScanResultsView(window.lastScanData, sourceLibraryName, lib.name);
+          } else {
+              console.warn('No scan data available to update view');
+          }
         });
         
         menu.appendChild(option);
       });
 
-      // Add Divider only if there are libraries
+      // Add Divider only if there are libraries - REMOVED as "Add library" option is removed
+      /*
       if (availableLibraries.length > 0) {
         const divider = document.createElement('div');
         divider.className = 'dropdown-divider';
         menu.appendChild(divider);
       }
+      */
 
-      // Add "Add library" option
+      // Add "Add library" option - REMOVED as we only support local sync now
+      /*
       const addOption = document.createElement('div');
       addOption.className = 'dropdown-option';
       
@@ -2588,6 +2567,7 @@
       });
       
       menu.appendChild(addOption);
+      */
       
       // Toggle menu
       trigger.onclick = (e) => {
@@ -2642,6 +2622,9 @@
       console.log('Updating scan results view with:', data);
       console.log('Selected library:', selectedLibrary);
       console.log('Explicit target library:', explicitTargetLibrary);
+      
+      // Store data globally for re-rendering
+      window.lastScanData = data;
       
       const scanResultsView = document.getElementById('scanResultsView');
       if (!scanResultsView) {
@@ -3593,14 +3576,7 @@
       }
       
 
-      
-      if (msg.type === 'ACCESS_TOKEN_SAVED') {
-        // Token was saved successfully
-      }
-      
-      if (msg.type === 'ACCESS_TOKEN_CLEARED') {
-        document.getElementById('accessTokenInput').placeholder = 'Enter Figma access token for better component detection';
-      }
+
     };
 
     // Style management functions
@@ -3706,7 +3682,8 @@
       }
     }
 
-    // Configuration management (simplified)
+    // Configuration management (simplified) - REMOVED
+    /*
     let currentConfigLevel = 'user';
 
     function showConfigSection(level) {
@@ -3720,6 +3697,12 @@
       
       document.getElementById(level + 'ConfigSection').style.display = 'block';
       document.getElementById('show' + level.charAt(0).toUpperCase() + level.slice(1) + 'ConfigBtn').classList.add('active');
+    }
+    */
+
+    // DEBUG: Dump Storage
+    function debugDumpStorage() {
+      parent.postMessage({ pluginMessage: { type: 'DEBUG_DUMP_STORAGE' } }, '*');
     }
 
     // Search logic function - MUST be global scope for access from multiple places
@@ -3891,6 +3874,7 @@
       }
     }, 100);
 
+    /*
     document.getElementById('showUserConfigBtn').addEventListener('click', () => {
       showConfigSection('user');
     });
@@ -3902,35 +3886,32 @@
     document.getElementById('showOrgConfigBtn').addEventListener('click', () => {
       showConfigSection('org');
     });
+    */
 
-    // Simplified config management
-    document.getElementById('addUserLibraryBtn').addEventListener('click', () => {
-      alert('User library configuration is simplified in this version. The plugin uses hardcoded Shark and Monkey libraries.');
-    });
+    // Sync Current File Button
+    const syncCurrentFileBtn = document.getElementById('syncCurrentFileBtn');
+    if (syncCurrentFileBtn) {
+        syncCurrentFileBtn.addEventListener('click', () => {
+            const confirmed = confirm(
+                "Syncing this library will scan the current file for components, styles, and variables to make them available for swapping.\n\n" +
+                "Do you want to proceed?"
+            );
+            
+            if (confirmed) {
+                parent.postMessage({ pluginMessage: { type: 'SYNC_CURRENT_FILE' } }, '*');
+            }
+        });
+    }
 
-    document.getElementById('saveUserLibrariesBtn').addEventListener('click', () => {
-      alert('Configuration saved (using hardcoded libraries).');
-    });
-
-    document.getElementById('clearUserLibrariesBtn').addEventListener('click', () => {
-      if (confirm('Clear all user libraries?')) {
-        alert('User libraries cleared (using hardcoded libraries).');
-      }
-    });
-
-    document.getElementById('addTeamLibraryBtn').addEventListener('click', () => {
-      alert('Team library configuration is simplified in this version. The plugin uses hardcoded Shark and Monkey libraries.');
-    });
-
-    document.getElementById('saveTeamLibrariesBtn').addEventListener('click', () => {
-      alert('Configuration saved (using hardcoded libraries).');
-    });
-
-    document.getElementById('clearTeamLibrariesBtn').addEventListener('click', () => {
-      if (confirm('Clear all team libraries?')) {
-        alert('Team libraries cleared (using hardcoded libraries).');
-      }
-    });
+    // Clear All Button
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all connected libraries?')) {
+                parent.postMessage({ pluginMessage: { type: 'CLEAR_LIBRARIES' } }, '*');
+            }
+        });
+    }
 
     // Swap modal event listeners
     document.getElementById('cancelSwapBtn').addEventListener('click', () => {
@@ -4069,13 +4050,15 @@
             <div class="library-name-text">${lib.name}</div>
             <div class="library-stats">${lib.type || 'Remote'} • ${lib.key ? 'Connected' : 'Local'}</div>
           </div>
-          <button class="library-more-btn filter-button">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7.5 12C7.5 12.8284 6.82843 13.5 6 13.5C5.17157 13.5 4.5 12.8284 4.5 12C4.5 11.1716 5.17157 10.5 6 10.5C6.82843 10.5 7.5 11.1716 7.5 12Z" fill="currentColor" fill-opacity="0.9"/>
-              <path d="M13.5 12C13.5 12.8284 12.8284 13.5 12 13.5C11.1716 13.5 10.5 12.8284 10.5 12C10.5 11.1716 11.1716 10.5 12 10.5C12.8284 10.5 13.5 11.1716 13.5 12Z" fill="currentColor" fill-opacity="0.9"/>
-              <path d="M18 13.5C18.8284 13.5 19.5 12.8284 19.5 12C19.5 11.1716 18.8284 10.5 18 10.5C17.1716 10.5 16.5 11.1716 16.5 12C16.5 12.8284 17.1716 13.5 18 13.5Z" fill="currentColor" fill-opacity="0.9"/>
-            </svg>
-          </button>
+          <div style="display: flex; gap: 4px;">
+            <button class="library-more-btn filter-button">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7.5 12C7.5 12.8284 6.82843 13.5 6 13.5C5.17157 13.5 4.5 12.8284 4.5 12C4.5 11.1716 5.17157 10.5 6 10.5C6.82843 10.5 7.5 11.1716 7.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+                <path d="M13.5 12C13.5 12.8284 12.8284 13.5 12 13.5C11.1716 13.5 10.5 12.8284 10.5 12C10.5 11.1716 11.1716 10.5 12 10.5C12.8284 10.5 13.5 11.1716 13.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+                <path d="M18 13.5C18.8284 13.5 19.5 12.8284 19.5 12C19.5 11.1716 18.8284 10.5 18 10.5C17.1716 10.5 16.5 11.1716 16.5 12C16.5 12.8284 17.1716 13.5 18 13.5Z" fill="currentColor" fill-opacity="0.9"/>
+              </svg>
+            </button>
+          </div>
         `;
         
         // Context menu handler
@@ -4089,47 +4072,8 @@
       });
     }
 
-    function handleAccessTokenAction() {
-      const btn = document.getElementById('saveAccessTokenBtn');
-      const mode = btn.dataset.mode || 'save';
-      
-      if (mode === 'remove') {
-        handleRemoveAccessToken();
-      } else {
-        handleSaveAccessToken();
-      }
-    }
+    // Access Token functions removed
 
-    function handleRemoveAccessToken() {
-      if (confirm('Are you sure you want to remove the access token?')) {
-        parent.postMessage({ pluginMessage: { type: 'REMOVE_ACCESS_TOKEN' } }, '*');
-        
-        const input = document.getElementById('accessTokenInput');
-        input.value = '';
-        
-        const btn = document.getElementById('saveAccessTokenBtn');
-        btn.textContent = 'Save';
-        btn.dataset.mode = 'save';
-      }
-    }
-
-    function handleSaveAccessToken() {
-      const input = document.getElementById('accessTokenInput');
-      const token = input.value.trim();
-      
-      if (!token) {
-        alert('Please enter a Figma access token');
-        return;
-      }
-      
-      // Send to backend to save
-      parent.postMessage({ pluginMessage: { type: 'SAVE_ACCESS_TOKEN', token: token } }, '*');
-      
-      // Update UI state
-      const btn = document.getElementById('saveAccessTokenBtn');
-      btn.textContent = 'Remove token';
-      btn.dataset.mode = 'remove';
-    }
 
     function showLibraryContextMenu(e, lib) {
       const menu = document.getElementById('libraryContextMenu');
@@ -4180,12 +4124,6 @@
     }
 
     function initializeSettingsLogic() {
-      // Save/Remove Token Button
-      const saveBtn = document.getElementById('saveAccessTokenBtn');
-      if (saveBtn) {
-        saveBtn.addEventListener('click', handleAccessTokenAction);
-      }
-      
       // Remove Library Button (Context Menu)
       const removeBtn = document.getElementById('removeLibraryBtn');
       if (removeBtn) {
@@ -4198,8 +4136,6 @@
         settingsBtn.addEventListener('click', () => {
           showView('settingsView');
           renderConnectedLibraries();
-          // Fetch access token
-          parent.postMessage({ pluginMessage: { type: 'GET_ACCESS_TOKEN' } }, '*');
         });
       }
 
@@ -4209,46 +4145,6 @@
         settingsBtnFromConnect.addEventListener('click', () => {
           showView('settingsView');
           renderConnectedLibraries();
-          // Fetch access token
-          parent.postMessage({ pluginMessage: { type: 'GET_ACCESS_TOKEN' } }, '*');
-        });
-      }
-
-      // Hook into connect library button
-      const connectLibraryActionBtn = document.getElementById('connectLibraryActionBtn');
-      if (connectLibraryActionBtn) {
-        connectLibraryActionBtn.addEventListener('click', () => {
-            const modal = document.getElementById('addLibraryModal');
-            if (modal) {
-                modal.classList.add('active');
-                const input = modal.querySelector('.modal-input');
-                if (input) setTimeout(() => input.focus(), 50);
-                
-                const closeBtn = document.getElementById('closeAddLibraryModal');
-                const connectBtn = document.getElementById('connectLibraryBtn');
-                
-                const closeModal = () => {
-                    modal.classList.remove('active');
-                    if (input) input.value = '';
-                };
-                
-                if (closeBtn) closeBtn.onclick = closeModal;
-                modal.onclick = (e) => {
-                    if (e.target === modal) closeModal();
-                };
-                
-                if (connectBtn) {
-                    connectBtn.onclick = () => {
-                        const link = input ? input.value : '';
-                        if (link) {
-                            parent.postMessage({ pluginMessage: { type: 'add-library-by-link', link } }, '*');
-                            closeModal();
-                        } else {
-                            if (input) input.focus();
-                        }
-                    };
-                }
-            }
         });
       }
       
@@ -4289,22 +4185,7 @@
       }
       
       if (msg.type === 'ACCESS_TOKEN_LOADED') {
-        const input = document.getElementById('accessTokenInput');
-        const btn = document.getElementById('saveAccessTokenBtn');
-        
-        if (input && msg.token) {
-          input.value = msg.token;
-          if (btn) {
-            btn.textContent = 'Remove token';
-            btn.dataset.mode = 'remove';
-          }
-        } else {
-          if (input) input.value = '';
-          if (btn) {
-            btn.textContent = 'Save';
-            btn.dataset.mode = 'save';
-          }
-        }
+        // Token logic removed
       }
     };
 

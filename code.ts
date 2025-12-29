@@ -1,5 +1,5 @@
 // Main Figma Swap Library Plugin (clean template)
-console.log('🚀 Plugin starting... Version: No-Legacy-Cleanup-Fix');
+console.log('🚀 Plugin starting... Version: Local-Sync-Only');
 import { COMPONENT_KEY_MAPPING as DEFAULT_COMPONENT_KEY_MAPPING, STYLE_KEY_MAPPING as DEFAULT_STYLE_KEY_MAPPING, VARIABLE_ID_MAPPING as DEFAULT_VARIABLE_ID_MAPPING, VARIABLE_KEY_MAPPING as DEFAULT_VARIABLE_KEY_MAPPING, LIBRARY_THUMBNAILS as DEFAULT_LIBRARY_THUMBNAILS } from './keyMapping';
 import { copyTextOverrides } from './swapUtils';
 
@@ -62,6 +62,7 @@ let CONNECTED_LIBRARIES: {
   lastSynced?: string;
   components?: Record<string, string>;
   styles?: Record<string, string>;
+  variables?: Record<string, string>;
 }[] = [];
 
 async function loadConnectedLibraries() {
@@ -76,7 +77,8 @@ async function loadConnectedLibraries() {
       CONNECTED_LIBRARIES.forEach((lib, index) => {
           const compCount = lib.components ? Object.keys(lib.components).length : 0;
           const styleCount = lib.styles ? Object.keys(lib.styles).length : 0;
-          console.log(`   📚 Library [${index}] "${lib.name}": ${compCount} components, ${styleCount} styles.`);
+          const varCount = lib.variables ? Object.keys(lib.variables).length : 0;
+          console.log(`   📚 Library [${index}] "${lib.name}": ${compCount} components, ${styleCount} styles, ${varCount} variables.`);
           if (compCount === 0) console.warn(`   ⚠️ Library "${lib.name}" has 0 components! It might not have been fetched correctly.`);
       });
     } else {
@@ -98,87 +100,41 @@ async function loadConnectedLibraries() {
   refreshConnectedLibraries();
 }
 
+
+
 async function refreshConnectedLibraries() {
   console.log('🔄 Refreshing connected libraries in background...');
-  const token = await figma.clientStorage.getAsync('figma_access_token');
-  if (!token) {
-      console.log('⚠️ Cannot refresh libraries: No access token.');
-      return;
-  }
-
-  let updatedCount = 0;
-  for (let i = 0; i < CONNECTED_LIBRARIES.length; i++) {
-      const lib = CONNECTED_LIBRARIES[i];
-      // Only refresh remote libraries that have a key/id
-      if (lib.id && lib.type === 'Remote') {
-          try {
-              console.log(`   - Refreshing ${lib.name} (${lib.id})...`);
-              // Fetch Components
-              const compResponse = await fetch(`https://api.figma.com/v1/files/${lib.id}/components`, {
-                  headers: { 'X-Figma-Token': token }
-              });
-              
-              let components: Record<string, string> = {};
-              if (compResponse.ok) {
-                  const compData = await compResponse.json();
-                  if (compData.meta && compData.meta.components) {
-                      compData.meta.components.forEach((c: any) => {
-                          components[c.name] = c.key;
-                      });
-                  }
-              }
-
-              // Fetch Styles
-              const styleResponse = await fetch(`https://api.figma.com/v1/files/${lib.id}/styles`, {
-                  headers: { 'X-Figma-Token': token }
-              });
-              
-              let styles: Record<string, string> = {};
-              if (styleResponse.ok) {
-                  const styleData = await styleResponse.json();
-                  if (styleData.meta && styleData.meta.styles) {
-                      styleData.meta.styles.forEach((s: any) => {
-                          styles[s.name] = s.key;
-                      });
-                  }
-              }
-              
-              // Update the library object
-              CONNECTED_LIBRARIES[i] = {
-                  ...lib,
-                  components: components,
-                  styles: styles,
-                  lastSynced: new Date().toISOString()
-              };
-              updatedCount++;
-              console.log(`   ✅ Refreshed ${lib.name}: ${Object.keys(components).length} components, ${Object.keys(styles).length} styles`);
-              
-          } catch (err) {
-              console.error(`   ❌ Failed to refresh ${lib.name}:`, err);
-          }
-      }
-  }
-
-  if (updatedCount > 0) {
-      saveConnectedLibraries();
-      updateMappingsFromConnected();
-      sendConnectedLibraries();
-      // Trigger a re-scan if we have a selection
-      const selection = figma.currentPage.selection;
-      if (selection.length > 0) {
-          console.log('🔄 Re-scanning after library refresh...');
-          await handleScanFrames();
-      }
+  
+  // We only support Local Sync now, so background refresh is limited.
+  // We can only refresh the library that matches the CURRENT file.
+  
+  const currentFileName = figma.root.name;
+  const matchingLibIndex = CONNECTED_LIBRARIES.findIndex(l => l.name === currentFileName && l.type === 'Local');
+  
+  if (matchingLibIndex >= 0) {
+      console.log(`   - Auto-refreshing current file library: ${currentFileName}`);
+      await handleSyncCurrentFile();
   }
 }
 
+
+
 function updateMappingsFromConnected() {
+  // Reset mappings to defaults first to avoid stale data
+  COMPONENT_KEY_MAPPING = { ...DEFAULT_COMPONENT_KEY_MAPPING };
+  STYLE_KEY_MAPPING = { ...DEFAULT_STYLE_KEY_MAPPING };
+  VARIABLE_KEY_MAPPING = { ...DEFAULT_VARIABLE_KEY_MAPPING };
+  VARIABLE_ID_MAPPING = { ...DEFAULT_VARIABLE_ID_MAPPING };
+
   CONNECTED_LIBRARIES.forEach(lib => {
     if (lib.components) {
       COMPONENT_KEY_MAPPING[lib.name] = { ...COMPONENT_KEY_MAPPING[lib.name], ...lib.components };
     }
     if (lib.styles) {
       STYLE_KEY_MAPPING[lib.name] = { ...STYLE_KEY_MAPPING[lib.name], ...lib.styles };
+    }
+    if (lib.variables) {
+      VARIABLE_KEY_MAPPING[lib.name] = { ...VARIABLE_KEY_MAPPING[lib.name], ...lib.variables };
     }
   });
   console.log('🔄 Updated global mappings from connected libraries');
@@ -205,103 +161,225 @@ function sendConnectedLibraries() {
   });
 }
 
-async function handleAddLibraryByLink(link: string) {
-  // Extract file key from link
-  // Supports:
-  // https://www.figma.com/file/ByKey123/Name
-  // https://www.figma.com/design/ByKey123/Name
-  const match = link.match(/figma\.com\/(?:file|design)\/([a-zA-Z0-9]{22,})/);
+// Sync Current File as Library
+async function handleSyncCurrentFile() {
+  console.log('🔄 Syncing current file as library...');
+  // figma.notify("Syncing library...");
   
-  if (match && match[1]) {
-    const fileKey = match[1];
-    console.log('🔗 Extracted file key:', fileKey);
-    await handleAddLibraryByKey(fileKey);
-  } else {
-    figma.notify('Invalid Figma link. Could not extract file key.');
-    console.error('Could not extract key from link:', link);
+  try {
+    const name = figma.root.name;
+    
+    // Use a persistent ID stored in Plugin Data if available, otherwise generate one
+    let fileId = figma.root.getPluginData('swap_library_file_id');
+    if (!fileId) {
+        // If this is a published file, use the fileKey.
+        if (figma.fileKey) {
+            fileId = figma.fileKey;
+        } else {
+            // Migration: Check if we already have a local library with this name to avoid duplicates
+            // This handles the case where a user syncs a file that was synced before we added persistent IDs
+            const existingLib = CONNECTED_LIBRARIES.find(l => l.name === name && l.type === 'Local');
+            if (existingLib) {
+                fileId = existingLib.id;
+                console.log(`   ℹ️ Found existing library by name: "${name}" -> Reusing ID: ${fileId}`);
+            } else {
+                fileId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+        }
+        figma.root.setPluginData('swap_library_file_id', fileId);
+    }
+    
+    // Use the persistent ID as the library ID
+    const fileKey = fileId;
+    
+    console.log(`   - File: ${name} (${fileKey})`);
+    
+    // 1. Scan Local Variables
+    const variables: Record<string, string> = {};
+    try {
+        const localVars = await figma.variables.getLocalVariablesAsync();
+        localVars.forEach(v => {
+            variables[v.name] = v.key;
+        });
+        console.log(`   ✅ Found ${localVars.length} local variables.`);
+    } catch (e) {
+        console.error('   ❌ Failed to fetch local variables:', e);
+    }
+
+    // 2. Scan Local Styles
+    const styles: Record<string, string> = {};
+    try {
+        // Use Async methods for styles to avoid "dynamic-page" errors
+        const paintStyles = await figma.getLocalPaintStylesAsync();
+        console.log(`   🔍 Debug: Found ${paintStyles.length} paint styles`);
+        paintStyles.forEach(s => {
+             // For Local Sync, we use ID for lookup, but we should also store the Key if possible for cross-file matching?
+             // Actually, the issue seen in logs is that keys in storage have a trailing comma: "S:...,"
+             // This is likely due to how we are storing them.
+             // Wait, in the code above we are storing s.id.
+             // If s.id contains a comma, that's weird.
+             // Let's look at the storage dump again.
+             // "styles": { "Primary": "S:82e4...," }
+             // The ID of a local style usually looks like "S:key," or "S:key,local"
+             // We should probably store the KEY if we want to match against other files, or ID if we want to match locally.
+             // But the scan logic compares against node.fillStyleId (which is an ID) OR node.fillStyleId -> getStyleById -> style.key
+             
+             // If we store ID, we can match against node.fillStyleId directly.
+             // If we store Key, we must resolve node style to key.
+             
+             // The scan logic does:
+             // const paintStyle = await figma.getStyleByIdAsync(node.fillStyleId);
+             // if (STYLE_KEY_MAPPING[lib][name] === paintStyle.key) ...
+             
+             // So the scan logic expects the mapping to contain KEYS.
+             // But here in handleSyncCurrentFile, we are storing IDs: styles[s.name] = s.id;
+             
+             // And it seems s.id for a local style is "S:key," (with a comma).
+             // But paintStyle.key (from getStyleById) is just "key" (no S:, no comma).
+             
+             // FIX: We should store s.key instead of s.id for the mapping, 
+             // OR we need to clean up the ID if we really want to use IDs.
+             // Since the scan logic compares against paintStyle.key, we MUST store s.key here.
+             
+             styles[s.name] = s.key; 
+             console.log(`     - Paint Style: ${s.name}, Key: ${s.key}`);
+        });
+        
+        const textStyles = await figma.getLocalTextStylesAsync();
+        textStyles.forEach(s => {
+            styles[s.name] = s.key;
+        });
+        
+        const effectStyles = await figma.getLocalEffectStylesAsync();
+        effectStyles.forEach(s => {
+             styles[s.name] = s.key;
+        });
+        
+        const gridStyles = await figma.getLocalGridStylesAsync();
+        gridStyles.forEach(s => {
+             styles[s.name] = s.key;
+        });
+        
+        console.log(`   ✅ Found ${Object.keys(styles).length} local styles.`);
+    } catch (e) {
+        console.error('   ❌ Failed to fetch local styles:', e);
+    }
+
+    // 3. Scan Local Components
+    const components: Record<string, string> = {};
+    try {
+        // Must load all pages before using findAllWithCriteria in dynamic-page mode
+        await figma.loadAllPagesAsync();
+        
+        const componentNodes = figma.root.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] });
+        console.log(`   🔍 Debug: Found ${componentNodes.length} component nodes`);
+        
+        componentNodes.forEach(node => {
+            // Store KEY instead of ID for better cross-file matching
+            // We will handle local lookup by scanning keys if needed
+            components[node.name] = node.key;
+            console.log(`     - Component: ${node.name}, Key: ${node.key}`);
+        });
+        console.log(`   ✅ Found ${Object.keys(components).length} local components.`);
+    } catch (e) {
+        console.error('   ❌ Failed to fetch local components:', e);
+    }
+
+    // 4. Construct Library Object
+    const newLib = {
+        name: name,
+        id: fileKey,
+        key: fileKey,
+        type: 'Local', // Mark as locally synced
+        lastSynced: new Date().toISOString(),
+        components: components,
+        styles: styles,
+        variables: variables
+    };
+
+    // 5. Save to Storage
+    // Remove existing if present (update)
+    const existingIndex = CONNECTED_LIBRARIES.findIndex(l => l.id === fileKey);
+    if (existingIndex >= 0) {
+        CONNECTED_LIBRARIES[existingIndex] = newLib;
+        // figma.notify(`Library "${name}" updated!`);
+    } else {
+        CONNECTED_LIBRARIES.push(newLib);
+        // figma.notify(`Library "${name}" synced!`);
+    }
+
+    await saveConnectedLibraries();
+    updateMappingsFromConnected();
+    sendConnectedLibraries();
+
+  } catch (err) {
+    console.error('❌ Error syncing current file:', err);
+    figma.notify('Failed to sync current file.');
   }
 }
 
-async function handleAddLibraryByKey(fileKey: string) {
-  console.log(`➕ Adding library by key: ${fileKey}`);
-  // 1. Check if we have a token
-  const token = await figma.clientStorage.getAsync('figma_access_token');
+
+
+
+
+
+    
+
+        
+
+            
+
+
+            // � RE-CHECK COLLECTIONS (The "Wake Up" Check)
+
+
+
+            // �🕵️‍♂️ INSPECT IMPORTED STYLES FOR VARIABLES
+
+            
+
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+async function handleRefreshLibrary(libraryId: string) {
+  console.log(`🔄 Manual refresh requested for library ${libraryId}`);
   
-  let name = `Library ${fileKey.substring(0, 6)}`;
-  let components: Record<string, string> = {};
-  let styles: Record<string, string> = {};
-  
-  if (token) {
-    try {
-      // Fetch File Metadata
-      const fileResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
-        headers: { 'X-Figma-Token': token }
-      });
-      
-      if (fileResponse.ok) {
-        const data = await fileResponse.json();
-        name = data.name;
-      }
-
-      // Fetch Components
-      const compResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}/components`, {
-        headers: { 'X-Figma-Token': token }
-      });
-      if (compResponse.ok) {
-        const compData = await compResponse.json();
-        if (compData.meta && compData.meta.components) {
-             compData.meta.components.forEach((c: any) => {
-                 components[c.name] = c.key;
-             });
-        }
-      }
-
-      // Fetch Styles
-      const styleResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}/styles`, {
-        headers: { 'X-Figma-Token': token }
-      });
-      if (styleResponse.ok) {
-        const styleData = await styleResponse.json();
-        if (styleData.meta && styleData.meta.styles) {
-             styleData.meta.styles.forEach((s: any) => {
-                 styles[s.name] = s.key;
-             });
-        }
-      }
-
-    } catch (err) {
-      console.error('Failed to fetch library details:', err);
-      figma.notify('Failed to fetch full library details. Check your token.');
-    }
-  } else {
-      figma.notify('No access token found. Please add one in settings to fetch library details.');
+  const libIndex = CONNECTED_LIBRARIES.findIndex(l => l.id === libraryId);
+  if (libIndex === -1) {
+      console.warn(`⚠️ Library ${libraryId} not found in connected libraries.`);
+      return;
   }
   
-  const newLib = {
-    name: name,
-    id: fileKey,
-    key: fileKey,
-    type: 'Remote',
-    lastSynced: new Date().toISOString(),
-    components: components,
-    styles: styles
-  };
+  const lib = CONNECTED_LIBRARIES[libIndex];
   
-  // Remove existing if present (update)
-  const existingIndex = CONNECTED_LIBRARIES.findIndex(l => l.id === fileKey);
-  if (existingIndex >= 0) {
-      CONNECTED_LIBRARIES[existingIndex] = newLib;
-      figma.notify(`Library "${name}" updated!`);
-  } else {
-      CONNECTED_LIBRARIES.push(newLib);
-      figma.notify(`Library "${name}" added!`);
+  // Only refresh local libraries (since we removed remote support)
+  if (lib.type === 'Local') {
+      // For local libraries, we can't really "refresh" them from another file easily
+      // unless we are IN that file.
+      // If we are in the file that matches the library, we can re-sync it.
+      if (figma.root.name === lib.name) {
+          await handleSyncCurrentFile();
+      } else {
+          figma.notify(`To refresh "${lib.name}", please open that file and click "Sync Current File".`);
+      }
   }
-  
-  console.log('💾 Saving updated libraries list...');
-  await saveConnectedLibraries();
-  console.log('📤 Sending updated libraries to UI...');
-  sendConnectedLibraries();
-  updateMappingsFromConnected();
 }
 
 async function handleRemoveLibrary(libraryId: string) {
@@ -311,29 +389,7 @@ async function handleRemoveLibrary(libraryId: string) {
   figma.notify('Library removed.');
 }
 
-async function handleSaveAccessToken(token: string) {
-  await figma.clientStorage.setAsync('figma_access_token', token);
-  figma.notify('Access token saved securely.');
-}
 
-async function handleRemoveAccessToken() {
-  await figma.clientStorage.deleteAsync('figma_access_token');
-  figma.notify('Access token removed.');
-}
-
-async function handleGetAccessToken() {
-  const token = await figma.clientStorage.getAsync('figma_access_token');
-  figma.ui.postMessage({ type: 'ACCESS_TOKEN_LOADED', token: token || '' });
-}
-
-async function handleTestAccessToken() {
-  const token = await figma.clientStorage.getAsync('figma_access_token');
-  if (token) {
-    figma.notify(`Success! Token found: ${token.substring(0, 4)}...`);
-  } else {
-    figma.notify('No access token found in storage.');
-  }
-}
 
 // Call load on start
 loadConnectedLibraries();
@@ -350,14 +406,17 @@ figma.ui.onmessage = async (msg: any) => {
     case 'PERFORM_LIBRARY_SWAP':
       await performLibrarySwap(msg.components, msg.styles, msg.sourceLibrary, msg.targetLibrary);
       break;
+    case 'RUN_DIAGNOSTICS':
+      await runDiagnostics();
+      break;
     case 'GET_TARGET_COLOR':
       await getTargetColor(msg.tokenId, msg.styleName, msg.sourceLibrary, msg.targetLibrary);
       break;
     case 'UPDATE_LIBRARY_DEFINITIONS':
       await syncLibraryDefinitions();
       break;
-    case 'add-library-by-link':
-      await handleAddLibraryByLink(msg.link);
+    case 'SYNC_CURRENT_FILE':
+      await handleSyncCurrentFile();
       break;
     case 'RESET_PLUGIN':
       await figma.clientStorage.setAsync('connected_libraries', []);
@@ -366,33 +425,38 @@ figma.ui.onmessage = async (msg: any) => {
       figma.notify('Plugin data reset');
       await handleScanFrames();
       break;
-    case 'ADD_LIBRARY_BY_KEY':
-      await handleAddLibraryByKey(msg.fileKey);
-      break;
     case 'REMOVE_LIBRARY':
       await handleRemoveLibrary(msg.libraryId);
+      break;
+    case 'REFRESH_LIBRARY':
+      await handleRefreshLibrary(msg.id);
       break;
     case 'GET_CONNECTED_LIBRARIES':
       console.log('📩 Received GET_CONNECTED_LIBRARIES request');
       sendConnectedLibraries();
-      break;
-    case 'SAVE_ACCESS_TOKEN':
-      await handleSaveAccessToken(msg.token);
-      break;
-    case 'REMOVE_ACCESS_TOKEN':
-      await handleRemoveAccessToken();
-      break;
-    case 'GET_ACCESS_TOKEN':
-      await handleGetAccessToken();
-      break;
-    case 'TEST_ACCESS_TOKEN':
-      await handleTestAccessToken();
       break;
     case 'SHOW_NATIVE_TOAST':
       figma.notify(msg.message || 'Swap completed successfully!');
       break;
     case 'close-plugin':
       figma.closePlugin();
+      break;
+    case 'DEBUG_DUMP_STORAGE':
+      console.log('🔍 DEBUG: Dumping Client Storage...');
+      try {
+        const stored = await figma.clientStorage.getAsync('connected_libraries');
+        console.log('📦 FULL STORAGE DUMP:', JSON.stringify(stored, null, 2));
+        figma.notify('Storage dumped to console.');
+      } catch (e) {
+        console.error('❌ Failed to dump storage:', e);
+      }
+      break;
+    case 'CLEAR_LIBRARIES':
+      CONNECTED_LIBRARIES = [];
+      await saveConnectedLibraries();
+      updateMappingsFromConnected();
+      sendConnectedLibraries();
+      figma.notify('All libraries cleared.');
       break;
     default:
       console.log('Unknown message type:', msg);
@@ -528,6 +592,10 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
         let bestMatch = { library: null as string | null, name: null as string | null, score: 0, parentName: null as string | null };
 
         for (const libName of Object.keys(COMPONENT_KEY_MAPPING)) {
+          // Check if library is Local
+          const libObj = CONNECTED_LIBRARIES.find(l => l.name === libName);
+          const isLocal = libObj?.type === 'Local';
+
           for (const compName of Object.keys(COMPONENT_KEY_MAPPING[libName])) {
             const mappedKey = COMPONENT_KEY_MAPPING[libName][compName];
             
@@ -535,18 +603,28 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
             // console.log(`🔍 Checking ${compName} in ${libName}: mapped=${mappedKey}, actual=${component.key}, id=${componentId}`);
             
             // Match scoring:
-            // 5. Exact key match
+            // 5. Exact key match (or ID match for Local)
             // 4. Component ID match (last part of key)
             // 3. Mapped key is contained in component key (for some remote library formats)
             // 2. Component key is contained in mapped key (reverse check)
             // 1. Name match (fallback) - CAUTION: This can be risky if names are not unique
             
             let score = 0;
-            if (mappedKey === component.key) score = 5;
-            else if (mappedKey === componentId) score = 4;
-            else if (component.key.includes(mappedKey)) score = 3;
-            else if (mappedKey.includes(componentId)) score = 2;
-            else if (component.name === compName) score = 1;
+            
+            if (isLocal) {
+                // For Local libraries, mappedKey is the ID. Compare with component.id
+                // Also check component.key because we recently switched to storing keys for local libs
+                if (mappedKey === component.id) score = 5;
+                else if (mappedKey === component.key) score = 5;
+                else if (component.name === compName) score = 1;
+            } else {
+                // For Remote libraries, mappedKey is the Key.
+                if (mappedKey === component.key) score = 5;
+                else if (mappedKey === componentId) score = 4;
+                else if (component.key.includes(mappedKey)) score = 3;
+                else if (mappedKey.includes(componentId)) score = 2;
+                else if (component.name === compName) score = 1;
+            }
 
             if (score > bestMatch.score) {
                 let pName = null;
@@ -664,8 +742,16 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
         let library = 'Unknown';
         for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
           for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
-            console.log(`Checking style ${styleName} in ${libName}: ${STYLE_KEY_MAPPING[libName][styleName]} vs ${paintStyle.key}`);
-            if (STYLE_KEY_MAPPING[libName][styleName] === paintStyle.key) {
+            const mappedKey = STYLE_KEY_MAPPING[libName][styleName];
+            const currentKey = paintStyle.key;
+            
+            // Normalize keys for comparison (strip S: prefix if present, and trailing comma)
+            const normMapped = mappedKey.replace(/^S:/, '').replace(/,$/, '');
+            const normCurrent = currentKey.replace(/^S:/, '').replace(/,$/, '');
+            
+            console.log(`Checking style ${styleName} in ${libName}: ${mappedKey} vs ${currentKey} (Norm: ${normMapped} vs ${normCurrent})`);
+            
+            if (mappedKey === currentKey || normMapped === normCurrent) {
               library = libName;
               console.log(`✅ Matched style key to library: ${library}`);
               break;
@@ -745,7 +831,14 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
         let library = 'Unknown';
         for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
           for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
-            if (STYLE_KEY_MAPPING[libName][styleName] === textStyle.key) {
+            const mappedKey = STYLE_KEY_MAPPING[libName][styleName];
+            const currentKey = textStyle.key;
+            
+            // Normalize keys for comparison (strip S: prefix if present, and trailing comma)
+            const normMapped = mappedKey.replace(/^S:/, '').replace(/,$/, '');
+            const normCurrent = currentKey.replace(/^S:/, '').replace(/,$/, '');
+
+            if (mappedKey === currentKey || normMapped === normCurrent) {
               library = libName;
               console.log(`✅ Matched style key to library: ${library}`);
               break;
@@ -770,7 +863,14 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
         let library = 'Unknown';
         for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
           for (const styleName of Object.keys(STYLE_KEY_MAPPING[libName])) {
-            if (STYLE_KEY_MAPPING[libName][styleName] === effectStyle.key) {
+            const mappedKey = STYLE_KEY_MAPPING[libName][styleName];
+            const currentKey = effectStyle.key;
+            
+            // Normalize keys for comparison (strip S: prefix if present, and trailing comma)
+            const normMapped = mappedKey.replace(/^S:/, '').replace(/,$/, '');
+            const normCurrent = currentKey.replace(/^S:/, '').replace(/,$/, '');
+
+            if (mappedKey === currentKey || normMapped === normCurrent) {
               library = libName;
               console.log(`✅ Matched style key to library: ${library}`);
               break;
@@ -838,28 +938,37 @@ async function getTargetColor(tokenId: string, styleName: string, sourceLibrary:
       console.warn(`❌ Failed to import variable ${styleName}:`, err);
     }
   }
+
+  // Check if target library uses styles
+  // Priority: 1. Dynamic Metadata 2. Global Mapping
+  const targetLibObj = CONNECTED_LIBRARIES.find(l => l.name === normalizedTargetLibrary);
+  let targetStyleKey: string | undefined;
   
-  // Otherwise try to import as a style
-  const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+  if (targetLibObj && targetLibObj.styles) {
+      targetStyleKey = targetLibObj.styles[styleName];
+  }
   
+  if (!targetStyleKey) {
+      targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+  }
+
   console.log(`📍 Target library: ${normalizedTargetLibrary}, Style key: ${targetStyleKey}`);
-  
+
   if (targetStyleKey) {
-    try {
-      const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
-      console.log(`✅ Imported style: ${targetStyle?.name}, type: ${targetStyle?.type}`);
-      
-      if (targetStyle && targetStyle.type === 'PAINT' && targetStyle.paints.length > 0) {
-        const color = getColorValue(targetStyle.paints[0]);
-        console.log(`🎨 Target color: ${color}`);
-        figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color });
-        return;
+      try {
+          const style = await figma.importStyleByKeyAsync(targetStyleKey);
+          if (style && style.type === 'PAINT') {
+              const paintStyle = style as PaintStyle;
+              if (paintStyle.paints.length > 0) {
+                  const color = getColorValue(paintStyle.paints[0]);
+                  console.log(`🎨 Style color resolved to: ${color}`);
+                  figma.ui.postMessage({ type: 'TARGET_COLOR_RESULT', tokenId, color });
+                  return;
+              }
+          }
+      } catch (e) {
+          console.warn(`❌ Failed to import style ${styleName}:`, e);
       }
-    } catch (err) {
-      console.warn(`❌ Failed to get target color for ${styleName}:`, err);
-    }
-  } else {
-    console.warn(`❌ No style key found for ${styleName} in ${normalizedTargetLibrary}`);
   }
   
   // Fallback: return null if target not found
@@ -973,9 +1082,28 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
         console.log(`🔍 Found instance: ${mainComponent.name}, key: ${mainComponent.key}, looking for: ${name} in ${library}`);
         // Check if the main component's key matches the mapping for this component name
         const expectedKey = COMPONENT_KEY_MAPPING[library]?.[name];
-        if (expectedKey && mainComponent.key === expectedKey) {
-          console.log(`✅ Match found! Adding instance.`);
-          found.push(node);
+        
+        if (expectedKey) {
+            let match = false;
+            
+            // Check Key (Standard)
+            if (mainComponent.key === expectedKey) {
+                match = true;
+            }
+            // Check ID (Legacy/Local fallback)
+            else if (mainComponent.id === expectedKey) {
+                match = true;
+            }
+            // Check Name (Fallback for detached/renamed/mismatched keys)
+            else if (mainComponent.name === name) {
+                 console.log(`⚠️ Key mismatch for ${name}. Expected: ${expectedKey}, Found: ${mainComponent.key}. Matching by name.`);
+                 match = true;
+            }
+
+            if (match) {
+                console.log(`✅ Match found! Adding instance.`);
+                found.push(node);
+            }
         }
       }
     } catch (err) {
@@ -989,6 +1117,26 @@ async function findInstancesByNameAsync(node: SceneNode, name: string, library: 
     }
   }
   return found;
+}
+
+// Helper to import style by key OR get local style by ID
+async function importOrGetStyle(keyOrId: string, libraryName: string): Promise<BaseStyle | null> {
+    const lib = CONNECTED_LIBRARIES.find(l => l.name === libraryName);
+    if (lib && lib.type === 'Local') {
+        try {
+            // For Local libraries, we stored the ID in the mapping
+            const style = figma.getStyleById(keyOrId);
+            if (style) return style;
+        } catch (e) {
+            // Ignore error, try import
+        }
+    }
+    try {
+        return await figma.importStyleByKeyAsync(keyOrId);
+    } catch (e) {
+        console.warn(`Failed to import style ${keyOrId}: ${e}`);
+        return null;
+    }
 }
 
 // Recursively swap styles in a node and its children
@@ -1039,10 +1187,17 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
   }
 
   // Try to get the target variable KEY for this style name (Legacy fallback)
-  const targetVariableKey = VARIABLE_KEY_MAPPING[targetLibrary]?.[styleName];
+  // Priority: 1. Dynamic Metadata (targetLibObj.variables) 2. Global Mapping
+  let targetVariableKey = targetLibObj?.variables?.[styleName];
+  if (!targetVariableKey) {
+      targetVariableKey = VARIABLE_KEY_MAPPING[targetLibrary]?.[styleName];
+  }
+  
   const targetVariableId = VARIABLE_ID_MAPPING[targetLibrary]?.[styleName];
 
   console.log(`  📋 Processing node: ${node.name} (type: ${node.type}) looking for style: ${styleName}`);
+  console.log(`  ℹ️ Target Style Key for '${styleName}': ${targetStyleKey}`);
+  console.log(`  ℹ️ Target Variable Key for '${styleName}': ${targetVariableKey}`);
 
   // Process fill styles on any node that has them (including FRAME)
   if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
@@ -1051,32 +1206,33 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
       if (currentStyle && currentStyle.key === sourceStyleKey) {
         console.log(`  ✅ Found ${styleName} style on ${node.type}`);
         
-        // If we have a target style key from dynamic metadata, use it
+        // Check for target style first (if target is a style library)
+        // Use the targetStyleKey we already looked up from metadata or mapping
         if (targetStyleKey) {
-             try {
-                 const importedStyle = await figma.importStyleByKeyAsync(targetStyleKey);
-                 if (importedStyle) {
-                     (node as any).fillStyleId = importedStyle.id;
-                     swapCount++;
-                     console.log(`  ✅ Swapped style to ${targetLibrary}/${styleName}`);
-                     return swapCount; // Return early if swapped
-                 }
-             } catch (e) {
-                 console.warn(`  ⚠️ Failed to import target style: ${e}`);
-             }
+            try {
+                const targetStyle = await importOrGetStyle(targetStyleKey, targetLibrary);
+                if (targetStyle) {
+                    node.fillStyleId = targetStyle.id;
+                    console.log(`  ✅ Swapped fill style to '${styleName}' on ${node.type}`);
+                    swapCount++;
+                    return swapCount; // Done swapping this fill
+                }
+            } catch (e) {
+                console.warn(`  ❌ Failed to import fill style ${styleName}:`, e);
+            }
         }
-
+        
         // If we have a target variable KEY or ID, bind to it (Legacy/Variable logic)
-        if (targetVariableKey || targetVariableId) {
+        // OR if we didn't find a style, try to find a variable by name
+        // OR if we are explicitly trying to swap styles to variables (Shark -> Monkey scenario)
+        if (targetVariableKey || targetVariableId || !targetStyleKey) {
           try {
-            console.log(`  🔄 Binding to Monkey variable: ${targetVariableKey || targetVariableId}`);
+            console.log(`  🔄 Checking for variable in ${targetLibrary}: ${styleName}`);
             const nodeAny = node as any;
             
             // Try setting the fill with variable binding directly
             if (Array.isArray(nodeAny.fills) && nodeAny.fills.length > 0) {
               try {
-                console.log(`  🔄 Attempting to bind variable: ${styleName} (KEY: ${targetVariableKey}, ID: ${targetVariableId})`);
-                
                 let variable: Variable | null = null;
                 
                 // First, try to import by KEY (most reliable for library variables)
@@ -1098,11 +1254,56 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
                 if (!variable) {
                   console.log(`  🔍 Falling back to name search: "${styleName}"...`);
                   try {
-                    const localVars = await figma.variables.getLocalVariablesAsync();
-                    console.log(`  📊 Searching ${localVars.length} local variables (includes imported library variables)`);
-                    console.log(`  📋 Available names: ${localVars.map(v => v.name).join(', ')}`);
+                    // CRITICAL FIX: We must search ALL available variables, not just local ones.
+                    // getLocalVariablesAsync() only returns variables DEFINED in this file or explicitly imported.
+                    // If a library is enabled but its variables haven't been used yet, they won't be in getLocalVariablesAsync().
+                    // We need to use importVariableByKeyAsync if we have the key (which we should from metadata).
                     
-                    variable = localVars.find(v => v.name === styleName) || null;
+                    // If we don't have a key, we are in trouble. But wait, we should have keys from the library metadata.
+                    // If targetVariableKey is missing, it means the library metadata is incomplete (0 variables found).
+                    
+                    // If the library is enabled, we can try to find the variable in the available collections?
+                    // No, there is no API to "search all available variables" without importing them.
+                    
+                    // However, if we are here, it means we failed to find the variable by key.
+                    // This usually happens if the library is NOT enabled or the key is wrong.
+                    
+                    const localVars = await figma.variables.getLocalVariablesAsync();
+                    // Filter variables to try and match the target library if possible, or just match name
+                    // We prioritize variables that might be from the target library (checking collection name)
+                    
+                    const candidates = localVars.filter(v => v.name === styleName);
+                    
+                    if (candidates.length > 0) {
+                        // Try to find one from a collection that matches target library name
+                        for (const v of candidates) {
+                            try {
+                                const collection = await figma.variables.getVariableCollectionByIdAsync(v.variableCollectionId);
+                                if (collection && collection.name.includes(targetLibrary)) {
+                                    variable = v;
+                                    console.log(`  ✅ Found variable "${v.name}" in collection "${collection.name}" (matches target library)`);
+                                    break;
+                                }
+                            } catch (e) {
+                                // ignore
+                            }
+                        }
+                        
+                        // If no specific collection match, just take the first one (or maybe prefer remote?)
+                        if (!variable) {
+                             variable = candidates[0];
+                             console.log(`  ⚠️ Found variable "${variable.name}" but collection didn't match "${targetLibrary}". Using it anyway.`);
+                        }
+                    } else {
+                        // Last Resort: Try to find a variable that *contains* the style name (e.g. "Brand/Primary" matches "Primary")
+                        // This helps when mapping flat styles to nested variables
+                        const looseCandidates = localVars.filter(v => v.name.endsWith(`/${styleName}`) || v.name === styleName);
+                        if (looseCandidates.length > 0) {
+                             variable = looseCandidates[0];
+                             console.log(`  ✅ Found variable by loose name match: "${variable.name}"`);
+                        }
+                    }
+                    
                     if (variable) {
                       console.log(`  ✅ Found variable by name: ${variable.name}`);
                     } else {
@@ -1128,30 +1329,19 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
                   swapCount++;
                 } else {
                   console.log(`  ❌ Could not find variable '${styleName}' (KEY: ${targetVariableKey}, ID: ${targetVariableId})`);
+                  
+                  // FINAL FALLBACK: If we can't find the variable, maybe the user hasn't enabled the library yet?
+                  // We should notify them.
+                  if (targetVariableKey === undefined) {
+                       console.warn(`  ⚠️ Hint: Variable '${styleName}' key is undefined. Is the target library enabled in Assets?`);
+                  }
                 }
               } catch (bindErr) {
                 console.log(`  ❌ Error binding fill variable: ${bindErr}`);
               }
             }
           } catch (e) {
-            console.log(`  ℹ️ Could not bind variable directly, trying style swap: ${e}`);
-            // Fallback: try to swap to a style in the target library
-            const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
-            if (targetStyleKey) {
-              try {
-                const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
-                if (targetStyle && targetStyle.type === 'PAINT') {
-                  // Use async method for safer clearing
-                  if (typeof (node as any).setFillStyleIdAsync === 'function') {
-                    await (node as any).setFillStyleIdAsync(targetStyle.id);
-                    console.log(`  ✅ Swapped fill to Monkey style '${styleName}' on ${node.type}`);
-                    swapCount++;
-                  }
-                }
-              } catch (importErr) {
-                console.log(`  ❌ Could not import target style: ${importErr}`);
-              }
-            }
+            console.log(`  ℹ️ Could not bind variable directly: ${e}`);
           }
         } else {
           console.log(`  ⚠️ No variable ID found for '${styleName}' in ${normalizedTargetLibrary}`);
@@ -1188,7 +1378,7 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
                 const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
                 if (targetStyleKey) {
                   try {
-                    const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+                    const targetStyle = await importOrGetStyle(targetStyleKey, targetLibrary);
                     if (targetStyle && targetStyle.type === 'PAINT') {
                       if (typeof nodeAny.setFillStyleIdAsync === 'function') {
                         await nodeAny.setFillStyleIdAsync(targetStyle.id);
@@ -1219,6 +1409,22 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
       if (currentStyle && currentStyle.key === sourceStyleKey) {
         console.log(`  ✅ Found ${styleName} stroke on ${node.type}`);
         
+        // Check for target style first (if target is a style library)
+        const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
+        if (targetStyleKey) {
+            try {
+                const targetStyle = await importOrGetStyle(targetStyleKey, targetLibrary);
+                if (targetStyle) {
+                    node.strokeStyleId = targetStyle.id;
+                    console.log(`  ✅ Swapped stroke style to '${styleName}' on ${node.type}`);
+                    swapCount++;
+                    return swapCount; // Done swapping this stroke
+                }
+            } catch (e) {
+                console.warn(`  ❌ Failed to import stroke style ${styleName}:`, e);
+            }
+        }
+
         if (targetVariableKey || targetVariableId) {
           try {
             console.log(`  🔄 Binding stroke to Monkey variable: ${targetVariableKey || targetVariableId}`);
@@ -1305,17 +1511,19 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
         const targetStyleKey = STYLE_KEY_MAPPING[normalizedTargetLibrary]?.[styleName];
         if (targetStyleKey) {
           try {
-            const targetStyle = await figma.importStyleByKeyAsync(targetStyleKey);
+            const targetStyle = await importOrGetStyle(targetStyleKey, targetLibrary);
             if (targetStyle && targetStyle.type === 'TEXT') {
-              const textNode = node as TextNode;
-              // Use async method for text style assignment
-              await textNode.setTextStyleIdAsync(targetStyle.id);
-              console.log(`  ✅ Swapped text style to '${styleName}' on TEXT node`);
-              swapCount++;
+                const textNode = node as TextNode;
+                // Use async method for text style assignment
+                await textNode.setTextStyleIdAsync(targetStyle.id);
+                console.log(`  ✅ Swapped text style to '${styleName}' on TEXT node`);
+                swapCount++;
             }
           } catch (importErr) {
             console.log(`  ❌ Could not import target text style: ${importErr}`);
           }
+        } else {
+            console.warn(`  ❌ No target style key found for ${styleName}`);
         }
       }
     } catch (styleErr) {
@@ -1382,22 +1590,22 @@ function restoreTargetStyles(instanceNode: SceneNode, targetComponent: Component
             
             // Try to find the style by name in all available styles
             // We'll iterate through all library files and search
-            const allLibraryFiles = figma.getSharedLibraryFiles();
+            // const allLibraryFiles = figma.getSharedLibraryFiles();
             
-            for (const libFile of allLibraryFiles) {
-              console.log(`📚 Checking library file: ${libFile.name}`);
+            // for (const libFile of allLibraryFiles) {
+            //   console.log(`📚 Checking library file: ${libFile.name}`);
               
-              // Get all paint styles from this library
-              try {
-                const paintStyles = libFile.getSharedPluginData('figma', 'paintStyles');
-                if (paintStyles) {
-                  const styles = JSON.parse(paintStyles);
-                  console.log(`  Found styles:`, styles);
-                }
-              } catch (e) {
-                console.warn(`  Could not get styles from ${libFile.name}:`, e);
-              }
-            }
+            //   // Get all paint styles from this library
+            //   try {
+            //     const paintStyles = libFile.getSharedPluginData('figma', 'paintStyles');
+            //     if (paintStyles) {
+            //       const styles = JSON.parse(paintStyles);
+            //       console.log(`  Found styles:`, styles);
+            //     }
+            //   } catch (e) {
+            //     console.warn(`  Could not get styles from library:`, e);
+            //   }
+            // }
             
             // Also try getLocalPaintStylesAsync to search for the style
             const allPaintStyles = figma.getLocalPaintStyles();
@@ -1472,6 +1680,9 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
             let targetKey: string | undefined;
             if (targetLibObj && targetLibObj.components) {
                 targetKey = targetLibObj.components[comp.name];
+                if (!targetKey) {
+                    console.warn(`⚠️ Component '${comp.name}' not found in target library '${targetLibrary}'. Available components:`, Object.keys(targetLibObj.components));
+                }
             }
             
             // Fallback to legacy mapping if not found in dynamic metadata
@@ -1488,7 +1699,40 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               continue;
             }
             try {
-              const importedComponent = await figma.importComponentByKeyAsync(targetKey);
+              let importedComponent: ComponentNode | ComponentSetNode | null = null;
+              
+              // Check if target is the Current File (Local Context)
+              const isTargetCurrentFile = figma.root.name === targetLibrary;
+              
+              if (isTargetCurrentFile) {
+                  // Try to find by ID first (Legacy support)
+                  const localNode = figma.getNodeById(targetKey);
+                  if (localNode && (localNode.type === 'COMPONENT' || localNode.type === 'COMPONENT_SET')) {
+                      importedComponent = localNode as ComponentNode | ComponentSetNode;
+                      console.log(`  ✅ Found local component by ID: ${importedComponent.name}`);
+                  } else {
+                      // Try to find by Key (New support)
+                      // This is expensive, so we should optimize if possible, but for now scan all components
+                      const allComponents = figma.root.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] });
+                      const found = allComponents.find(c => c.key === targetKey);
+                      if (found) {
+                          importedComponent = found;
+                          console.log(`  ✅ Found local component by Key: ${found.name}`);
+                      }
+                  }
+              } else {
+                  // Target is Remote
+                  try {
+                      importedComponent = await figma.importComponentByKeyAsync(targetKey);
+                  } catch (e) {
+                      console.warn(`Failed to import component by key ${targetKey}:`, e);
+                  }
+              }
+
+              if (!importedComponent) {
+                  throw new Error(`Could not find/import component: ${comp.name}`);
+              }
+
               console.log(`  ✅ Imported target component`);
               
               // Don't try to access componentProperties on the component definition
@@ -1541,8 +1785,8 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                   if (instNode.paddingTop !== 0) layoutProps.paddingTop = instNode.paddingTop;
                   if (instNode.primaryAxisAlignItems !== 'MIN') layoutProps.primaryAxisAlignItems = instNode.primaryAxisAlignItems;
                   if (instNode.primaryAxisSizingMode !== 'AUTO') layoutProps.primaryAxisSizingMode = instNode.primaryAxisSizingMode;
-                  if (instNode.secondaryAxisAlignItems !== 'MIN') layoutProps.secondaryAxisAlignItems = instNode.secondaryAxisAlignItems;
-                  if (instNode.secondaryAxisSizingMode !== 'AUTO') layoutProps.secondaryAxisSizingMode = instNode.secondaryAxisSizingMode;
+                  if (instNode.counterAxisAlignItems !== 'MIN') layoutProps.counterAxisAlignItems = instNode.counterAxisAlignItems;
+                  if (instNode.counterAxisSizingMode !== 'AUTO') layoutProps.counterAxisSizingMode = instNode.counterAxisSizingMode;
                   // Always capture width and height for resizing
                   layoutProps.width = instNode.width;
                   layoutProps.height = instNode.height;
@@ -1588,8 +1832,22 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               await captureTextValues(instanceNode);
               console.log(`  Total text nodes captured: ${textValues.size}`);
               
+              // Handle Component Sets (swapComponent requires a ComponentNode)
+              let componentToSwap = importedComponent;
+              if (componentToSwap.type === 'COMPONENT_SET') {
+                  if (componentToSwap.defaultVariant) {
+                      componentToSwap = componentToSwap.defaultVariant;
+                      console.log(`  ℹ️ Target is ComponentSet, using default variant: ${componentToSwap.name}`);
+                  } else if (componentToSwap.children.length > 0) {
+                      componentToSwap = componentToSwap.children[0] as ComponentNode;
+                      console.log(`  ℹ️ Target is ComponentSet (no default), using first variant: ${componentToSwap.name}`);
+                  } else {
+                      throw new Error(`Target Component Set ${importedComponent.name} has no variants.`);
+                  }
+              }
+
               // Perform the swap
-              instance.swapComponent(importedComponent);
+              instance.swapComponent(componentToSwap as ComponentNode);
               console.log(`✅ Swapped component: ${instance.name}`);
               
               // Remove all overrides so instance uses only target library defaults
@@ -1813,3 +2071,55 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
 }
 
 // ===== DELETE EVERYTHING BELOW THIS LINE! =====
+async function runDiagnostics() {
+  console.log('🔍 Running Diagnostics...');
+  
+  // 1. Check API Version
+  console.log(`  - API Version: ${figma.apiVersion}`);
+  
+  // 2. Check User (Skipped to avoid permission error)
+  // if (figma.currentUser) {
+  //     console.log(`  - User: ${figma.currentUser.name} (ID: ${figma.currentUser.id})`);
+  // } else {
+  //     console.log(`  - User: Unknown (figma.currentUser is null)`);
+  // }
+  
+  // 3. Check Team Library Capabilities
+  console.log(`  - figma.teamLibrary keys: ${Object.keys(figma.teamLibrary).join(', ')}`);
+  
+  // 4. Check Local Variables
+  try {
+      const localVars = await figma.variables.getLocalVariablesAsync();
+      console.log(`  - Local Variables: ${localVars.length}`);
+  } catch (e) {
+      console.log(`  - Local Variables Check Failed: ${e}`);
+  }
+
+  // 5. Check Available Collections (Raw)
+  try {
+      const cols = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+      console.log(`  - Available Collections: ${cols.length}`);
+      cols.forEach(c => console.log(`    * ${c.name} (${c.libraryName}) - Key: ${c.key}`));
+  } catch (e) {
+      console.log(`  - Available Collections Check Failed: ${e}`);
+  }
+
+  // 6. PROBE: Try to import a known variable key from "Monkey"
+  // Key from previous logs: dc69fade742a1338bc34ec90e4081f924f45fbbb
+  const probeKey = 'dc69fade742a1338bc34ec90e4081f924f45fbbb';
+  console.log(`  - PROBE: Attempting to import known variable key: ${probeKey}`);
+  try {
+      const v = await figma.variables.importVariableByKeyAsync(probeKey);
+      if (v) {
+          console.log(`    ✅ SUCCESS! Imported variable: ${v.name} from ${v.variableCollectionId}`);
+          console.log(`    ℹ️ CONCLUSION: The library IS accessible, but getAvailableLibraryVariableCollectionsAsync is failing.`);
+      } else {
+          console.log(`    ❌ FAILED: importVariableByKeyAsync returned null.`);
+          console.log(`    ℹ️ CONCLUSION: The library is NOT accessible to this file.`);
+      }
+  } catch (e) {
+      console.log(`    ❌ FAILED: importVariableByKeyAsync threw error: ${e}`);
+  }
+  
+  figma.notify('Diagnostics complete. Check console.');
+}
