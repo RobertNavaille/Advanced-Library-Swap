@@ -2171,7 +2171,7 @@
       </div>
       
       <!-- Debug Section -->
-      <div class="settings-input-group" style="display: none; margin-top: 20px; border-top: 1px solid var(--figma-color-border); padding-top: 16px;">
+      <div class="settings-input-group" style="margin-top: 20px; border-top: 1px solid var(--figma-color-border); padding-top: 16px;">
         <div class="input-label">Debug</div>
         <button id="debugStorageBtn" class="secondary-button" onclick="debugDumpStorage()" style="width: 100%;">Debug: Dump Storage</button>
         <button id="clearAllBtn" class="secondary-button" style="width: 100%; margin-top: 8px; background-color: var(--figma-color-bg-danger);">Clear All Libraries</button>
@@ -2619,7 +2619,7 @@
 
     // Update scan results view with found components and tokens
     function updateScanResultsView(data, selectedLibrary, explicitTargetLibrary) {
-      console.log('Updating scan results view with:', data);
+      // console.log('Updating scan results view with:', data);
       console.log('Selected library:', selectedLibrary);
       console.log('Explicit target library:', explicitTargetLibrary);
       
@@ -2638,7 +2638,7 @@
           if (totalUniqueLibraries.length <= 1) {
               backBtn.style.display = 'none';
               if (scanResultsTitle) {
-                  scanResultsTitle.style.marginLeft = '16px';
+                  scanResultsTitle.style.marginLeft = '8px';
               }
           } else {
               backBtn.style.display = '';
@@ -3446,7 +3446,7 @@
     onmessage = (event) => {
       const msg = event.data.pluginMessage;
       if (!msg) return;
-      console.log('📩 UI Received message:', msg.type, msg);
+      // console.log('📩 UI Received message:', msg.type, msg);
       
       if (msg.type === 'CURRENT_FILE_STATUS') {
           const { name, isSynced } = msg;
@@ -3483,7 +3483,7 @@
       }
       
       if (msg.type === 'SCAN_ALL_RESULT') {
-        console.log('✅ SCAN_ALL_RESULT received');
+        // console.log('✅ SCAN_ALL_RESULT received');
         if (!msg.ok) {
           const scanView = document.getElementById('scanView');
           let errorDiv = scanView.querySelector('.error');
@@ -3503,7 +3503,7 @@
 
         // Store the scan data
         const scanData = msg.data;
-        console.log('Scan data:', scanData);
+        // console.log('Scan data:', scanData);
         
         // Show library selector view (or skip to results if only one library)
         showLibrarySelector(scanData);
@@ -3903,10 +3903,10 @@
       const backToScanFromSettingsBtn = document.getElementById('backToScanFromSettings');
       if (backToScanFromSettingsBtn) {
         backToScanFromSettingsBtn.addEventListener('click', () => {
-          console.log('Back to scan from settings clicked');
+          // console.log('Back to scan from settings clicked');
           showView('scanView');
         });
-        console.log('Settings back button event listener added successfully');
+        // console.log('Settings back button event listener added successfully');
       } else {
         console.error('backToScanFromSettings button not found');
       }
@@ -4183,7 +4183,7 @@
       renderConnectedLibraries();
       
       // Fetch from backend
-      console.log('📤 Requesting connected libraries from backend...');
+      // console.log('📤 Requesting connected libraries from backend...');
       parent.postMessage({ pluginMessage: { type: 'GET_CONNECTED_LIBRARIES' } }, '*');
     }
     
@@ -4196,7 +4196,7 @@
       if (!msg) return;
       
       if (msg.type === 'LIBRARIES_UPDATED') {
-        console.log('📚 UI received LIBRARIES_UPDATED:', msg.libraries);
+        // console.log('📚 UI received LIBRARIES_UPDATED:', msg.libraries);
         connectedLibraries = msg.libraries;
         renderConnectedLibraries();
         
@@ -4225,6 +4225,8 @@
     
     // Initialize all event listeners when DOM is ready
     initializeEventListeners();
+    
+    //# sourceURL=ui.js
   </script>
 </body>
 </html>

@@ -268,7 +268,7 @@ async function handleSyncCurrentFile() {
              // Since the scan logic compares against paintStyle.key, we MUST store s.key here.
              
              styles[s.name] = s.key; 
-             console.log(`     - Paint Style: ${s.name}, Key: ${s.key}`);
+             // console.log(`     - Paint Style: ${s.name}, Key: ${s.key}`);
         });
         
         const textStyles = await figma.getLocalTextStylesAsync();
@@ -304,7 +304,7 @@ async function handleSyncCurrentFile() {
             // Store KEY instead of ID for better cross-file matching
             // We will handle local lookup by scanning keys if needed
             components[node.name] = node.key;
-            console.log(`     - Component: ${node.name}, Key: ${node.key}`);
+            // console.log(`     - Component: ${node.name}, Key: ${node.key}`);
         });
         console.log(`   ✅ Found ${Object.keys(components).length} local components.`);
     } catch (e) {
@@ -759,14 +759,14 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
 
 // Scan a node for style tokens
 async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<void> {
-  console.log(`🔍 Scanning node: ${node.name} (type: ${node.type})`);
+  // console.log(`🔍 Scanning node: ${node.name} (type: ${node.type})`);
   
   // Check for paint styles (traditional Shark approach)
   if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
     try {
       const paintStyle = await figma.getStyleByIdAsync(node.fillStyleId);
       if (paintStyle && paintStyle.type === 'PAINT') {
-        console.log(`🎨 Found paint style: ${paintStyle.name}, key: ${paintStyle.key}`);
+        // console.log(`🎨 Found paint style: ${paintStyle.name}, key: ${paintStyle.key}`);
         // Determine library from style key
         let library = 'Unknown';
         for (const libName of Object.keys(STYLE_KEY_MAPPING)) {
@@ -1241,7 +1241,7 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
             try {
                 const targetStyle = await importOrGetStyle(targetStyleKey, targetLibrary);
                 if (targetStyle) {
-                    node.fillStyleId = targetStyle.id;
+                    await node.setFillStyleIdAsync(targetStyle.id);
                     console.log(`  ✅ Swapped fill style to '${styleName}' on ${node.type}`);
                     swapCount++;
                     return swapCount; // Done swapping this fill
@@ -1444,7 +1444,7 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
             try {
                 const targetStyle = await importOrGetStyle(targetStyleKey, targetLibrary);
                 if (targetStyle) {
-                    node.strokeStyleId = targetStyle.id;
+                    await node.setStrokeStyleIdAsync(targetStyle.id);
                     console.log(`  ✅ Swapped stroke style to '${styleName}' on ${node.type}`);
                     swapCount++;
                     return swapCount; // Done swapping this stroke
@@ -1571,7 +1571,7 @@ async function swapStylesInNode(node: SceneNode, styleName: string, sourceLibrar
 }
 
 // Apply target library styles to instance shapes by matching style names
-function restoreTargetStyles(instanceNode: SceneNode, targetComponent: ComponentNode, targetLibrary: string): void {
+async function restoreTargetStyles(instanceNode: SceneNode, targetComponent: ComponentNode, targetLibrary: string): Promise<void> {
   try {
     console.log('🎨 Applying target library styles to instance');
     
@@ -1606,7 +1606,7 @@ function restoreTargetStyles(instanceNode: SceneNode, targetComponent: Component
     console.log('Target style names:', Array.from(targetStyleNames.entries()));
     
     // Apply styles to instance shapes by name
-    function applyTargetStyles(node: SceneNode): void {
+    async function applyTargetStyles(node: SceneNode): Promise<void> {
       if ((node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR')) {
         const styleName = targetStyleNames.get(node.name);
         if (styleName) {
@@ -1644,7 +1644,7 @@ function restoreTargetStyles(instanceNode: SceneNode, targetComponent: Component
               console.log(`  Style: ${style.name} (id: ${style.id})`);
               if (style.name === styleName) {
                 console.log(`✅ Found matching style! Applying to "${node.name}"`);
-                inst.fillStyleId = style.id;
+                await inst.setFillStyleIdAsync(style.id);
                 return;
               }
             }
@@ -1658,13 +1658,13 @@ function restoreTargetStyles(instanceNode: SceneNode, targetComponent: Component
       
       if ('children' in node) {
         for (const child of node.children) {
-          applyTargetStyles(child);
+          await applyTargetStyles(child);
         }
       }
     }
     
     // Apply styles to instance
-    applyTargetStyles(instanceNode);
+    await applyTargetStyles(instanceNode);
   } catch (error) {
     console.warn('Error applying target styles:', error);
   }
