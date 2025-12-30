@@ -161,6 +161,32 @@ function sendConnectedLibraries() {
   });
 }
 
+// Check if current file is already synced
+async function handleCheckCurrentFileStatus() {
+  const name = figma.root.name;
+  let fileId = figma.root.getPluginData('swap_library_file_id');
+  
+  if (!fileId) {
+      if (figma.fileKey) {
+          fileId = figma.fileKey;
+      } else {
+          // Check for existing by name (migration logic)
+          const existingLib = CONNECTED_LIBRARIES.find(l => l.name === name && l.type === 'Local');
+          if (existingLib) {
+              fileId = existingLib.id;
+          }
+      }
+  }
+
+  const isSynced = fileId ? CONNECTED_LIBRARIES.some(l => l.id === fileId) : false;
+  
+  figma.ui.postMessage({
+      type: 'CURRENT_FILE_STATUS',
+      name: name,
+      isSynced: isSynced
+  });
+}
+
 // Sync Current File as Library
 async function handleSyncCurrentFile() {
   console.log('🔄 Syncing current file as library...');
@@ -417,6 +443,9 @@ figma.ui.onmessage = async (msg: any) => {
       break;
     case 'SYNC_CURRENT_FILE':
       await handleSyncCurrentFile();
+      break;
+    case 'CHECK_CURRENT_FILE_STATUS':
+      await handleCheckCurrentFileStatus();
       break;
     case 'RESET_PLUGIN':
       await figma.clientStorage.setAsync('connected_libraries', []);

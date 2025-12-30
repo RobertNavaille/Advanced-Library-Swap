@@ -2626,6 +2626,28 @@
       // Store data globally for re-rendering
       window.lastScanData = data;
       
+      // Check unique libraries in the FULL data to decide on back button visibility
+      const allComponentLibs = data.components.length > 0 ? [...new Set(data.components.map(c => c.library))] : [];
+      const allTokenLibs = data.tokens ? [...new Set(data.tokens.map(t => t.library).filter(l => l))] : [];
+      const totalUniqueLibraries = [...new Set([...allComponentLibs, ...allTokenLibs])];
+      
+      const backBtn = document.getElementById('backToLibraries');
+      const scanResultsTitle = document.querySelector('#scanResultsView .library-selector-title');
+      
+      if (backBtn) {
+          if (totalUniqueLibraries.length <= 1) {
+              backBtn.style.display = 'none';
+              if (scanResultsTitle) {
+                  scanResultsTitle.style.marginLeft = '16px';
+              }
+          } else {
+              backBtn.style.display = '';
+              if (scanResultsTitle) {
+                  scanResultsTitle.style.marginLeft = '';
+              }
+          }
+      }
+      
       const scanResultsView = document.getElementById('scanResultsView');
       if (!scanResultsView) {
         console.error('Scan results view not found');
@@ -3426,6 +3448,22 @@
       if (!msg) return;
       console.log('📩 UI Received message:', msg.type, msg);
       
+      if (msg.type === 'CURRENT_FILE_STATUS') {
+          const { name, isSynced } = msg;
+          let message = '';
+          
+          if (isSynced) {
+              message = `Sync all updates to "${name}"?`;
+          } else {
+              message = `Add "${name}" to list of swappable libraries?`;
+          }
+          
+          if (confirm(message)) {
+              parent.postMessage({ pluginMessage: { type: 'SYNC_CURRENT_FILE' } }, '*');
+          }
+          return;
+      }
+      
       if (msg.type === 'SHOW_INITIAL_VIEW' || msg.type === 'reset-ui') {
         console.log('Showing initial view - no frame selected');
         showView('scanView');
@@ -3892,14 +3930,7 @@
     const syncCurrentFileBtn = document.getElementById('syncCurrentFileBtn');
     if (syncCurrentFileBtn) {
         syncCurrentFileBtn.addEventListener('click', () => {
-            const confirmed = confirm(
-                "Syncing this library will scan the current file for components, styles, and variables to make them available for swapping.\n\n" +
-                "Do you want to proceed?"
-            );
-            
-            if (confirmed) {
-                parent.postMessage({ pluginMessage: { type: 'SYNC_CURRENT_FILE' } }, '*');
-            }
+            parent.postMessage({ pluginMessage: { type: 'CHECK_CURRENT_FILE_STATUS' } }, '*');
         });
     }
 
