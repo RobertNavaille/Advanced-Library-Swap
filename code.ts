@@ -839,7 +839,10 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
   // If node is an INSTANCE, we should scan it for styles (in case the instance itself has a style),
   // BUT we should NOT recurse into its children if we want to exclude "styles applied to a component" (meaning internal styles).
   
-  await scanNodeForStyles(node, tokens);
+  // Only scan for styles if it's NOT an instance (User requirement: ignore styles applied to component instances)
+  if (node.type !== 'INSTANCE') {
+      await scanNodeForStyles(node, tokens);
+  }
   
   // Only recurse if NOT an instance
   if (node.type !== 'INSTANCE' && 'children' in node && node.children) {
