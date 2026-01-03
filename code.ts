@@ -828,8 +828,21 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
       }
     } catch (error) {}
   }
+  // Skip style scanning if the node is part of an instance (unless it's an override?)
+  // Actually, the requirement is "scan list should not show any styles that are applied to a component".
+  // This likely means: if I have an instance, don't scan its children for styles.
+  // But if I have a frame with a rectangle in it, scan the rectangle.
+  // If I have an instance, I might want to scan the instance itself (e.g. if the instance has a fill style override on the top level).
+  // But I should NOT scan the children of the instance.
+  
+  // scanNodeForAssets calls scanNodeForStyles(node) AND then recurses into children.
+  // If node is an INSTANCE, we should scan it for styles (in case the instance itself has a style),
+  // BUT we should NOT recurse into its children if we want to exclude "styles applied to a component" (meaning internal styles).
+  
   await scanNodeForStyles(node, tokens);
-  if ('children' in node && node.children) {
+  
+  // Only recurse if NOT an instance
+  if (node.type !== 'INSTANCE' && 'children' in node && node.children) {
     for (const child of node.children) {
       await scanNodeForAssets(child, components, tokens);
     }
