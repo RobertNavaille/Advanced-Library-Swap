@@ -63,6 +63,7 @@ let CONNECTED_LIBRARIES: {
   components?: Record<string, string>;
   styles?: Record<string, string>;
   variables?: Record<string, string>;
+  thumbnail?: string;
 }[] = [];
 
 async function loadConnectedLibraries() {
@@ -311,6 +312,80 @@ async function handleSyncCurrentFile() {
         console.error('   ❌ Failed to fetch local components:', e);
     }
 
+    // 3.5 Capture Thumbnail
+    let thumbnailBase64: string | undefined;
+    try {
+        let thumbnailNode: SceneNode | null = null;
+        
+        // Strategy 0: Check for official file thumbnail (Best)
+        try {
+            const officialThumbnail = await figma.getFileThumbnailNodeAsync();
+            if (officialThumbnail) {
+                thumbnailNode = officialThumbnail;
+                console.log('   🖼️ Using official file thumbnail node');
+            }
+        } catch (e) {
+            console.log('   ℹ️ getFileThumbnailNodeAsync not supported or failed');
+        }
+
+        // Strategy 1: Check selection
+        if (!thumbnailNode && figma.currentPage.selection.length === 1 && figma.currentPage.selection[0].type === 'FRAME') {
+            thumbnailNode = figma.currentPage.selection[0];
+            console.log('   🖼️ Using selected frame as thumbnail');
+        }
+        
+        // Strategy 2: Check for "Cover" or "Thumbnail" page
+        if (!thumbnailNode) {
+            const coverPage = figma.root.children.find(p => 
+                p.name.toLowerCase().includes('cover') || 
+                p.name.toLowerCase().includes('thumbnail')
+            );
+            if (coverPage) {
+                // Find first frame in cover page
+                const frame = coverPage.children.find(n => n.type === 'FRAME');
+                if (frame) {
+                    thumbnailNode = frame;
+                    console.log(`   🖼️ Found thumbnail frame in page "${coverPage.name}"`);
+                }
+            }
+        }
+
+        // Strategy 3: Use the first frame on the current page if nothing else found
+        if (!thumbnailNode) {
+             const firstFrame = figma.currentPage.children.find(n => n.type === 'FRAME');
+             if (firstFrame) {
+                 thumbnailNode = firstFrame;
+                 console.log('   🖼️ Fallback: Using first frame on current page as thumbnail');
+             }
+        }
+
+        if (thumbnailNode) {
+            // Export to PNG
+            const bytes = await (thumbnailNode as FrameNode).exportAsync({
+                format: 'PNG',
+                constraint: { type: 'SCALE', value: 0.5 } // Scale down to reduce size
+            });
+            
+            // Convert to Base64
+            // Use figma.base64Encode if available, otherwise manual fallback
+            if (typeof figma.base64Encode === 'function') {
+                const base64 = figma.base64Encode(bytes);
+                thumbnailBase64 = `data:image/png;base64,${base64}`;
+            } else {
+                // Manual fallback using our helper function
+                try {
+                    const base64 = bufferToBase64(bytes);
+                    thumbnailBase64 = `data:image/png;base64,${base64}`;
+                } catch (e) {
+                     console.warn('   ⚠️ Manual base64 encoding failed:', e);
+                }
+            }
+            console.log('   ✅ Thumbnail captured and converted to Base64');
+        }
+    } catch (e) {
+        console.warn('   ⚠️ Failed to capture thumbnail:', e);
+    }
+
     // 4. Construct Library Object
     const newLib = {
         name: name,
@@ -320,7 +395,8 @@ async function handleSyncCurrentFile() {
         lastSynced: new Date().toISOString(),
         components: components,
         styles: styles,
-        variables: variables
+        variables: variables,
+        thumbnail: thumbnailBase64
     };
 
     // 5. Save to Storage
@@ -2151,4 +2227,37 @@ async function runDiagnostics() {
   }
   
   figma.notify('Diagnostics complete. Check console.');
+}
+
+// Helper: Manual Base64 Encoder (fallback for environments without btoa)
+function bufferToBase64(buffer: Uint8Array): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const bytes = new Uint8Array(buffer);
+    let i = 0;
+    let len = bytes.length;
+    let base64 = '';
+
+    while (i < len) {
+        const c1 = bytes[i++] & 0xff;
+        if (i == len) {
+            base64 += chars.charAt(c1 >> 2);
+            base64 += chars.charAt((c1 & 0x3) << 4);
+            base64 += '==';
+            break;
+        }
+        const c2 = bytes[i++];
+        if (i == len) {
+            base64 += chars.charAt(c1 >> 2);
+            base64 += chars.charAt(((c1 & 0x3) << 4) | ((c2 & 0xf0) >> 4));
+            base64 += chars.charAt((c2 & 0xf) << 2);
+            base64 += '=';
+            break;
+        }
+        const c3 = bytes[i++];
+        base64 += chars.charAt(c1 >> 2);
+        base64 += chars.charAt(((c1 & 0x3) << 4) | ((c2 & 0xf0) >> 4));
+        base64 += chars.charAt(((c2 & 0xf) << 2) | ((c3 & 0xc0) >> 6));
+        base64 += chars.charAt(c3 & 0x3f);
+    }
+    return base64;
 }

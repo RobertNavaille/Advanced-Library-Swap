@@ -2355,8 +2355,25 @@
         const div = document.createElement('div');
         div.className = 'library-selector-item';
         
+        // Try to find thumbnail in connected libraries if not present
+        let thumbnail = libInfo.thumbnail;
+        if (!thumbnail && typeof connectedLibraries !== 'undefined') {
+            const connectedLib = connectedLibraries.find(l => l.name === libInfo.name);
+            if (connectedLib && connectedLib.thumbnail) {
+                thumbnail = connectedLib.thumbnail;
+            }
+        }
+
+        const thumbStyle = thumbnail 
+            ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;` 
+            : `background: var(--figma-color-bg-secondary); display: flex; align-items: center; justify-content: center;`;
+            
+        const thumbContent = thumbnail 
+            ? '' 
+            : `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="var(--figma-color-icon-secondary)" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 17L12 22L22 17" stroke="var(--figma-color-icon-secondary)" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 12L12 17L22 12" stroke="var(--figma-color-icon-secondary)" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+
         div.innerHTML = `
-          <div class="library-selector-thumbnail" style="background-image: url('${libInfo.thumbnail}'); background-size: cover; background-position: center;"></div>
+          <div class="library-selector-thumbnail" style="${thumbStyle}">${thumbContent}</div>
           <div class="library-selector-info">
             <div class="library-selector-name">${libInfo.name}</div>
             <div class="library-selector-count">${libInfo.componentCount} component${libInfo.componentCount !== 1 ? 's' : ''} / ${libInfo.tokenCount} Style${libInfo.tokenCount !== 1 ? 's' : ''}</div>
@@ -3228,10 +3245,29 @@
           const disabledClass = '';
           const countText = lib.source === 'frame' ? `${lib.count} components in frame` : 'Library configured';
           
+          // Find thumbnail from connectedLibraries
+          const connectedLib = connectedLibraries.find(l => l.name === lib.name);
+          let iconHtml = `
+            <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--figma-color-bg-secondary); border-radius: 4px; flex-shrink: 0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          `;
+          
+          if (connectedLib && connectedLib.thumbnail) {
+              iconHtml = `<img src="${connectedLib.thumbnail}" style="width: 32px; height: 32px; border-radius: 4px; object-fit: cover; background: var(--figma-color-bg-secondary); flex-shrink: 0;">`;
+          }
+
           html += `
-            <div class="target-library-item${disabledClass}" data-library="${lib.name}" data-has-match="${hasMatchingComponent}" data-source="${lib.source}">
-              <div class="target-library-name">${lib.name}${statusText}</div>
-              <div style="font-size: 11px; color: #666;">${countText}</div>
+            <div class="target-library-item${disabledClass}" data-library="${lib.name}" data-has-match="${hasMatchingComponent}" data-source="${lib.source}" style="display: flex; align-items: center; gap: 12px;">
+              ${iconHtml}
+              <div style="flex: 1;">
+                <div class="target-library-name">${lib.name}${statusText}</div>
+                <div style="font-size: 11px; color: var(--figma-color-text-secondary);">${countText}</div>
+              </div>
             </div>
           `;
         });
@@ -4068,15 +4104,22 @@
         item.dataset.id = lib.id;
         
         // Icon based on type (simplified)
-        const iconSvg = `
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
-          </svg>
+        let iconHtml = `
+          <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--figma-color-bg-secondary); border-radius: 4px; flex-shrink: 0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
         `;
         
+        if (lib.thumbnail) {
+            iconHtml = `<img src="${lib.thumbnail}" style="width: 32px; height: 32px; border-radius: 4px; object-fit: cover; background: var(--figma-color-bg-secondary); flex-shrink: 0;">`;
+        }
+        
         item.innerHTML = `
+          ${iconHtml}
           <div class="library-info">
             <div class="library-name-text">${lib.name}</div>
             <div class="library-stats">${lib.type || 'Remote'} • ${lib.key ? 'Connected' : 'Local'}</div>
