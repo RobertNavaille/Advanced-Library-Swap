@@ -854,9 +854,15 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
   // console.log(`🔍 Scanning node: ${node.name} (type: ${node.type})`);
   
   // Check for paint styles (traditional Shark approach)
-  if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string') {
+  // Note: INSTANCE nodes do not have 'fillStyleId' directly on them in the Figma API types,
+  // but they can have fill overrides. However, accessing 'fillStyleId' on an InstanceNode
+  // might not be straightforward if it's not in the type definition.
+  // Actually, InstanceNode DOES have fillStyleId if it has a fill override.
+  // But we need to be careful.
+  
+  if ('fillStyleId' in node && node.fillStyleId && typeof node.fillStyleId === 'string' && (node.fillStyleId as string).length > 0) {
     try {
-      const paintStyle = await figma.getStyleByIdAsync(node.fillStyleId);
+      const paintStyle = await figma.getStyleByIdAsync(node.fillStyleId as string);
       if (paintStyle && paintStyle.type === 'PAINT') {
         // console.log(`🎨 Found paint style: ${paintStyle.name}, key: ${paintStyle.key}`);
         // Determine library from style key
@@ -870,7 +876,7 @@ async function scanNodeForStyles(node: SceneNode, tokens: TokenInfo[]): Promise<
             const normMapped = mappedKey.replace(/^S:/, '').replace(/,$/, '');
             const normCurrent = currentKey.replace(/^S:/, '').replace(/,$/, '');
             
-            console.log(`Checking style ${styleName} in ${libName}: ${mappedKey} vs ${currentKey} (Norm: ${normMapped} vs ${normCurrent})`);
+            // console.log(`Checking style ${styleName} in ${libName}: ${mappedKey} vs ${currentKey} (Norm: ${normMapped} vs ${normCurrent})`);
             
             if (mappedKey === currentKey || normMapped === normCurrent) {
               library = libName;
