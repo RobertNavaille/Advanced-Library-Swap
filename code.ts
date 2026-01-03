@@ -48,6 +48,9 @@ figma.on('selectionchange', async () => {
 
 // Auto-scan on plugin load
 (async () => {
+  // Ensure libraries are loaded before scanning
+  await loadConnectedLibraries();
+  
   const selection = figma.currentPage.selection;
   const selectedFrame = selection.find(node => node.type === 'FRAME');
   if (selectedFrame) await handleScanFrames();
@@ -493,8 +496,8 @@ async function handleRemoveLibrary(libraryId: string) {
 
 
 
-// Call load on start
-loadConnectedLibraries();
+// Call load on start - Removed as it is now handled in the auto-scan IIFE
+// loadConnectedLibraries();
 
 // Handle messages from the UI
 figma.ui.onmessage = async (msg: any) => {
