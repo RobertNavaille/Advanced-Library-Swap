@@ -4100,31 +4100,27 @@
       
       connectedLibraries.forEach(lib => {
         const item = document.createElement('div');
-        item.className = 'connected-library-item';
+        item.className = 'library-selector-item'; // Use same class as Connected Libraries screen
+        item.style.cursor = 'default'; // Override pointer cursor
         item.dataset.id = lib.id;
         
-        // Icon based on type (simplified)
-        let iconHtml = `
-          <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--figma-color-bg-secondary); border-radius: 4px; flex-shrink: 0;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="var(--figma-color-icon)" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        `;
-        
-        if (lib.thumbnail) {
-            iconHtml = `<img src="${lib.thumbnail}" style="width: 32px; height: 32px; border-radius: 4px; object-fit: cover; background: var(--figma-color-bg-secondary); flex-shrink: 0;">`;
-        }
-        
+        // Thumbnail logic
+        const thumbnail = lib.thumbnail;
+        const thumbStyle = thumbnail 
+            ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;` 
+            : `background: var(--figma-color-bg-secondary); display: flex; align-items: center; justify-content: center;`;
+            
+        const thumbContent = thumbnail 
+            ? '' 
+            : `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="var(--figma-color-icon-secondary)" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 17L12 22L22 17" stroke="var(--figma-color-icon-secondary)" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 12L12 17L22 12" stroke="var(--figma-color-icon-secondary)" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+
         item.innerHTML = `
-          ${iconHtml}
-          <div class="library-info">
-            <div class="library-name-text">${lib.name}</div>
-            <div class="library-stats">${lib.type || 'Remote'} • ${lib.key ? 'Connected' : 'Local'}</div>
+          <div class="library-selector-thumbnail" style="${thumbStyle}">${thumbContent}</div>
+          <div class="library-selector-info">
+            <div class="library-selector-name">${lib.name}</div>
+            <div class="library-selector-count">${lib.type || 'Remote'} • ${lib.key ? 'Connected' : 'Local'}</div>
           </div>
-          <div style="display: flex; gap: 4px;">
+          <div class="library-selector-arrow">
             <button class="library-more-btn filter-button">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7.5 12C7.5 12.8284 6.82843 13.5 6 13.5C5.17157 13.5 4.5 12.8284 4.5 12C4.5 11.1716 5.17157 10.5 6 10.5C6.82843 10.5 7.5 11.1716 7.5 12Z" fill="currentColor" fill-opacity="0.9"/>
