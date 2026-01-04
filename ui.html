@@ -1339,7 +1339,7 @@
       box-sizing: border-box;
     }
     
-    .mapping-item:hover {
+    .mapping-item:hover:not(:has(.library-more-btn:hover)) {
       background: var(--figma-color-bg-hover);
     }
     
@@ -2266,6 +2266,15 @@
     </div>
   </div>
 
+  <!-- Scan Result Context Menu -->
+  <div id="scanResultContextMenu" class="filter-dropdown" style="display: none; position: fixed; z-index: 2000; right: auto;">
+    <div class="filter-menu">
+      <div class="filter-menu-item" id="ignoreScanResultBtn">
+        <span class="filter-label-text">Ignore</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Library Modal - REMOVED -->
   <!--
   <div class="modal-overlay" id="addLibraryModal">
@@ -2801,8 +2810,25 @@
                 <path d="M17.8536 11.6464C18.0488 11.8417 18.0488 12.1583 17.8536 12.3536L14.3536 15.8536C14.1583 16.0488 13.8417 16.0488 13.6464 15.8536C13.4512 15.6583 13.4512 15.3417 13.6464 15.1464L16.2929 12.5H6.5C6.22386 12.5 6 12.2761 6 12C6 11.7239 6.22386 11.5 6.5 11.5H16.2929L13.6464 8.85355C13.4512 8.65829 13.4512 8.34171 13.6464 8.14645C13.8417 7.95118 14.1583 7.95118 14.3536 8.14645L17.8536 11.6464Z" fill="var(--figma-color-icon)"/>
               </svg>
               ${targetElementHTML}
+              <button class="library-more-btn filter-button" style="margin-left: 8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7.5 12C7.5 12.8284 6.82843 13.5 6 13.5C5.17157 13.5 4.5 12.8284 4.5 12C4.5 11.1716 5.17157 10.5 6 10.5C6.82843 10.5 7.5 11.1716 7.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+                  <path d="M13.5 12C13.5 12.8284 12.8284 13.5 12 13.5C11.1716 13.5 10.5 12.8284 10.5 12C10.5 11.1716 11.1716 10.5 12 10.5C12.8284 10.5 13.5 11.1716 13.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+                  <path d="M18 13.5C18.8284 13.5 19.5 12.8284 19.5 12C19.5 11.1716 18.8284 10.5 18 10.5C17.1716 10.5 16.5 11.1716 16.5 12C16.5 12.8284 17.1716 13.5 18 13.5Z" fill="currentColor" fill-opacity="0.9"/>
+                </svg>
+              </button>
             </div>
           `;
+          
+          // Context menu handler
+          const moreBtn = mappingItem.querySelector('.library-more-btn');
+          if (moreBtn) {
+            moreBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              showScanResultContextMenu(e, { type: 'component', variants: variants });
+            });
+          }
+
           mappingsContainer.appendChild(mappingItem);
         });
       }
@@ -2906,8 +2932,25 @@
                 <path d="M17.8536 11.6464C18.0488 11.8417 18.0488 12.1583 17.8536 12.3536L14.3536 15.8536C14.1583 16.0488 13.8417 16.0488 13.6464 15.8536C13.4512 15.6583 13.4512 15.3417 13.6464 15.1464L16.2929 12.5H6.5C6.22386 12.5 6 12.2761 6 12C6 11.7239 6.22386 11.5 6.5 11.5H16.2929L13.6464 8.85355C13.4512 8.65829 13.4512 8.34171 13.6464 8.14645C13.8417 7.95118 14.1583 7.95118 14.3536 8.14645L17.8536 11.6464Z" fill="var(--figma-color-icon)"/>
               </svg>
               ${targetElementHTML}
+              <button class="library-more-btn filter-button" style="margin-left: 8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7.5 12C7.5 12.8284 6.82843 13.5 6 13.5C5.17157 13.5 4.5 12.8284 4.5 12C4.5 11.1716 5.17157 10.5 6 10.5C6.82843 10.5 7.5 11.1716 7.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+                  <path d="M13.5 12C13.5 12.8284 12.8284 13.5 12 13.5C11.1716 13.5 10.5 12.8284 10.5 12C10.5 11.1716 11.1716 10.5 12 10.5C12.8284 10.5 13.5 11.1716 13.5 12Z" fill="currentColor" fill-opacity="0.9"/>
+                  <path d="M18 13.5C18.8284 13.5 19.5 12.8284 19.5 12C19.5 11.1716 18.8284 10.5 18 10.5C17.1716 10.5 16.5 11.1716 16.5 12C16.5 12.8284 17.1716 13.5 18 13.5Z" fill="currentColor" fill-opacity="0.9"/>
+                </svg>
+              </button>
             </div>
           `;
+          
+          // Context menu handler
+          const moreBtn = mappingItem.querySelector('.library-more-btn');
+          if (moreBtn) {
+            moreBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              showScanResultContextMenu(e, { type: 'token', token: token });
+            });
+          }
+
           mappingsContainer.appendChild(mappingItem);
         });
 
@@ -4174,6 +4217,52 @@
       setTimeout(() => {
         document.addEventListener('click', closeMenu);
       }, 0);
+    }
+
+    let scanResultToModify = null;
+
+    function showScanResultContextMenu(e, result) {
+      const menu = document.getElementById('scanResultContextMenu');
+      const overlay = document.getElementById('filterDropdownOverlay');
+      if (!menu) return;
+      
+      // Add active state to button
+      const btn = e.currentTarget;
+      if (btn && btn.classList.contains('filter-button')) {
+        btn.classList.add('active');
+      }
+
+      scanResultToModify = result;
+      
+      // Position menu
+      const rect = btn.getBoundingClientRect();
+      menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+      // Align right edge of menu with right edge of button, but ensure it doesn't go off screen
+      // The menu width is min 208px.
+      menu.style.left = `${rect.right - 208}px`; 
+      menu.style.display = 'block';
+      
+      // Close on click outside (using overlay)
+      const closeMenu = () => {
+        menu.style.display = 'none';
+        if (btn) btn.classList.remove('active');
+        if (overlay) {
+          overlay.classList.remove('active');
+          overlay.removeEventListener('click', closeMenu);
+        } else {
+          document.removeEventListener('click', closeMenu);
+        }
+      };
+      
+      if (overlay) {
+        overlay.classList.add('active');
+        overlay.addEventListener('click', closeMenu);
+      } else {
+        // Fallback
+        setTimeout(() => {
+          document.addEventListener('click', closeMenu);
+        }, 0);
+      }
     }
 
     function handleRemoveLibrary(e) {
