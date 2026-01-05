@@ -1809,9 +1809,12 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
             // Look up target key in connected library metadata
             let targetKey: string | undefined;
             if (targetLibObj && targetLibObj.components) {
-                targetKey = targetLibObj.components[comp.name];
+                // Use explicitly provided target name if available, otherwise fallback to source name
+                const lookupName = comp.targetName || comp.name;
+                targetKey = targetLibObj.components[lookupName];
+
                 if (!targetKey) {
-                    console.warn(`⚠️ Component '${comp.name}' not found in target library '${targetLibrary}'. Available components:`, Object.keys(targetLibObj.components));
+                    console.warn(`⚠️ Component '${lookupName}' not found in target library '${targetLibrary}'. Available components:`, Object.keys(targetLibObj.components));
                 }
             }
             

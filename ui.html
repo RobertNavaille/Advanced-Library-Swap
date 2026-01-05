@@ -1094,6 +1094,17 @@
         background-color: var(--figma-color-bg);
     }
 
+    .component-dropdown-trigger {
+      border-color: transparent;
+      background-color: transparent;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .component-dropdown-trigger.active {
+      border-color: transparent;
+    }
+
     .selected-library-name {
       white-space: nowrap;
       overflow: hidden;
@@ -1104,8 +1115,11 @@
     .chevron-icon {
       width: 24px;
       height: 24px;
-      color: var(--figma-color-icon-tertiary);
+      min-width: 24px;
+      min-height: 24px;
+      color: var(--figma-color-icon);
       flex-shrink: 0;
+      display: block;
     }
 
     .dropdown-menu {
@@ -1339,7 +1353,7 @@
       box-sizing: border-box;
     }
     
-    .mapping-item:hover:not(:has(.library-more-btn:hover)) {
+    .mapping-item:hover:not(:has(.library-more-btn:hover, .component-dropdown-trigger:hover)) {
       background: var(--figma-color-bg-hover);
     }
     
@@ -1969,7 +1983,7 @@
             <div class="dropdown-trigger" id="targetLibraryTrigger">
               <span class="selected-library-name" id="target-library-label">Select Library</span>
               <svg class="chevron-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M9.64645 11.1464C9.84171 10.9512 10.1583 10.9512 10.3536 11.1464L12 12.7929L13.6464 11.1464C13.8417 10.9512 14.1583 10.9512 14.3536 11.1464C14.5488 11.3417 14.5488 11.6583 14.3536 11.8536L12.3536 13.8536C12.1583 14.0488 11.8417 14.0488 11.6464 13.8536L9.64645 11.8536C9.45118 11.6583 9.45118 11.3417 9.64645 11.1464Z" fill="currentColor" fill-opacity="0.9"/>
               </svg>
             </div>
             <div class="dropdown-menu" id="targetLibraryMenu">
@@ -2273,6 +2287,11 @@
         <span class="filter-label-text">Ignore</span>
       </div>
     </div>
+  </div>
+
+  <!-- Component Selection Menu -->
+  <div id="componentSelectionMenu" class="dropdown-menu" style="position: fixed; display: none; z-index: 2000; max-height: 300px; overflow-y: auto;">
+    <!-- Options injected via JS -->
   </div>
 
   <!-- Add Library Modal - REMOVED -->
@@ -2777,23 +2796,34 @@
               }
           }
 
-          const targetElementHTML = isMatchFound ? `
+          const chevronIcon = `<svg class="chevron-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.64645 11.1464C9.84171 10.9512 10.1583 10.9512 10.3536 11.1464L12 12.7929L13.6464 11.1464C13.8417 10.9512 14.1583 10.9512 14.3536 11.1464C14.5488 11.3417 14.5488 11.6583 14.3536 11.8536L12.3536 13.8536C12.1583 14.0488 11.8417 14.0488 11.6464 13.8536L9.64645 11.8536C9.45118 11.6583 9.45118 11.3417 9.64645 11.1464Z" fill="var(--figma-color-icon)" fill-opacity="0.9"/></svg>`;
+          
+          const componentIcon = `<svg class="component-icon" viewBox="0 0 24 24" fill="none"><path d="M11.1163 13.5907C11.6045 13.1027 12.3958 13.1026 12.8839 13.5907L14.2628 14.9696C14.7506 15.4577 14.7507 16.2491 14.2628 16.7372L12.8839 18.1161C12.3958 18.604 11.6045 18.6039 11.1163 18.1161L9.73741 16.7372C9.24928 16.249 9.24935 15.4577 9.73741 14.9696L11.1163 13.5907ZM12.1769 14.2977C12.0793 14.2001 11.921 14.2002 11.8233 14.2977L10.4444 15.6766C10.3469 15.7743 10.3468 15.9325 10.4444 16.0301L11.8233 17.409C11.921 17.5064 12.0793 17.5065 12.1769 17.409L13.5558 16.0301C13.6531 15.9326 13.6531 15.7742 13.5558 15.6766L12.1769 14.2977ZM7.2628 9.73716C7.75097 9.24916 8.54227 9.24906 9.03038 9.73716L10.4093 11.1161C10.8972 11.6042 10.8972 12.3956 10.4093 12.8836L9.03038 14.2626C8.54229 14.7505 7.75094 14.7504 7.2628 14.2626L5.88389 12.8836C5.39577 12.3955 5.39583 11.6042 5.88389 11.1161L7.2628 9.73716ZM14.9698 9.73716C15.458 9.2491 16.2493 9.24904 16.7374 9.73716L18.1163 11.1161C18.6042 11.6042 18.6043 12.3956 18.1163 12.8836L16.7374 14.2626C16.2493 14.7506 15.458 14.7504 14.9698 14.2626L13.5909 12.8836C13.1028 12.3955 13.1028 11.6042 13.5909 11.1161L14.9698 9.73716ZM8.32334 10.4442C8.22576 10.3466 8.06747 10.3467 7.96983 10.4442L6.59092 11.8231C6.49339 11.9207 6.49332 12.079 6.59092 12.1766L7.96983 13.5555C8.06778 13.6529 8.22613 13.6529 8.32334 13.5554L9.70257 12.1765C9.79965 12.079 9.79989 11.9206 9.70257 11.823L8.32367 10.4441ZM16.0307 10.4441C15.9331 10.3465 15.7748 10.3466 15.6772 10.4441L14.2983 11.823C14.2007 11.9207 14.2007 12.0789 14.2983 12.1765L15.6772 13.5554C15.7748 13.6527 15.9331 13.6529 16.0307 13.5554L17.4096 12.1765C17.507 12.079 17.5069 11.9206 17.4096 11.823L16.0307 10.4441ZM11.1166 5.88364C11.6048 5.39559 12.3961 5.39553 12.8842 5.88364L14.2631 7.26253C14.7509 7.75067 14.7511 8.54203 14.2631 9.03009L12.8842 10.409L12.7895 10.4949C12.3313 10.8686 11.6696 10.8684 11.2114 10.4949L11.1166 10.409L9.73773 9.03009C9.2801 8.57247 9.2514 7.84822 9.65179 7.35726L9.73773 7.26253L11.1166 5.88364ZM12.1772 6.59067C12.0796 6.49307 11.9213 6.49313 11.8237 6.59067L10.4444 7.96955C10.3472 8.06719 10.3472 8.22547 10.4448 8.32307L11.8237 9.70195C11.921 9.79927 12.0796 9.7994 12.1772 9.70195L13.5561 8.32307C13.6535 8.22552 13.6534 8.06718 13.5561 7.96955L12.1772 6.59067Z" fill="currentColor"/></svg>`;
+
+          let targetElementHTML = '';
+          
+          if (isTargetValid) {
+             const displayName = isMatchFound ? targetComponentName : 'Select Component';
+             const displayStyle = isMatchFound ? '' : 'color: var(--figma-color-text-tertiary); font-style: italic;';
+             
+             targetElementHTML = `
               <div class="target-element">
-                <div class="icon-container">
-                  <svg class="component-icon" viewBox="0 0 24 24" fill="none">
-                    <path d="M11.1163 13.5907C11.6045 13.1027 12.3958 13.1026 12.8839 13.5907L14.2628 14.9696C14.7506 15.4577 14.7507 16.2491 14.2628 16.7372L12.8839 18.1161C12.3958 18.604 11.6045 18.6039 11.1163 18.1161L9.73741 16.7372C9.24928 16.249 9.24935 15.4577 9.73741 14.9696L11.1163 13.5907ZM12.1769 14.2977C12.0793 14.2001 11.921 14.2002 11.8233 14.2977L10.4444 15.6766C10.3469 15.7743 10.3468 15.9325 10.4444 16.0301L11.8233 17.409C11.921 17.5064 12.0793 17.5065 12.1769 17.409L13.5558 16.0301C13.6531 15.9326 13.6531 15.7742 13.5558 15.6766L12.1769 14.2977ZM7.2628 9.73716C7.75097 9.24916 8.54227 9.24906 9.03038 9.73716L10.4093 11.1161C10.8972 11.6042 10.8972 12.3956 10.4093 12.8836L9.03038 14.2626C8.54229 14.7505 7.75094 14.7504 7.2628 14.2626L5.88389 12.8836C5.39577 12.3955 5.39583 11.6042 5.88389 11.1161L7.2628 9.73716ZM14.9698 9.73716C15.458 9.2491 16.2493 9.24904 16.7374 9.73716L18.1163 11.1161C18.6042 11.6042 18.6043 12.3956 18.1163 12.8836L16.7374 14.2626C16.2493 14.7506 15.458 14.7504 14.9698 14.2626L13.5909 12.8836C13.1028 12.3955 13.1028 11.6042 13.5909 11.1161L14.9698 9.73716ZM8.32334 10.4442C8.22576 10.3466 8.06747 10.3467 7.96983 10.4442L6.59092 11.8231C6.49339 11.9207 6.49332 12.079 6.59092 12.1766L7.96983 13.5555C8.06745 13.6529 8.22578 13.653 8.32334 13.5555L9.70257 12.1766C9.79965 12.0791 9.7996 11.9207 9.70225 11.8231L8.32334 10.4442ZM16.0304 10.4442C15.9328 10.3466 15.7745 10.3467 15.6769 10.4442L14.298 11.8231C14.2004 11.9207 14.2003 12.079 14.298 12.1766L15.6769 13.5555C15.7745 13.6529 15.9328 13.653 16.0304 13.5555L17.4093 12.1766C17.5067 12.0791 17.5066 11.9207 17.4093 11.8231L16.0304 10.4442ZM11.1163 5.88365C11.6045 5.39559 12.3958 5.39552 12.8839 5.88365L14.2628 7.26255C14.7507 7.7507 14.7508 8.54205 14.2628 9.03013L12.8839 10.409C12.3958 10.8971 11.6045 10.8969 11.1163 10.409L9.73741 9.03013C9.24926 8.54199 9.24929 7.75071 9.73741 7.26255L11.1163 5.88365ZM12.1769 6.59068C12.0793 6.49308 11.921 6.49314 11.8233 6.59068L10.4444 7.96959C10.3468 8.06722 10.3468 8.22548 10.4444 8.3231L11.8233 9.70201C11.921 9.79939 12.0793 9.79953 12.1769 9.70201L13.5558 8.3231C13.6532 8.22554 13.6531 8.0672 13.5558 7.96959L12.1769 6.59068Z" fill="currentColor"/>
-                  </svg>
+                <div class="dropdown-trigger component-dropdown-trigger" style="padding-left: 0;">
+                   <div class="icon-container" style="margin-right: 4px;">
+                      ${componentIcon}
+                   </div>
+                   <span class="selected-library-name component-name" style="${displayStyle}">${displayName}</span>
+                   ${chevronIcon}
                 </div>
-                <span class="component-name">${targetComponentName}</span>
               </div>
-          ` : `
+             `;
+          } else {
+             targetElementHTML = `
               <div class="target-element">
-                ${isTargetValid 
-                  ? '<span class="component-name" style="color: var(--figma-color-text-tertiary); font-size: 13px; font-style: italic;">No matching component</span>'
-                  : '<span class="component-name" style="color: var(--figma-color-text-tertiary); font-size: 13px; font-style: italic; width: 100%; text-align: center;">-</span>'
-                }
+                <span class="component-name" style="color: var(--figma-color-text-tertiary); font-size: 13px; font-style: italic; width: 100%; text-align: center;">-</span>
               </div>
-          `;
+             `;
+          }
 
           mappingItem.innerHTML = `
             <input type="checkbox" class="mapping-checkbox" checked>
@@ -2820,6 +2850,15 @@
             </div>
           `;
           
+          // Dropdown handler
+          const trigger = mappingItem.querySelector('.component-dropdown-trigger');
+          if (trigger) {
+             trigger.addEventListener('click', (e) => {
+                 e.stopPropagation();
+                 showComponentSelectionMenu(e, targetLibObj, mappingItem, firstVariant);
+             });
+          }
+
           // Context menu handler
           const moreBtn = mappingItem.querySelector('.library-more-btn');
           if (moreBtn) {
@@ -3448,10 +3487,21 @@
             // It's a regular component - use the variant names from data attribute for swapping
             // If multiple variants, they're comma-separated
             const variantNames = item.dataset.variantNames || item.querySelector('.component-name').textContent;
+            
+            // Get the selected target component name from the dropdown
+            const targetNameSpan = item.querySelector('.selected-library-name');
+            let selectedTargetName = targetNameSpan ? targetNameSpan.textContent : null;
+            
+            // Filter out placeholder text
+            if (selectedTargetName === 'Select Component' || selectedTargetName === '-') {
+                selectedTargetName = null;
+            }
+
             const variants = variantNames.split(',').map(v => v.trim());
             variants.forEach(variantName => {
               componentsToSwap.push({
                 name: variantName,
+                targetName: selectedTargetName, // Pass the manually selected target name
                 sourceLibrary: sourceLibrary,
                 targetLibrary: targetLibrary
               });
@@ -4238,8 +4288,8 @@
       const rect = btn.getBoundingClientRect();
       menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
       // Align right edge of menu with right edge of button, but ensure it doesn't go off screen
-      // The menu width is min 208px.
-      menu.style.left = `${rect.right - 208}px`; 
+      // The menu width is min 208px. Pushed 16px left for spacing.
+      menu.style.left = `${rect.right - 208 - 16}px`; 
       menu.style.display = 'block';
       
       // Close on click outside (using overlay)
@@ -4254,11 +4304,97 @@
         }
       };
       
+      // Also close when clicking any item inside the menu
+      const menuItems = menu.querySelectorAll('.filter-menu-item');
+      menuItems.forEach(item => {
+        item.onclick = (e) => {
+          // e.stopPropagation(); // Don't stop propagation, let it bubble if needed, but definitely close menu
+          closeMenu();
+        };
+      });
+      
       if (overlay) {
         overlay.classList.add('active');
         overlay.addEventListener('click', closeMenu);
       } else {
         // Fallback
+        setTimeout(() => {
+          document.addEventListener('click', closeMenu);
+        }, 0);
+      }
+    }
+
+    function showComponentSelectionMenu(e, targetLibObj, mappingItem, sourceVariant) {
+      const menu = document.getElementById('componentSelectionMenu');
+      const overlay = document.getElementById('filterDropdownOverlay');
+      if (!menu || !targetLibObj || !targetLibObj.components) return;
+      
+      const trigger = e.currentTarget;
+      trigger.classList.add('active');
+      
+      // Populate menu
+      menu.innerHTML = '';
+      const components = Object.keys(targetLibObj.components).sort();
+      
+      if (components.length === 0) {
+          menu.innerHTML = '<div class="dropdown-option" style="padding: 8px; color: var(--figma-color-text-secondary); font-style: italic; cursor: default;">No components found</div>';
+      } else {
+          components.forEach(compName => {
+              const item = document.createElement('div');
+              item.className = 'dropdown-option';
+              
+              const nameSpan = mappingItem.querySelector('.selected-library-name');
+              const currentName = nameSpan ? nameSpan.textContent : '';
+              if (compName === currentName) {
+                  item.classList.add('selected');
+              }
+              
+              const checkIcon = `<svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg>`;
+              
+              const componentIcon = `<div class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg class="component-icon" viewBox="0 0 24 24" fill="none" style="width: 16px; height: 16px;"><path d="M11.1163 13.5907C11.6045 13.1027 12.3958 13.1026 12.8839 13.5907L14.2628 14.9696C14.7506 15.4577 14.7507 16.2491 14.2628 16.7372L12.8839 18.1161C12.3958 18.604 11.6045 18.6039 11.1163 18.1161L9.73741 16.7372C9.24928 16.249 9.24935 15.4577 9.73741 14.9696L11.1163 13.5907ZM12.1769 14.2977C12.0793 14.2001 11.921 14.2002 11.8233 14.2977L10.4444 15.6766C10.3469 15.7743 10.3468 15.9325 10.4444 16.0301L11.8233 17.409C11.921 17.5064 12.0793 17.5065 12.1769 17.409L13.5558 16.0301C13.6531 15.9326 13.6531 15.7742 13.5558 15.6766L12.1769 14.2977ZM7.2628 9.73716C7.75097 9.24916 8.54227 9.24906 9.03038 9.73716L10.4093 11.1161C10.8972 11.6042 10.8972 12.3956 10.4093 12.8836L9.03038 14.2626C8.54229 14.7505 7.75094 14.7504 7.2628 14.2626L5.88389 12.8836C5.39577 12.3955 5.39583 11.6042 5.88389 11.1161L7.2628 9.73716ZM14.9698 9.73716C15.458 9.2491 16.2493 9.24904 16.7374 9.73716L18.1163 11.1161C18.6042 11.6042 18.6043 12.3956 18.1163 12.8836L16.7374 14.2626C16.2493 14.7506 15.458 14.7504 14.9698 14.2626L13.5909 12.8836C13.1028 12.3955 13.1028 11.6042 13.5909 11.1161L14.9698 9.73716ZM8.32334 10.4442C8.22576 10.3466 8.06747 10.3467 7.96983 10.4442L6.59092 11.8231C6.49339 11.9207 6.49332 12.0789 6.59092 12.1766L7.96983 13.5555C8.06778 13.6529 8.22613 13.6529 8.32367 13.5554L9.70257 12.1765C9.80001 12.079 9.79989 11.9206 9.70257 11.823L8.32367 10.4441ZM16.0307 10.4441C15.9331 10.3465 15.7748 10.3466 15.6772 10.4441L14.2983 11.823C14.2007 11.9207 14.2007 12.0789 14.2983 12.1765L15.6772 13.5554C15.7748 13.6527 15.9331 13.6529 16.0307 13.5554L17.4096 12.1765C17.507 12.079 17.5069 11.9206 17.4096 11.823L16.0307 10.4441ZM11.1166 5.88364C11.6048 5.39559 12.3961 5.39553 12.8842 5.88364L14.2631 7.26253C14.7509 7.75067 14.7511 8.54203 14.2631 9.03009L12.8842 10.409L12.7895 10.4949C12.3313 10.8686 11.6696 10.8684 11.2114 10.4949L11.1166 10.409L9.73773 9.03009C9.2801 8.57247 9.2514 7.84822 9.65179 7.35726L9.73773 7.26253L11.1166 5.88364ZM12.1772 6.59067C12.0796 6.49307 11.9213 6.49313 11.8237 6.59067L10.4444 7.96955C10.3472 8.06719 10.3472 8.22547 10.4448 8.32307L11.8237 9.70195C11.921 9.79927 12.0796 9.7994 12.1772 9.70195L13.5561 8.32307C13.6535 8.22552 13.6534 8.06718 13.5561 7.96955L12.1772 6.59067Z" fill="currentColor"/></svg></div>`;
+              
+              item.innerHTML = `${checkIcon}${componentIcon}<span>${compName}</span>`;
+              
+              item.onclick = (e) => {
+                  e.stopPropagation();
+                  // Update UI
+                  if (nameSpan) {
+                      nameSpan.textContent = compName;
+                      nameSpan.style.color = '';
+                      nameSpan.style.fontStyle = '';
+                  }
+                  // Close menu
+                  closeMenu();
+              };
+              
+              menu.appendChild(item);
+          });
+      }
+      
+      // Position menu
+      const rect = trigger.getBoundingClientRect();
+      menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+      menu.style.left = `${rect.left}px`;
+      menu.style.width = 'auto';
+      menu.style.minWidth = `${Math.max(rect.width, 254)}px`;
+      menu.style.display = 'block';
+      
+      // Close logic
+      const closeMenu = () => {
+        menu.style.display = 'none';
+        trigger.classList.remove('active');
+        if (overlay) {
+          overlay.classList.remove('active');
+          overlay.removeEventListener('click', closeMenu);
+        } else {
+          document.removeEventListener('click', closeMenu);
+        }
+      };
+      
+      if (overlay) {
+        overlay.classList.add('active');
+        overlay.addEventListener('click', closeMenu);
+      } else {
         setTimeout(() => {
           document.addEventListener('click', closeMenu);
         }, 0);
