@@ -2886,7 +2886,7 @@
 
         // Set up message handler for all target color responses
         const messageHandler = (event) => {
-          console.log('🔍 UI received message:', event.data);
+          // console.log('🔍 UI received message:', event.data);
           const msg = event.data.pluginMessage;
           if (msg && msg.type === 'TARGET_COLOR_RESULT') {
             const { tokenId, color } = msg;
@@ -3512,8 +3512,8 @@
       
       // Styles logic remains unchanged (handled above)
       
-      console.log('Components to swap:', componentsToSwap);
-      console.log('Styles to swap:', stylesToSwap);
+      console.log('Components to swap (count):', componentsToSwap.length);
+      console.log('Styles to swap (count):', stylesToSwap.length);
       console.log('Source library:', sourceLibrary);
       console.log('Target library:', targetLibrary);
       

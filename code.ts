@@ -307,8 +307,12 @@ async function handleSyncCurrentFile() {
         componentNodes.forEach(node => {
             // Store KEY instead of ID for better cross-file matching
             // We will handle local lookup by scanning keys if needed
-            components[node.name] = node.key;
-            // console.log(`     - Component: ${node.name}, Key: ${node.key}`);
+            let entryName = node.name;
+            if (node.parent && node.parent.type === 'COMPONENT_SET') {
+                entryName = `${node.parent.name}/${node.name}`;
+            }
+            components[entryName] = node.key;
+            // console.log(`     - Component: ${entryName}, Key: ${node.key}`);
         });
         console.log(`   ✅ Found ${Object.keys(components).length} local components.`);
     } catch (e) {
@@ -1774,8 +1778,8 @@ async function restoreTargetStyles(instanceNode: SceneNode, targetComponent: Com
 // Add detailed swap logic for PERFORM_LIBRARY_SWAP
 async function performLibrarySwap(components: any[], styles: any[], sourceLibrary: string, targetLibrary: string) {
   console.log('🔄 performLibrarySwap called!');
-  console.log('Components:', components);
-  console.log('Styles:', styles);
+  console.log(`Components to swap: ${components.length}`);
+  console.log(`Styles to swap: ${styles.length}`);
   console.log('Source Library:', sourceLibrary);
   console.log('Target Library:', targetLibrary);
 
@@ -1811,10 +1815,36 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
             if (targetLibObj && targetLibObj.components) {
                 // Use explicitly provided target name if available, otherwise fallback to source name
                 const lookupName = comp.targetName || comp.name;
+                
+                // console.log(`  🔎 Lookup: '${lookupName}' in library '${targetLibrary}'`);
+                
                 targetKey = targetLibObj.components[lookupName];
+                
+                if (targetKey) {
+                    console.log(`  ✅ Found exact match: ${lookupName} -> ${targetKey}`);
+                }
+                
+                // Fallback: If not found, try looking up the parent Component Set
+                // This handles cases where we are swapping a specific variant but the target library only indexed the Component Set,
+                // or if the exact variant mapping is missing.
+                if (!targetKey) {
+                   // 1. Try using source parent name if available (assuming same structure in target)
+                   if (comp.parentName && targetLibObj.components[comp.parentName]) {
+                       targetKey = targetLibObj.components[comp.parentName];
+                       console.log(`  ✅ Fallback: Found parent Component Set directly: ${comp.parentName} -> ${targetKey}`);
+                   }
+                   // 2. Try splitting lookupName by '/' (for namespaced variants like "Button/Type=Primary")
+                   else if (lookupName.includes('/')) {
+                       const parentPart = lookupName.split('/')[0];
+                       if (targetLibObj.components[parentPart]) {
+                           targetKey = targetLibObj.components[parentPart];
+                           console.log(`  ✅ Fallback: Found parent Component Set by path: ${parentPart} -> ${targetKey}`);
+                       }
+                   }
+                }
 
                 if (!targetKey) {
-                    console.warn(`⚠️ Component '${lookupName}' not found in target library '${targetLibrary}'. Available components:`, Object.keys(targetLibObj.components));
+                    console.warn(`  ⚠️ Component '${lookupName}' not found in target library '${targetLibrary}'.`);
                 }
             }
             
@@ -1835,7 +1865,9 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               let importedComponent: ComponentNode | ComponentSetNode | null = null;
               
               // Check if target is the Current File (Local Context)
-              const isTargetCurrentFile = figma.root.name === targetLibrary;
+              // We check both name and File ID/Key if available
+              const isTargetCurrentFile = figma.root.name === targetLibrary || 
+                                          (targetLibObj?.id && figma.root.getPluginData('swap_library_file_id') === targetLibObj.id);
               
               if (isTargetCurrentFile) {
                   // Try to find by ID first (Legacy support)
@@ -1846,6 +1878,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                   } else {
                       // Try to find by Key (New support)
                       // This is expensive, so we should optimize if possible, but for now scan all components
+                      // findAllWithCriteria is faster than findAll
                       const allComponents = figma.root.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] });
                       const found = allComponents.find(c => c.key === targetKey);
                       if (found) {
@@ -1855,10 +1888,70 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                   }
               } else {
                   // Target is Remote
+                  console.log(`  🌐 Attempting to import REMOTE component with key: ${targetKey}`);
                   try {
                       importedComponent = await figma.importComponentByKeyAsync(targetKey);
+                      console.log(`  ✅ Successfully imported remote component: ${importedComponent.name}`);
                   } catch (e) {
-                      console.warn(`Failed to import component by key ${targetKey}:`, e);
+                      console.warn(`  ❌ Failed to import component by key ${targetKey}:`, e);
+                      
+                      // NEW: Retry with the specific Variant Name (ignoring targetName override)
+                      // If targetName set the lookup to the Component Set (e.g. "Rectangle") and it failed,
+                      // we should try the specific variant name from the source (e.g. "Rectangle/Shape=Square")
+                      // provided that the target library has a key for it.
+                      if (!importedComponent && comp.name && comp.name !== comp.targetName) {
+                          if (targetLibObj && targetLibObj.components && targetLibObj.components[comp.name]) {
+                               const variantKey = targetLibObj.components[comp.name];
+                               if (variantKey && variantKey !== targetKey) {
+                                   console.log(`  🔄 Retry: Attempting to import by Source Variant Name: ${comp.name} (${variantKey})`);
+                                   try {
+                                       importedComponent = await figma.importComponentByKeyAsync(variantKey);
+                                       if (importedComponent) {
+                                           console.log(`  ✅ Successfully imported by Source Variant Name: ${importedComponent.name}`);
+                                       }
+                                   } catch (eV) {
+                                       console.warn(`  ❌ Failed to import by Source Variant Name key:`, eV);
+                                   }
+                               }
+                          }
+                      }
+                      
+                      // Retry with Parent Component Set Key if this was a variant specific key
+                      // Log shows expected lookup was "Rectangle/Shape=Square", but maybe that key refers to an unpublished/private main component?
+                      // If we can default to the "Rectangle" set key, we might succeed.
+                      
+                      // Derive parent name if needed (comp.parentName might be undefined)
+                      const parentName = comp.parentName || (comp.name.includes('/') ? comp.name.split('/')[0] : null);
+                      
+                      if (!importedComponent && parentName && targetLibObj && targetLibObj.components && targetLibObj.components[parentName]) {
+                           const parentKey = targetLibObj.components[parentName];
+                           if (parentKey && parentKey !== targetKey) {
+                               console.log(`  🔄 Retry: Attempting to import Parent Component Set instead: ${parentName} (${parentKey})`);
+                               try {
+                                   importedComponent = await figma.importComponentByKeyAsync(parentKey);
+                                   console.log(`  ✅ Successfully imported Parent Component Set: ${importedComponent.name}`);
+                               } catch (e2) {
+                                   console.warn(`  ❌ Failed to import Parent Component Set by key ${parentKey}:`, e2);
+                               }
+                           }
+                      }
+                      
+                      // If still failing, try simple name splits (e.g. "Rectangle" from "Rectangle/Shape=Square")
+                      if (!importedComponent && comp.name.includes('/')) {
+                          const simpleName = comp.name.split('/')[0];
+                          if (targetLibObj && targetLibObj.components && targetLibObj.components[simpleName]) {
+                               const simpleKey = targetLibObj.components[simpleName];
+                               if (simpleKey && simpleKey !== targetKey) {
+                                   console.log(`  🔄 Retry: Attempting to import by Simple Name: ${simpleName} (${simpleKey})`);
+                                   try {
+                                       importedComponent = await figma.importComponentByKeyAsync(simpleKey);
+                                       console.log(`  ✅ Successfully imported by Simple Name: ${importedComponent.name}`);
+                                   } catch (e3) {
+                                       console.warn(`  ❌ Failed to import by Simple Name key:`, e3);
+                                   }
+                               }
+                          }
+                      }
                   }
               }
 
@@ -1897,7 +1990,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                     }
                     if (Object.keys(overrides).length > 0) {
                       nestedInstanceOverrides.set(nestedInstanceIndex, overrides);
-                      console.log(`  ⚙️ Captured overrides for nested instance #${nestedInstanceIndex}: ${Object.keys(overrides).join(', ')}`);
+                      // console.log(`  ⚙️ Captured overrides for nested instance #${nestedInstanceIndex}`);
                     }
                   }
                   
@@ -1925,7 +2018,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                   layoutProps.height = instNode.height;
                   if (Object.keys(layoutProps).length > 0) {
                     nestedInstanceLayouts.set(nestedInstanceIndex, layoutProps);
-                    console.log(`  📐 Captured layout for nested instance #${nestedInstanceIndex}: ${Object.keys(layoutProps).join(', ')}`);
+                    // console.log(`  📐 Captured layout for nested instance #${nestedInstanceIndex}`);
                   }
                   
                   nestedInstanceIndex++;
@@ -1953,7 +2046,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                     text: textNode.characters,
                     fontName: textNode.fontName
                   });
-                  console.log(`  📝 Captured text #${textNodeIndex - 1} from "${nodePath}": "${textNode.characters.substring(0, 30)}..."`);
+                  // console.log(`  📝 Captured text #${textNodeIndex - 1} from "${nodePath}"`);
                 }
                 if ('children' in node) {
                   for (const child of node.children) {
@@ -1961,26 +2054,91 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                   }
                 }
               }
-              console.log('🔄 Capturing text values before swap...');
+              // console.log('🔄 Capturing text values before swap...');
               await captureTextValues(instanceNode);
-              console.log(`  Total text nodes captured: ${textValues.size}`);
+              // console.log(`  Total text nodes captured: ${textValues.size}`);
               
               // Handle Component Sets (swapComponent requires a ComponentNode)
-              let componentToSwap = importedComponent;
-              if (componentToSwap.type === 'COMPONENT_SET') {
-                  if (componentToSwap.defaultVariant) {
-                      componentToSwap = componentToSwap.defaultVariant;
-                      console.log(`  ℹ️ Target is ComponentSet, using default variant: ${componentToSwap.name}`);
-                  } else if (componentToSwap.children.length > 0) {
-                      componentToSwap = componentToSwap.children[0] as ComponentNode;
-                      console.log(`  ℹ️ Target is ComponentSet (no default), using first variant: ${componentToSwap.name}`);
-                  } else {
-                      throw new Error(`Target Component Set ${importedComponent.name} has no variants.`);
-                  }
+              let componentToSwap: ComponentNode | null = null;
+              
+              if (importedComponent.type === 'COMPONENT_SET') {
+                   console.log(`  ℹ️ Imported object is a Component Set: ${importedComponent.name}`);
+                   // Try to find the matching variant by name parsing
+                   // Source Name: "Rectangle/Shape=Square" -> Variant Property: "Shape=Square"
+                   // Or simply "Shape=Square"
+                   
+                   // Parse desired properties from lookup name
+                   // If lookupName is "Button/Type=Primary, State=Hover"
+                   // We want to match { Type: "Primary", State: "Hover" }
+                   
+                   const targetVariantName = (comp.targetName || comp.name).split('/').pop(); // "Shape=Square"
+                   
+                   // Try to find a child with matching name
+                   // Component variants have names like "Type=Primary, State=Hover"
+                   
+                   // 1. Try exact name match on children
+                   const exactMatch = importedComponent.children.find(c => c.name === targetVariantName) as ComponentNode;
+                   if (exactMatch) {
+                       componentToSwap = exactMatch;
+                       console.log(`  ✅ Found variant by exact name match in set: ${componentToSwap.name}`);
+                   }
+                   
+                   // 2. Try parsing properties
+                   if (!componentToSwap && targetVariantName) {
+                       // Convert "Shape=Square, Size=Small" to object { Shape: "Square", Size: "Small" }
+                       const desiredProps: Record<string, string> = {};
+                       targetVariantName.split(',').forEach((pair: string) => {
+                           const [k, v] = pair.split('=').map((s: string) => s.trim());
+                           if (k && v) desiredProps[k] = v;
+                       });
+                       
+                       if (Object.keys(desiredProps).length > 0) {
+                           // Find variant that matches all desired properties
+                           
+                           const bestVariant = importedComponent.children.find(child => {
+                               if (child.type !== 'COMPONENT') return false;
+                               // Check if all desired props match this child's name properties
+                               // Child name format: "Key1=Value1, Key2=Value2"
+                               const childProps: Record<string, string> = {};
+                               child.name.split(',').forEach((pair: string) => {
+                                   const [k, v] = pair.split('=').map((s: string) => s.trim());
+                                   if (k && v) childProps[k] = v;
+                               });
+                               
+                               // Check match
+                               return Object.entries(desiredProps).every(([k, v]) => childProps[k] === v);
+                           });
+                           
+                           if (bestVariant) {
+                               componentToSwap = bestVariant as ComponentNode;
+                               console.log(`  ✅ Found variant by property match: ${componentToSwap.name}`);
+                           }
+                       }
+                   }
+                   
+                   // 3. Fallback to default variant
+                   if (!componentToSwap) {
+                       if (importedComponent.defaultVariant) {
+                           componentToSwap = importedComponent.defaultVariant;
+                           console.log(`  ⚠️ Exact variant not found, using default variant: ${componentToSwap.name}`);
+                       } else if (importedComponent.children.length > 0) {
+                           componentToSwap = importedComponent.children[0] as ComponentNode;
+                           console.log(`  ⚠️ Exact variant not found, using first available variant: ${componentToSwap.name}`);
+                       }
+                   }
+              } else {
+                  // It's already a specific component
+                  componentToSwap = importedComponent as ComponentNode;
+              }
+              
+              if (!componentToSwap) {
+                  throw new Error(`Content imported but could not resolve to a specific component/variant.`);
               }
 
+              console.log(`  ✅ Ready to swap instance to: ${componentToSwap.name}`);
+              
               // Perform the swap
-              instance.swapComponent(componentToSwap as ComponentNode);
+              instance.swapComponent(componentToSwap);
               console.log(`✅ Swapped component: ${instance.name}`);
               
               // Remove all overrides so instance uses only target library defaults
@@ -2013,7 +2171,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                         await figma.loadFontAsync(captured.fontName);
                       }
                       textNode.characters = captured.text;
-                      console.log(`  ✅ Reapplied text #${reapplyIndex - 1} to "${node.name}": "${captured.text.substring(0, 30)}..."`);
+                      // console.log(`  ✅ Reapplied text #${reapplyIndex - 1}`);
                     } catch (e) {
                       console.warn(`  ❌ Could not reapply text #${reapplyIndex - 1}:`, e);
                     }
@@ -2026,11 +2184,11 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                 }
               }
               await reapplyTextValues(instanceNode);
-              console.log('✅ Text reapplication complete');
+              // console.log('✅ Text reapplication complete');
               
               // Reapply captured nested instance property overrides
               if (nestedInstanceOverrides.size > 0) {
-                console.log(`🔄 Reapplying nested instance overrides after swap...`);
+                // console.log(`🔄 Reapplying nested instance overrides after swap...`);
                 let reapplyOverrideIndex = 0;
                 async function reapplyOverrides(node: SceneNode) {
                   if (node.type === 'INSTANCE') {
@@ -2061,7 +2219,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                         
                         if (Object.keys(newProps).length > 0) {
                           instNode.setProperties(newProps);
-                          console.log(`  ✅ Applied ${Object.keys(newProps).length} properties to nested instance #${reapplyOverrideIndex}`);
+                          // console.log(`  ✅ Applied ${Object.keys(newProps).length} properties to nested instance #${reapplyOverrideIndex}`);
                         }
                       } catch (e) {
                         console.warn(`  ❌ Could not reapply overrides for nested instance #${reapplyOverrideIndex}:`, e);
@@ -2076,12 +2234,12 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                   }
                 }
                 await reapplyOverrides(instanceNode);
-                console.log('✅ Nested instance override reapplication complete');
+                // console.log('✅ Nested instance override reapplication complete');
               }
               
               // Reapply captured layout overrides
               if (nestedInstanceLayouts.size > 0) {
-                console.log('🔄 Reapplying layout overrides after swap...');
+                // console.log('🔄 Reapplying layout overrides after swap...');
                 let reapplyLayoutIndex = 0;
                 async function reapplyLayouts(node: SceneNode) {
                   if (node.type === 'INSTANCE') {
@@ -2121,9 +2279,9 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                           }
                         }
                         
-                        if (applied > 0) {
-                          console.log(`  ✅ Applied ${applied} layout properties to nested instance #${reapplyLayoutIndex}`);
-                        }
+                        // if (applied > 0) {
+                        //   console.log(`  ✅ Applied ${applied} layout properties to nested instance #${reapplyLayoutIndex}`);
+                        // }
                       } catch (e) {
                         console.warn(`  ❌ Could not reapply layout for nested instance #${reapplyLayoutIndex}:`, e);
                       }
