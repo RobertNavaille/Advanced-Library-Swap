@@ -2142,18 +2142,23 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               console.log(`✅ Swapped component: ${instance.name}`);
               
               // Remove all overrides so instance uses only target library defaults
-              try {
-                const inst = instanceNode as any;
-                if (typeof inst.removeOverrides === 'function') {
-                  inst.removeOverrides();
-                  console.log('✅ Removed all overrides');
-                } else if (typeof inst.resetAllOverrides === 'function') {
-                  // Fallback to resetAllOverrides if removeOverrides doesn't exist
-                  inst.resetAllOverrides();
-                  console.log('✅ Reset all overrides (fallback)');
-                }
-              } catch (e) {
-                console.warn('Error removing overrides:', e);
+              // Only do this if "Preserve style overrides" is NOT checked
+              if (!comp.preserveStyle) {
+                  try {
+                    const inst = instanceNode as any;
+                    if (typeof inst.removeOverrides === 'function') {
+                      inst.removeOverrides();
+                      console.log('✅ Removed all overrides (User requested reset)');
+                    } else if (typeof inst.resetAllOverrides === 'function') {
+                      // Fallback to resetAllOverrides if removeOverrides doesn't exist
+                      inst.resetAllOverrides();
+                      console.log('✅ Reset all overrides (fallback)');
+                    }
+                  } catch (e) {
+                    console.warn('Error removing overrides:', e);
+                  }
+              } else {
+                  console.log('ℹ️ Preserving style overrides (User requested)');
               }
               
               // Reapply captured text values using same index-based approach

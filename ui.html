@@ -882,8 +882,17 @@
       left: 0;
       right: 0;
       bottom: 0;
-      z-index: 99;
+      z-index: 1500; /* Increased to be above everything else but below menus */
       display: none;
+      /* background: rgba(0,255,0,0.1);  Debug tint */
+    }
+    
+    /* Ensure menus are above the overlay */
+    .filter-dropdown, 
+    #scanResultContextMenu, 
+    #componentSelectionMenu, 
+    .dropdown-menu {
+        z-index: 2000;
     }
     
     .filter-dropdown-overlay.active {
@@ -895,7 +904,7 @@
       position: absolute;
       top: 104px;
       right: 16px;
-      z-index: 200;
+      z-index: 3000;
       background: #1e1e1e;
       border-radius: 13px;
       box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.12), 0px 10px 16px 0px rgba(0,0,0,0.12), 0px 2px 5px 0px rgba(0,0,0,0.15);
@@ -1063,7 +1072,7 @@
       height: 24px;
       width: 100%;
       box-sizing: border-box;
-      z-index: 100;
+      z-index: 2001; /* Must be higher than overlay (1500) */
     }
 
     .dropdown-trigger {
@@ -1131,7 +1140,7 @@
       border-radius: 13px;
       box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.12), 0px 10px 16px 0px rgba(0,0,0,0.12), 0px 2px 5px 0px rgba(0,0,0,0.15);
       width: 254px;
-      z-index: 100;
+      z-index: 2000;
       display: none;
       max-height: 200px;
       overflow-y: auto;
@@ -1176,6 +1185,11 @@
 
     .dropdown-option:hover {
       background: var(--figma-color-bg-brand);
+      color: var(--figma-color-text-onbrand);
+    }
+    
+    .dropdown-option:hover span {
+      color: var(--figma-color-text-onbrand);
     }
 
     .dropdown-divider {
@@ -1186,7 +1200,6 @@
       width: calc(100% + 16px);
       margin-left: -8px;
       margin-right: -8px;
-      flex-shrink: 0;
     }
     
     .dropdown-divider::after {
@@ -1194,6 +1207,41 @@
       height: 1px;
       width: 100%;
       background-color: #383838;
+    }
+    
+    .menu-checkbox-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 16px; 
+        width: 16px;
+    }
+    
+    .menu-checkbox {
+      width: 16px;
+      height: 16px;
+      border: 1px solid #444; 
+      border-radius: 5px;
+      background: #383838;
+      box-sizing: border-box;
+      position: relative;
+    }
+    
+    .filter-menu-item.checked .menu-checkbox {
+         background: var(--figma-color-bg-brand);
+         border-color: var(--figma-color-border);
+    }
+    
+    .filter-menu-item.checked .menu-checkbox::after {
+        content: '';
+        position: absolute;
+        width: 8px;
+        height: 7px;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background-image: url("data:image/svg+xml,%3Csvg width='8' height='7' viewBox='0 0 8 7' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3.5L3 5.5L7 1.5' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
     }
 
     /* Add Library Modal */
@@ -2283,8 +2331,15 @@
   <!-- Scan Result Context Menu -->
   <div id="scanResultContextMenu" class="filter-dropdown" style="display: none; position: fixed; z-index: 2000; right: auto;">
     <div class="filter-menu">
-      <div class="filter-menu-item" id="ignoreScanResultBtn">
-        <span class="filter-label-text">Ignore</span>
+      <div class="filter-menu-item" id="preserveStyleBtn">
+        <span class="filter-label-text">Preserve style overrides</span>
+        <div class="menu-checkbox-container">
+           <div class="menu-checkbox"></div>
+        </div>
+      </div>
+      <div class="dropdown-divider"></div>
+      <div class="filter-menu-item" id="configurePropsBtn">
+        <span class="filter-label-text">Configure properties</span>
       </div>
     </div>
   </div>
@@ -2433,6 +2488,25 @@
     // View management
     function showView(viewId) {
       console.log('Switching to view:', viewId);
+
+      // Close all menus and overlays when switching views
+      if (typeof closeScanResultContextMenu === 'function') {
+        closeScanResultContextMenu();
+      }
+      
+      const overlay = document.getElementById('filterDropdownOverlay');
+      if (overlay) overlay.classList.remove('active');
+
+      const allMenus = document.querySelectorAll('.filter-dropdown, .dropdown-menu, .target-library-dropdown, #scanResultContextMenu');
+      allMenus.forEach(m => {
+        m.style.display = 'none';
+        m.classList.remove('show');
+      });
+
+      document.querySelectorAll('.filter-button.active, .icon-button.active').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
       document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
       const targetView = document.getElementById(viewId);
       if (targetView) {
@@ -2471,6 +2545,8 @@
       // If no other libraries, show placeholder
       if (availableLibraries.length === 0) {
         label.textContent = "No target libraries";
+        trigger.classList.add('disabled');
+      } else {
         trigger.classList.remove('disabled');
       }
       
@@ -2517,14 +2593,6 @@
           
           console.log('Target library changed to:', lib.name);
           
-          // Trigger update of scan results view with new target
-          // We need to access the current scan data. It's stored in currentScanData global variable?
-          // Let's check if we have access to the data.
-          // The updateScanResultsView function takes (data, selectedLibrary, explicitTargetLibrary)
-          // We need to find where the data is stored.
-          // Looking at previous code, 'data' is passed to updateScanResultsView.
-          // We should store it globally or pass it around.
-          
           if (window.lastScanData) {
               updateScanResultsView(window.lastScanData, sourceLibraryName, lib.name);
           } else {
@@ -2534,94 +2602,18 @@
         
         menu.appendChild(option);
       });
-
-      // Add Divider only if there are libraries - REMOVED as "Add library" option is removed
-      /*
-      if (availableLibraries.length > 0) {
-        const divider = document.createElement('div');
-        divider.className = 'dropdown-divider';
-        menu.appendChild(divider);
-      }
-      */
-
-      // Add "Add library" option - REMOVED as we only support local sync now
-      /*
-      const addOption = document.createElement('div');
-      addOption.className = 'dropdown-option';
       
-      const plusIcon = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 2.5C8.5 2.22386 8.27614 2 8 2C7.72386 2 7.5 2.22386 7.5 2.5V7.5H2.5C2.22386 7.5 2 7.72386 2 8C2 8.27614 2.22386 8.5 2.5 8.5H7.5V13.5C7.5 13.7761 7.72386 14 8 14C8.27614 14 8.5 13.7761 8.5 13.5V8.5H13.5C13.7761 8.5 14 8.27614 14 8C14 7.72386 13.7761 7.5 13.5 7.5H8.5V2.5Z" fill="currentColor" fill-opacity="0.9"/></svg>`;
-      
-      addOption.innerHTML = `${plusIcon}<span>Add library</span>`;
-      
-      addOption.addEventListener('click', (e) => {
-          e.stopPropagation();
-          console.log('Add library clicked');
-          
-          // Close menu
-          menu.classList.remove('show');
-          trigger.classList.remove('active');
-          
-          // Hide overlay
-          if (overlay) {
-            overlay.classList.remove('active');
-            if (menu._closeHandler) {
-                overlay.removeEventListener('click', menu._closeHandler);
-                menu._closeHandler = null;
-            }
-          }
-
-          // Open Modal
-          const modal = document.getElementById('addLibraryModal');
-          if (modal) {
-              modal.classList.add('active');
-              
-              const closeBtn = document.getElementById('closeAddLibraryModal');
-              const connectBtn = document.getElementById('connectLibraryBtn');
-              const input = modal.querySelector('.modal-input');
-              
-              // Focus input
-              if (input) setTimeout(() => input.focus(), 50);
-
-              const closeModal = () => {
-                  modal.classList.remove('active');
-                  if (input) input.value = ''; // Clear input
-              };
-              
-              if (closeBtn) closeBtn.onclick = closeModal;
-              
-              // Close on click outside (overlay)
-              modal.onclick = (e) => {
-                  if (e.target === modal) {
-                      closeModal();
-                  }
-              };
-
-              if (connectBtn) {
-                  connectBtn.onclick = () => {
-                      const link = input ? input.value : '';
-                      if (link) {
-                        console.log('Connect library clicked with link:', link);
-                        parent.postMessage({ pluginMessage: { type: 'add-library-by-link', link } }, '*');
-                        closeModal();
-                      } else {
-                        if (input) input.focus();
-                      }
-                  };
-              }
-          }
-      });
-      
-      menu.appendChild(addOption);
-      */
-      
-      // Toggle menu
+      // Update toggle listener
       trigger.onclick = (e) => {
         if (trigger.classList.contains('disabled')) return;
         e.stopPropagation();
         
-        // Close other dropdowns if any
-        document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+        // Global close of other menus
+        closeScanResultContextMenu();
+        const activeMenus = document.querySelectorAll('.dropdown-menu.show, .filter-dropdown[style*="block"]');
+        activeMenus.forEach(m => {
             if (m !== menu) m.classList.remove('show');
+            if (m.style.display === 'block') m.style.display = 'none';
         });
         
         const isOpening = !menu.classList.contains('show');
@@ -3496,6 +3488,9 @@
             if (selectedTargetName === 'Select Component' || selectedTargetName === '-') {
                 selectedTargetName = null;
             }
+            
+            // Check for preserve style override setting
+            const preserveStyle = item.dataset.preserveStyle === 'true';
 
             const variants = variantNames.split(',').map(v => v.trim());
             variants.forEach(variantName => {
@@ -3503,7 +3498,8 @@
                 name: variantName,
                 targetName: selectedTargetName, // Pass the manually selected target name
                 sourceLibrary: sourceLibrary,
-                targetLibrary: targetLibrary
+                targetLibrary: targetLibrary,
+                preserveStyle: preserveStyle
               });
             });
           }
@@ -4270,56 +4266,125 @@
     }
 
     let scanResultToModify = null;
+    let scanResultMappingItem = null;
+    let currentActiveMenuButton = null;
+    let currentOverlayCloser = null;
+
+    function closeScanResultContextMenu() {
+        const menu = document.getElementById('scanResultContextMenu');
+        const overlay = document.getElementById('filterDropdownOverlay');
+        if (menu) menu.style.display = 'none';
+        
+        if (overlay) {
+             overlay.classList.remove('active');
+             if (currentOverlayCloser) {
+                 overlay.removeEventListener('click', currentOverlayCloser);
+                 currentOverlayCloser = null;
+             }
+        }
+        
+        if (currentActiveMenuButton) {
+            currentActiveMenuButton.classList.remove('active');
+            currentActiveMenuButton = null;
+        }
+    }
 
     function showScanResultContextMenu(e, result) {
       const menu = document.getElementById('scanResultContextMenu');
       const overlay = document.getElementById('filterDropdownOverlay');
       if (!menu) return;
       
-      // Add active state to button
+      // Prevent clicks inside the menu from bubbling up to document/overlay
+      // We only need to add this once, but adding it repeatedly is safe if we check
+      if (!menu.dataset.hasStopListener) {
+          menu.addEventListener('click', (ev) => ev.stopPropagation());
+          menu.dataset.hasStopListener = 'true';
+      }
+      
       const btn = e.currentTarget;
+      
+      // Robust Toggle Logic:
+      // If the menu is currently OPEN (display: block) AND the active button is THIS button
+      // Then we want to CLOSE it.
+      if (menu.style.display === 'block' && currentActiveMenuButton === btn) {
+          closeScanResultContextMenu();
+          return;
+      }
+      
+      // Otherwise, we are opening it (either from closed state, or switching from another button)
+      // First, ensure any existing menu/state is closed cleanly
+      closeScanResultContextMenu();
+      
+      // Now Open for new button
       if (btn && btn.classList.contains('filter-button')) {
         btn.classList.add('active');
+        currentActiveMenuButton = btn;
       }
 
       scanResultToModify = result;
+      scanResultMappingItem = btn.closest('.mapping-item');
+      
+      // Initialize menu state based on mapping item
+      if (scanResultMappingItem) {
+          const preserveBtn = document.getElementById('preserveStyleBtn');
+          const isPreserved = scanResultMappingItem.dataset.preserveStyle === 'true';
+          if (preserveBtn) {
+              if (isPreserved) preserveBtn.classList.add('checked');
+              else preserveBtn.classList.remove('checked');
+              
+              preserveBtn.onclick = (evt) => {
+                  evt.stopPropagation(); 
+                  const newState = !preserveBtn.classList.contains('checked');
+                  if (newState) {
+                      preserveBtn.classList.add('checked');
+                      scanResultMappingItem.dataset.preserveStyle = 'true';
+                  } else {
+                      preserveBtn.classList.remove('checked');
+                      scanResultMappingItem.dataset.preserveStyle = 'false';
+                  }
+                  // We do NOT close the menu here, allowing multiple toggles if needed.
+                  // If desired to close, uncomment line below:
+                  // closeScanResultContextMenu();
+              };
+          }
+          
+          const configureBtn = document.getElementById('configurePropsBtn');
+          if (configureBtn) {
+              configureBtn.onclick = (evt) => {
+                  evt.stopPropagation();
+                  closeScanResultContextMenu();
+              }
+          }
+      }
       
       // Position menu
       const rect = btn.getBoundingClientRect();
       menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
-      // Align right edge of menu with right edge of button, but ensure it doesn't go off screen
-      // The menu width is min 208px. Pushed 16px left for spacing.
       menu.style.left = `${rect.right - 208 - 16}px`; 
       menu.style.display = 'block';
       
-      // Close on click outside (using overlay)
-      const closeMenu = () => {
-        menu.style.display = 'none';
-        if (btn) btn.classList.remove('active');
-        if (overlay) {
-          overlay.classList.remove('active');
-          overlay.removeEventListener('click', closeMenu);
-        } else {
-          document.removeEventListener('click', closeMenu);
-        }
-      };
-      
-      // Also close when clicking any item inside the menu
-      const menuItems = menu.querySelectorAll('.filter-menu-item');
-      menuItems.forEach(item => {
-        item.onclick = (e) => {
-          // e.stopPropagation(); // Don't stop propagation, let it bubble if needed, but definitely close menu
-          closeMenu();
-        };
-      });
-      
       if (overlay) {
         overlay.classList.add('active');
-        overlay.addEventListener('click', closeMenu);
+        // Add one-time listener to close
+        const overlayCloser = (ev) => {
+             // Ensure we don't close if the click was actually on the menu (though z-index should prevent this hitting overlay)
+             // or on the button itself (which has its own handler)
+             // But valid usage of overlay is clicking "elsewhere".
+             ev.stopPropagation();
+             closeScanResultContextMenu();
+        };
+        overlay.addEventListener('click', overlayCloser);
+        currentOverlayCloser = overlayCloser;
       } else {
-        // Fallback
+        // Fallback for no overlay
         setTimeout(() => {
-          document.addEventListener('click', closeMenu);
+          const docCloser = (ev) => {
+              if (menu.contains(ev.target)) return;
+              if (btn && btn.contains(ev.target)) return; // Let toggle logic handle it
+              closeScanResultContextMenu();
+              document.removeEventListener('click', docCloser);
+          };
+          document.addEventListener('click', docCloser);
         }, 0);
       }
     }
