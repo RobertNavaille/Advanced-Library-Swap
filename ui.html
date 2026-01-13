@@ -1150,7 +1150,7 @@
     }
 
     .dropdown-menu.show {
-      display: block;
+      display: block !important;
     }
 
     .dropdown-option {
@@ -2497,7 +2497,7 @@
       const overlay = document.getElementById('filterDropdownOverlay');
       if (overlay) overlay.classList.remove('active');
 
-      const allMenus = document.querySelectorAll('.filter-dropdown, .dropdown-menu, .target-library-dropdown, #scanResultContextMenu');
+      const allMenus = document.querySelectorAll('.filter-dropdown, .dropdown-menu, #scanResultContextMenu');
       allMenus.forEach(m => {
         m.style.display = 'none';
         m.classList.remove('show');
