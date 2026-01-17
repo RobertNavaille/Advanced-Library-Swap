@@ -1389,6 +1389,85 @@
       justify-content: center;
     }
 
+    /* Property Mapping View Styles */
+    .prop-mapping-row {
+      display: flex;
+      gap: 4px;
+      padding: 4px 0;
+      align-items: center;
+      width: 100%;
+    }
+
+    .prop-source-col {
+       display: flex;
+       flex: 1;
+       gap: 4px;
+       align-items: center;
+       min-width: 0;
+    }
+
+    .prop-target-col {
+       display: flex;
+       flex: 1;
+       align-items: center;
+       min-width: 0;
+    }
+
+    .prop-label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 550; /* Semi-bold */
+        font-size: 11px;
+        color: var(--figma-color-text);
+        white-space: nowrap;
+    }
+    
+    .prop-icon {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 5px;
+    }
+    
+    .prop-dropdown {
+        background: var(--figma-color-bg);
+        border: 1px solid var(--figma-color-border);
+        border-radius: 5px;
+        height: 24px;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding-left: 8px;
+        padding-right: 0;
+        overflow: hidden;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .prop-dropdown:hover {
+        background: var(--figma-color-bg-hover);
+    }
+    
+    .prop-dropdown-label-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow: hidden;
+    }
+    
+    .prop-dropdown-label {
+        font-weight: 450; /* Medium */
+        font-size: 11px;
+        color: var(--figma-color-text);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        max-width: 100%;
+        line-height: 16px;
+    }
     
     .mapping-item {
       display: flex;
@@ -2246,6 +2325,39 @@
     </div>
   </div>
 
+  <!-- Property Mapping View -->
+  <div id="propertyMappingView" class="view">
+    <div class="settings-header">
+      <button class="icon-btn" id="backToScanFromMapping">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13.8536 7.14645C14.0488 7.34171 14.0488 7.65829 13.8536 7.85355L9.70711 12L13.8536 16.1464C14.0488 16.3417 14.0488 16.6583 13.8536 16.8536C13.6583 17.0488 13.3417 17.0488 13.1464 16.8536L8.64645 12.3535C8.55268 12.2598 8.5 12.1326 8.5 12C8.5 11.8674 8.55268 11.7402 8.64645 11.6464L13.1464 7.14645C13.3417 6.95118 13.6583 6.95118 13.8536 7.14645Z" fill="var(--figma-color-icon-tertiary)" fill-opacity="0.9"/>
+        </svg>
+      </button>
+      <h1 class="library-selector-title">Property mapping</h1>
+    </div>
+
+    <div class="scan-heading-row" style="padding-top: 16px; padding-bottom: 4px;">
+       <div class="row-content">
+          <div class="header-label" style="justify-content: flex-start; align-items: center; width: 100%; gap: 8px;">
+             <div class="header-label-text" id="propMappingComponentName" style="font-weight: 550; font-size: 13px; color: var(--figma-color-text); width: auto;">
+               Component Name
+             </div>
+             
+             <!-- Spacer -->
+              <div style="flex:1;"></div>
+
+             <div class="library-badge" id="propMappingLibraryBadge" style="display: flex; align-items: center; background: var(--figma-color-bg-tertiary); border-radius: 5px; padding: 0 4px; height: 16px; gap: 4px;">
+                <!-- Icon and Text injected via JS -->
+             </div>
+          </div>
+       </div>
+    </div>
+
+    <div id="propertyMappingList" class="settings-content-container" style="padding: 0 16px;">
+       <!-- Injected content -->
+    </div>
+  </div>
+
   <!-- Component List View -->
   <div id="componentView" class="view">
     <h1>
@@ -2768,6 +2880,7 @@
           // Check if target library has this component
           let targetComponentName = '-';
           let isMatchFound = false;
+          let bestCandidate = null;
           
           if (isTargetValid) {
               // Use the global connectedLibraries variable directly
@@ -2776,14 +2889,22 @@
               if (targetLibObj && targetLibObj.components) {
                   // Check if any variant in the group exists in the target library
                   // Note: targetLibObj.components is a map of Name -> Key
-                  const hasMatch = variants.some(v => {
-                      const match = targetLibObj.components[v.name];
-                      return match;
-                  });
+                  // We want to find the BEST match (e.g. same variant name)
+                  // For the parent group row, we just need ONE valid target to enable configuration
                   
-                  if (hasMatch) {
-                      targetComponentName = firstVariant.displayName;
-                      isMatchFound = true;
+                  // Find first matching variant
+                  for (const v of variants) {
+                      const matchKey = targetLibObj.components[v.name];
+                      if (matchKey) {
+                          isMatchFound = true;
+                          targetComponentName = firstVariant.displayName; // Use source name paradigm for now
+                          bestCandidate = {
+                              name: v.displayName, // or v.name? v.displayName is parent name usually
+                              key: matchKey,
+                              libraryName: targetLibraryName
+                          };
+                          break; // Found a valid target for this component set
+                      }
                   }
               }
           }
@@ -2853,10 +2974,19 @@
 
           // Context menu handler
           const moreBtn = mappingItem.querySelector('.library-more-btn');
+
+          // Attach the scan result data directly to the DOM element so it persists and is accessible
+          mappingItem.scanResult = { 
+              type: 'component', 
+              variants: variants,
+              id: firstVariant.id,
+              bestCandidate: bestCandidate
+          };
+
           if (moreBtn) {
             moreBtn.addEventListener('click', (e) => {
               e.stopPropagation();
-              showScanResultContextMenu(e, { type: 'component', variants: variants });
+              showScanResultContextMenu(e, mappingItem.scanResult);
             });
           }
 
@@ -3492,6 +3622,16 @@
             // Check for preserve style override setting
             const preserveStyle = item.dataset.preserveStyle === 'true';
 
+            // Get property mapping if configured
+            const propertyMapping = (item.scanResult && item.scanResult.propertyMapping) ? item.scanResult.propertyMapping : undefined;
+            
+            if (propertyMapping) {
+                console.log(`📦 [UI] Found property mapping for ${variantNames}:`, propertyMapping);
+            } else {
+                // debug: check why it might be missing
+                // console.log(`[UI] No property mapping found on item for ${variantNames}`, item.scanResult);
+            }
+
             const variants = variantNames.split(',').map(v => v.trim());
             variants.forEach(variantName => {
               componentsToSwap.push({
@@ -3499,7 +3639,8 @@
                 targetName: selectedTargetName, // Pass the manually selected target name
                 sourceLibrary: sourceLibrary,
                 targetLibrary: targetLibrary,
-                preserveStyle: preserveStyle
+                preserveStyle: preserveStyle,
+                propertyMapping: propertyMapping
               });
             });
           }
@@ -4351,8 +4492,35 @@
           const configureBtn = document.getElementById('configurePropsBtn');
           if (configureBtn) {
               configureBtn.onclick = (evt) => {
+                  console.log('Configure properties clicked');
                   evt.stopPropagation();
                   closeScanResultContextMenu();
+                  
+                  if (scanResultToModify) {
+                      console.log('Result obj:', scanResultToModify);
+                      const candidate = scanResultToModify.bestCandidate;
+                      
+                      if (candidate) {
+                         console.log('Found candidate:', candidate);
+                         const targetKey = candidate.key;
+                         const targetName = candidate.name;
+                         
+                         parent.postMessage({ 
+                            pluginMessage: { 
+                                type: 'GET_COMPONENT_PROPERTIES',
+                                sourceId: scanResultToModify.id || (scanResultToModify.variants && scanResultToModify.variants[0].id),
+                                targetKey: targetKey,
+                                targetName: targetName
+                            } 
+                         }, '*');
+                      } else {
+                          console.log("No target candidate found for configuration. Scan result:", scanResultToModify);
+                          // Fallback: Check if we can get it from the UI dropdown? 
+                          // (Not implemented yet, but helpful for debug)
+                      }
+                  } else {
+                      console.error('No scanResultToModify found');
+                  }
               }
           }
       }
@@ -4559,3 +4727,330 @@
   </script>
 </body>
 </html>
+  <script>
+    // --- PROPERTY MAPPING LOGIC EXTENSION ---
+
+    const prevOnMessage = onmessage;
+    onmessage = (event) => {
+        if (prevOnMessage) prevOnMessage(event);
+        const msg = event.data.pluginMessage;
+        if (!msg) return;
+
+        if (msg.type === 'SHOW_PROPERTY_MAPPING_VIEW') {
+            renderPropertyMappingView(msg.sourceId, msg.targetName, msg.sourceDefinitions, msg.targetDefinitions);
+        }
+    };
+
+    function renderPropertyMappingView(sourceId, targetName, sourceDefs, targetDefs) {
+        showView('propertyMappingView');
+        
+        const titleEl = document.getElementById('propMappingComponentName');
+        if (titleEl) titleEl.textContent = targetName || 'Component';
+        
+        const list = document.getElementById('propertyMappingList');
+        if (list) {
+            list.innerHTML = '';
+            
+            if (!targetDefs || Object.keys(targetDefs).length === 0) {
+                list.innerHTML = '<div style="padding:16px; color: var(--figma-color-text-secondary);">No configurable properties found on target component.</div>';
+                return;
+            }
+
+            // Group target definitions by type
+            const groups = {
+                'VARIANT': [],
+                'BOOLEAN': [],
+                'TEXT': [],
+                'INSTANCE_SWAP': []
+            };
+            const other = [];
+
+            Object.entries(targetDefs).forEach(([propName, def]) => {
+                if (propName.startsWith('__')) return;
+                
+                if (Object.prototype.hasOwnProperty.call(groups, def.type)) {
+                    groups[def.type].push({ propName, def });
+                } else {
+                    other.push({ propName, def });
+                }
+            });
+
+            // Helper to render a group
+            const renderGroup = (label, items) => {
+                if (items.length === 0) return;
+
+                // Section Header
+                const sectionHeader = document.createElement('div');
+                sectionHeader.style.fontSize = '11px';
+                sectionHeader.style.fontWeight = '600';
+                sectionHeader.style.color = 'var(--figma-color-text-secondary)';
+                sectionHeader.style.backgroundColor = 'var(--figma-color-bg-tertiary)';
+                sectionHeader.style.padding = '8px 12px';
+                sectionHeader.style.marginTop = '4px';
+                sectionHeader.style.marginBottom = '4px';
+                sectionHeader.style.textTransform = 'uppercase';
+                sectionHeader.style.letterSpacing = '0.5px';
+                sectionHeader.textContent = label;
+                list.appendChild(sectionHeader);
+
+                // Sort items by name within group
+                items.sort((a, b) => a.propName.split('#')[0].localeCompare(b.propName.split('#')[0]));
+
+                items.forEach(({ propName, def }) => {
+                    const cleanTargetName = propName.split('#')[0];
+
+                    const row = document.createElement('div');
+                    row.className = 'prop-mapping-row';
+                    
+                    // Left Column: Target Property (Library)
+                    const leftCol = document.createElement('div');
+                    leftCol.className = 'prop-source-col';
+                    
+                    const iconDiv = document.createElement('div');
+                    iconDiv.className = 'prop-icon';
+                    iconDiv.innerHTML = getPropIcon(def.type);
+                    
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'prop-label';
+                    labelDiv.textContent = cleanTargetName;
+                    labelDiv.title = propName;
+                    
+                    leftCol.appendChild(iconDiv);
+                    leftCol.appendChild(labelDiv);
+                    
+                    // Right Column: Dropdown (Source Local Props)
+                    const rightCol = document.createElement('div');
+                    rightCol.className = 'prop-target-col';
+                    
+                    const dropdown = document.createElement('div');
+                    dropdown.className = 'prop-dropdown';
+                    
+                    // Default: Find matching name
+                    let selectedPropRaw = null;
+                    let selectedPropDisplay = 'No mapping';
+
+                    // CHECK PERSISTENCE FIRST:
+                    if (scanResultToModify && 
+                        scanResultToModify.propertyMapping && 
+                        scanResultToModify.propertyMapping[propName] !== undefined) {
+                        
+                        const savedRaw = scanResultToModify.propertyMapping[propName];
+                        if (savedRaw === 'No mapping') {
+                            selectedPropRaw = null;
+                            selectedPropDisplay = 'No mapping';
+                        } else {
+                            selectedPropRaw = savedRaw;
+                            // Try to get a clean name if possible, or use raw
+                            selectedPropDisplay = savedRaw.split('#')[0];
+                        }
+                        // console.log(`Restored mapping for ${cleanTargetName}: ${selectedPropDisplay}`);
+
+                    } else if (sourceDefs) {
+                        // Fallback: Try to find a property with the same clean name
+                        const matchRaw = Object.keys(sourceDefs).find(p => p.split('#')[0] === cleanTargetName);
+                        
+                        if (matchRaw) {
+                            selectedPropRaw = matchRaw;
+                            selectedPropDisplay = matchRaw.split('#')[0];
+                            
+                            // Auto-save this default selection into the mapping?
+                            // If we want the swap to reflect this default, we should save it.
+                            if (scanResultToModify) {
+                                if (!scanResultToModify.propertyMapping) scanResultToModify.propertyMapping = {};
+                                scanResultToModify.propertyMapping[propName] = selectedPropRaw;
+                            }
+                        }
+                    }
+
+                    dropdown.innerHTML = `
+                        <div class="prop-dropdown-label-container">
+                            <div class="prop-dropdown-label" title="${selectedPropRaw || ''}">${selectedPropDisplay}</div>
+                        </div>
+                        <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 10l5 5 5-5H7z" fill="var(--figma-color-icon)"/>
+                        </svg>
+                    `;
+                    
+                    // Add click handler to show actual menu
+                    dropdown.onclick = (e) => {
+                        e.stopPropagation();
+                        showPropMappingMenu(dropdown, def.type, sourceDefs, (newSelectionRaw) => {
+                            const newDisplay = newSelectionRaw === 'No mapping' ? 'No mapping' : newSelectionRaw.split('#')[0];
+                            dropdown.querySelector('.prop-dropdown-label').textContent = newDisplay;
+                            dropdown.querySelector('.prop-dropdown-label').title = newSelectionRaw;
+
+                            // Save mapping to the current scan result object
+                            if (scanResultToModify) {
+                                if (!scanResultToModify.propertyMapping) {
+                                    scanResultToModify.propertyMapping = {};
+                                }
+                                if (newSelectionRaw === 'No mapping') {
+                                    delete scanResultToModify.propertyMapping[propName];
+                                } else {
+                                    scanResultToModify.propertyMapping[propName] = newSelectionRaw;
+                                }
+                                console.log('Saved mapping:', scanResultToModify.propertyMapping);
+                            }
+                        });
+                    };
+                    
+                    rightCol.appendChild(dropdown);
+                    
+                    row.appendChild(leftCol);
+                    row.appendChild(rightCol);
+                    list.appendChild(row);
+                });
+            };
+
+            // Render groups in order
+            renderGroup('Variants', groups['VARIANT']);
+            renderGroup('Booleans', groups['BOOLEAN']);
+            renderGroup('Text', groups['TEXT']);
+            renderGroup('Instance Swaps', groups['INSTANCE_SWAP']);
+            renderGroup('Other', other);
+        }
+    }
+    
+    function showPropMappingMenu(trigger, type, sourceDefs, onSelect) {
+        // Reuse or create a global dropdown menu for mapping
+        let menu = document.getElementById('propMappingDropdownMenu');
+        if (!menu) {
+            menu = document.createElement('div');
+            menu.id = 'propMappingDropdownMenu';
+            menu.className = 'dropdown-menu'; // reuse existing class
+            menu.style.position = 'fixed'; // ensure it floats
+            document.body.appendChild(menu);
+            
+            // Close handler
+           document.addEventListener('click', (e) => {
+             if (menu.style.display === 'block' && !menu.contains(e.target)) {
+               menu.style.display = 'none';
+             }
+           });
+        }
+        
+        // Populate
+        menu.innerHTML = '';
+        
+        // Option: No mapping
+        const noMapOpt = document.createElement('div');
+        noMapOpt.className = 'dropdown-option';
+        noMapOpt.textContent = 'No mapping';
+        noMapOpt.onclick = () => {
+             onSelect('No mapping');
+             menu.style.display = 'none';
+        };
+        menu.appendChild(noMapOpt);
+        
+        // Group properties by type
+        if (sourceDefs) {
+             const groups = {
+                 'VARIANT': [],
+                 'BOOLEAN': [],
+                 'TEXT': [],
+                 'INSTANCE_SWAP': []
+             };
+             const other = []; // complex types or unknowns
+
+             Object.entries(sourceDefs).forEach(([pName, pDef]) => {
+                 if (Object.prototype.hasOwnProperty.call(groups, pDef.type)) {
+                     groups[pDef.type].push({ name: pName, def: pDef });
+                 } else {
+                     other.push({ name: pName, def: pDef });
+                 }
+             });
+
+             const renderGroup = (label, items) => {
+                 if (items.length === 0) return;
+                 
+                 // Section Header
+                 const header = document.createElement('div');
+                 header.style.fontSize = '10px';
+                 header.style.fontWeight = '600';
+                 header.style.color = 'var(--figma-color-text-secondary)';
+                 header.style.padding = '8px 12px 4px 12px';
+                 header.style.textTransform = 'uppercase';
+                 header.style.letterSpacing = '0.5px';
+                 header.textContent = label;
+                 menu.appendChild(header);
+
+                 items.sort((a, b) => a.name.localeCompare(b.name)).forEach(item => {
+                     const cleanName = item.name.split('#')[0];
+                     
+                     const opt = document.createElement('div');
+                     opt.className = 'dropdown-option';
+                     opt.textContent = cleanName;
+                     opt.title = item.name;
+                     opt.style.paddingLeft = '20px'; // Indent items slightly under header
+                     
+                     // Visual indication of type mismatch?
+                     if (item.def.type !== type) {
+                        opt.style.color = 'var(--figma-color-text-secondary)';
+                     }
+                     
+                     opt.onclick = () => {
+                         onSelect(item.name);
+                         menu.style.display = 'none';
+                     };
+                     menu.appendChild(opt);
+                 });
+             };
+
+             // Render sections in desired order
+             renderGroup('Variants', groups['VARIANT']);
+             renderGroup('Booleans', groups['BOOLEAN']);
+             renderGroup('Text', groups['TEXT']);
+             renderGroup('Instance Swaps', groups['INSTANCE_SWAP']);
+             renderGroup('Other', other);
+        }
+        
+        // Position with collision detection
+        const rect = trigger.getBoundingClientRect();
+        
+        // Show temporarily to measure
+        menu.style.display = 'block';
+        menu.style.visibility = 'hidden';
+        
+        const menuHeight = menu.offsetHeight;
+        const windowHeight = window.innerHeight;
+        const spaceBelow = windowHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        
+        menu.style.width = rect.width + 'px';
+        menu.style.left = rect.left + 'px';
+        
+        // Decide whether to place above or below
+        // If not enough space below AND more space above, flip it logic
+        if (spaceBelow < Math.min(menuHeight, 200) && spaceAbove > spaceBelow) {
+             // Position above
+             const height = Math.min(menuHeight, spaceAbove - 10);
+             menu.style.top = (rect.top - height - 4) + 'px';
+             menu.style.maxHeight = height + 'px';
+        } else {
+             // Position below
+             const height = Math.min(menuHeight, spaceBelow - 10);
+             menu.style.top = (rect.bottom + 4) + 'px';
+             menu.style.maxHeight = height + 'px';
+        }
+        
+        menu.style.visibility = 'visible';
+    }
+
+    function getPropIcon(type) {
+        // Simple SVGs
+        if (type === 'BOOLEAN') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="10" height="6" rx="3" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="8" r="1.5" fill="currentColor"/></svg>';
+        if (type === 'TEXT') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 4V12H6M10 12H12V4M4 8H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+        if (type === 'INSTANCE_SWAP') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8L8 4L12 8M4 8L8 12L12 8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+        if (type === 'VARIANT') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="4" height="4" rx="1" stroke="currentColor"/><rect x="9" y="3" width="4" height="4" rx="1" stroke="currentColor"/><rect x="3" y="9" width="4" height="4" rx="1" stroke="currentColor"/><rect x="9" y="9" width="4" height="4" rx="1" stroke="currentColor"/></svg>';
+        return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="4" stroke="currentColor"/></svg>';
+    }
+
+    // Initialize Back Button
+    const backMappingBtn = document.getElementById('backToScanFromMapping');
+    if (backMappingBtn) {
+        backMappingBtn.onclick = () => {
+             // Return to scan view
+             showView('scanResultsView');
+        }
+    }
+  </script>

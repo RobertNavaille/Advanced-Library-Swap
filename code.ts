@@ -547,6 +547,9 @@ figma.ui.onmessage = async (msg: any) => {
       console.log('📩 Received GET_CONNECTED_LIBRARIES request');
       sendConnectedLibraries();
       break;
+    case 'GET_COMPONENT_PROPERTIES':
+      await handleGetComponentProperties(msg.sourceId, msg.targetKey, msg.targetName);
+      break;
     case 'SHOW_NATIVE_TOAST':
       figma.notify(msg.message || 'Swap completed successfully!');
       break;
@@ -2137,12 +2140,56 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
 
               console.log(`  ✅ Ready to swap instance to: ${componentToSwap.name}`);
               
+              // Capture Mapped Properties (Before Swap)
+              const mappedValues: Record<string, any> = {};
+              if (comp.propertyMapping && Object.keys(comp.propertyMapping).length > 0) {
+                  console.log(`  🔄 [Backend] Processing property mapping for ${comp.name}:`, comp.propertyMapping);
+                  const currentProps = instanceNode.componentProperties;
+                  // console.log('    [Backend] Current Instance Props:', JSON.stringify(currentProps));
+
+                  for (const [targetProp, sourceProp] of Object.entries(comp.propertyMapping)) {
+                      const sourceKeyRaw = sourceProp as string;
+                      let valueToTransfer = undefined;
+                      let matchedSourceKey = '';
+                      
+                      // 1. Direct key match (e.g. "State#123")
+                      if (currentProps[sourceKeyRaw]) {
+                          valueToTransfer = currentProps[sourceKeyRaw].value;
+                          matchedSourceKey = sourceKeyRaw;
+                      } 
+                      // 2. Name match (e.g. sourceProp="State#123", key="State#456")
+                      else if (sourceKeyRaw.includes('#')) {
+                          const cleanSource = sourceKeyRaw.split('#')[0];
+                          const match = Object.entries(currentProps).find(([k,v]) => k.split('#')[0] === cleanSource);
+                          if (match) {
+                              valueToTransfer = match[1].value;
+                              matchedSourceKey = match[0];
+                          }
+                      } else {
+                          // 3. Simple name match (sourceProp="State")
+                          const match = Object.entries(currentProps).find(([k,v]) => k.split('#')[0] === sourceKeyRaw);
+                          if (match) {
+                              valueToTransfer = match[1].value;
+                              matchedSourceKey = match[0];
+                          }
+                      }
+                      
+                      if (valueToTransfer !== undefined) {
+                          mappedValues[targetProp] = valueToTransfer;
+                          console.log(`    ✅ [Backend] Mapped '${sourceProp}' (found as ${matchedSourceKey}) -> '${targetProp}' = ${valueToTransfer}`);
+                      } else {
+                          console.warn(`    ⚠️ [Backend] Could not find source property '${sourceProp}' on instance.`);
+                      }
+                  }
+              }
+
               // Perform the swap
               instance.swapComponent(componentToSwap);
               console.log(`✅ Swapped component: ${instance.name}`);
-              
+
               // Remove all overrides so instance uses only target library defaults
               // Only do this if "Preserve style overrides" is NOT checked
+              // IMPORTANT: Do this BEFORE applying mapped properties, otherwise we wipe them out!
               if (!comp.preserveStyle) {
                   try {
                     const inst = instanceNode as any;
@@ -2160,6 +2207,87 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               } else {
                   console.log('ℹ️ Preserving style overrides (User requested)');
               }
+
+              // Apply Mapped Properties (After Swap & Reset)
+              let propertiesApplied = false;
+              // Hoist finalPropsMap so it can be used in reapplyTextValues
+              const finalPropsMap: Record<string, any> = {};
+
+              if (Object.keys(mappedValues).length > 0) {
+                  console.log('  🔄 Applying mapped properties...');
+                  const newProps = instanceNode.componentProperties;
+                  // console.log('    [Backend] Debug: New Instance Props available:', Object.keys(newProps));
+                  
+                  for (const [targetKeyRaw, value] of Object.entries(mappedValues)) {
+                       let finalKey = targetKeyRaw;
+                       
+                       // Verify key exists on new instance, or find name equivalent
+                       if (!newProps[finalKey]) {
+                            const cleanTarget = targetKeyRaw.split('#')[0];
+                            console.log(`    ⚠️ Key '${targetKeyRaw}' not found on new instance. Searching for '${cleanTarget}'...`);
+                            
+                            const match = Object.entries(newProps).find(([k,v]) => k.split('#')[0] === cleanTarget);
+                            if (match) {
+                                finalKey = match[0];
+                                console.log(`      ✅ Found match by name: '${finalKey}'`);
+                            }
+                            else {
+                                console.warn(`      ❌ No match found for property '${cleanTarget}' on new instance.`);
+                                finalKey = '';
+                            }
+                       } else {
+                           // console.log(`    ✅ Exact key match: ${finalKey}`);
+                       }
+                       
+                       if (finalKey) {
+                           finalPropsMap[finalKey] = value;
+                       }
+                  }
+                  
+                  if (Object.keys(finalPropsMap).length > 0) {
+                      try {
+                          instanceNode.setProperties(finalPropsMap);
+                          console.log('  ✅ Applied mapped properties success. Keys:', Object.keys(finalPropsMap));
+                          console.log('  🔍 Verifying values stuck...');
+                          const checkProps = instanceNode.componentProperties;
+                          Object.keys(finalPropsMap).forEach(k => {
+                              // console.log(`    - ${k.split('#')[0]}: Expected "${finalPropsMap[k]}", Got "${checkProps[k]?.value}"`);
+                              if (checkProps[k]?.value != finalPropsMap[k]) {
+                                  console.warn(`    ⚠️ Mismatch! Property ${k} did not update.`);
+                              }
+                          });
+                          propertiesApplied = true;
+
+                          // [DEBUG FIX] For Text Properties, explicitly finding nodes that use this property 
+                          // and forcing their characters to update if they didn't.
+                          // Figma sometimes needs a nudge if the property is 'consumed' but the text node doesn't redraw.
+                          // However, setProperties SHOULD handle this. 
+                          // Let's verify if the text node characters actuaally match the property value.
+                          
+                          // We can't easily find which text node is bound to which property without iterating.
+                          // But we can iterate text nodes and check references.
+                          instanceNode.findAll(n => n.type === 'TEXT').forEach(n => {
+                             const textNode = n as TextNode;
+                             if (textNode.componentPropertyReferences?.characters) {
+                                 const propId = textNode.componentPropertyReferences.characters;
+                                 if (finalPropsMap[propId] !== undefined) {
+                                     const expected = finalPropsMap[propId];
+                                     // This is purely for debug logging to confirm state
+                                     if (textNode.characters !== String(expected)) {
+                                         console.warn(`    ⚠️ Text Node "${textNode.name}" characters ("${textNode.characters}") do not match mapped property value ("${expected}"). Attempting force update...`);
+                                     } 
+                                 }
+                             }
+                          });
+
+                      } catch (e) {
+                          console.warn('  ⚠️ Failed to apply mapped properties:', e);
+                      }
+                  }
+              }
+              
+              // Always attempt to restore content (Text) and Layout, but be smart about it.
+              // Note: Style overrides are handled by removeOverrides() above based on comp.preserveStyle.
               
               // Reapply captured text values using same index-based approach
               console.log('🔄 Reapplying text values after swap...');
@@ -2168,9 +2296,54 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                 if (node.type === 'TEXT') {
                   const uniqueKey = `text_${reapplyIndex++}`;
                   const captured = textValues.get(uniqueKey);
+                  const textNode = node as TextNode;
+                  
+                  // CRITICAL: Check if this text node is controlled by a component property.
+                  // Only skip restoration IF the controlling property was explicitly mapped/set by us.
+                  // If it's controlled by an unmapped property, we SHOULD overwrite it with the legacy text logic
+                  // so that unmapped "content" carries over.
+                  let shouldSkip = false;
+                  if (textNode.componentPropertyReferences && textNode.componentPropertyReferences.characters) {
+                      const propId = textNode.componentPropertyReferences.characters;
+                      
+                      // Check if this property ID was mapped (either directly or via name matching)
+                      // We need to check finalPropsMap keys against the propId
+                      if (finalPropsMap[propId] !== undefined) {
+                          shouldSkip = true;
+                          console.log(`  ℹ️ Skipping restoration for text node "${textNode.name}" (Active Mapped Property: ${propId})`);
+                      } else {
+                          // Try to find if we mapped this property but with a different ID (unlikely if setProperties worked, but possible)
+                          // Also check if the *value* of the property matches our mapped value, implying it's already correct?
+                          // console.log(`  [Debug] Text node "${textNode.name}" is bound to ${propId}, but that property was NOT in our map. We will overwrite text.`);
+                      }
+                  }
+                  
+                  if (shouldSkip) {
+                        // FORCE UPDATE: Ensure the visual text matches the property value we set
+                        if (textNode.componentPropertyReferences?.characters) {
+                            const propId = textNode.componentPropertyReferences.characters;
+                            const val = finalPropsMap[propId];
+                            if (val !== undefined) {
+                                try {
+                                    // Load font to ensure we can edit
+                                    if (textNode.fontName && typeof textNode.fontName === 'object') {
+                                        await figma.loadFontAsync(textNode.fontName as FontName);
+                                    }
+                                    const newVal = String(val);
+                                    if (textNode.characters !== newVal) {
+                                        textNode.characters = newVal;
+                                        console.log(`    ✅ [Force] Updated text node "${textNode.name}" to match property: "${newVal}"`);
+                                    }
+                                } catch (e) {
+                                    console.warn(`    ⚠️ Failed to force update text node "${textNode.name}":`, e);
+                                }
+                            }
+                        }
+                        return;
+                  }
+
                   if (captured) {
                     try {
-                      const textNode = node as TextNode;
                       // Load the font before setting text
                       if (captured.fontName && typeof captured.fontName === 'object') {
                         await figma.loadFontAsync(captured.fontName);
@@ -2191,7 +2364,9 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               await reapplyTextValues(instanceNode);
               // console.log('✅ Text reapplication complete');
               
+
               // Reapply captured nested instance property overrides
+              // We perform this even if preserveStyle is false, as nested instances are Structure/Content, not Style.
               if (nestedInstanceOverrides.size > 0) {
                 // console.log(`🔄 Reapplying nested instance overrides after swap...`);
                 let reapplyOverrideIndex = 0;
@@ -2206,6 +2381,13 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                         const instAny = instNode as any;
                         const propsByBase: {[base: string]: string} = {};
                         
+                        // Check if this nested instance is bound to a top-level property (Swap Property)
+                        // Or if its properties are bound to top-level properties
+                        // If so, we might want to skip overwriting it?
+                        
+                        // [Fix] If we have explicit mapped values for this component, we should be careful about
+                        // blindly reapplying overrides found on the old instance structure.
+                        
                         if (instAny.componentProperties) {
                           for (const propName of Object.keys(instAny.componentProperties)) {
                             const base = propName.split('#')[0];
@@ -2217,7 +2399,19 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                         const newProps: {[key: string]: any} = {};
                         for (const [baseName, value] of Object.entries(capturedOverrides)) {
                           const fullPropName = propsByBase[baseName];
+                          
+                          // [Critical Fix] If this nested property is actually controlled by a top-level property
+                          // that we JUST mapped, we must NOT overwrite it with the old captured value.
+                          let isControlledByMappedProp = false;
                           if (fullPropName) {
+                              const ref = instNode.componentPropertyReferences?.[fullPropName.split('#')[0]];
+                              if (ref && finalPropsMap[ref]) {
+                                  isControlledByMappedProp = true;
+                                  console.log(`    ℹ️ Skipping nested override for '${fullPropName}' (Controlled by mapped prop '${ref}')`);
+                              }
+                          }
+                          
+                          if (fullPropName && !isControlledByMappedProp) {
                             newProps[fullPropName] = value;
                           }
                         }
@@ -2241,6 +2435,16 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                 await reapplyOverrides(instanceNode);
                 // console.log('✅ Nested instance override reapplication complete');
               }
+
+              // DOUBLE CHECK: Re-apply properties one last time to ensure they weren't overwritten by overrides
+              if (propertiesApplied && Object.keys(finalPropsMap).length > 0) {
+                  try {
+                       instanceNode.setProperties(finalPropsMap);
+                       console.log('  🛡️  Re-enforced mapped properties (after overrides).');
+                  } catch (e) {
+                       // ignore
+                  }
+              }
               
               // Reapply captured layout overrides
               if (nestedInstanceLayouts.size > 0) {
@@ -2254,59 +2458,55 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                         const instNode = node as InstanceNode;
                         // Only set properties that are actually settable on nodes
                         const writableProps = ['layoutAlign', 'layoutGrow', 'layoutMode', 'layoutPositioning', 'layoutWrap', 
-                                             'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingTop'];
-                        let applied = 0;
-                        for (const [key, value] of Object.entries(capturedLayout)) {
-                          if (writableProps.includes(key)) {
-                            try {
-                              (instNode as any)[key] = value;
-                              applied++;
-                            } catch (e) {
-                              // Skip properties that can't be set
+                                            'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingTop'];
+                            let applied = 0;
+                            for (const [key, value] of Object.entries(capturedLayout)) {
+                              if (writableProps.includes(key)) {
+                                try {
+                                  (instNode as any)[key] = value;
+                                  applied++;
+                                } catch (e) {
+                                  // Skip properties that can't be set
+                                }
+                              }
                             }
-                          }
-                        }
-                        
-                        // Handle width and height separately using resizeWithoutConstraints
-                        if ('width' in capturedLayout && 'height' in capturedLayout) {
-                          try {
-                            const instNodeAny = instNode as any;
-                            instNodeAny.resizeWithoutConstraints(capturedLayout.width, capturedLayout.height);
-                            applied++;
-                          } catch (e) {
-                            // Fallback: try setting width and height directly
-                            try {
-                              instNode.resize(capturedLayout.width, capturedLayout.height);
-                              applied++;
-                            } catch (e2) {
-                              // Skip if both methods fail
+                            
+                            // Handle width and height separately using resizeWithoutConstraints
+                            if ('width' in capturedLayout && 'height' in capturedLayout) {
+                                try {
+                                  const instNodeAny = instNode as any;
+                                  instNodeAny.resizeWithoutConstraints(capturedLayout.width, capturedLayout.height);
+                                  applied++;
+                                } catch (e) {
+                                  // Fallback: try setting width and height directly
+                                  try {
+                                    instNode.resize(capturedLayout.width, capturedLayout.height);
+                                    applied++;
+                                  } catch (e2) {
+                                    // Skip if both methods fail
+                                  }
+                                }
                             }
-                          }
+                          } catch (e) {console.warn(e);}
                         }
-                        
-                        // if (applied > 0) {
-                        //   console.log(`  ✅ Applied ${applied} layout properties to nested instance #${reapplyLayoutIndex}`);
-                        // }
-                      } catch (e) {
-                        console.warn(`  ❌ Could not reapply layout for nested instance #${reapplyLayoutIndex}:`, e);
+                        reapplyLayoutIndex++;
+                      }
+                      if ('children' in node) {
+                          for (const child of node.children) {
+                                await reapplyLayouts(child);
+                          }
                       }
                     }
-                    reapplyLayoutIndex++;
+                    await reapplyLayouts(instanceNode);
+                    // console.log('✅ Layout override reapplication complete');
                   }
-                  if ('children' in node) {
-                    for (const child of node.children) {
-                      await reapplyLayouts(child);
-                    }
-                  }
-                }
-                await reapplyLayouts(instanceNode);
-                console.log('✅ Layout override reapplication complete');
-              }
               
               // Restore position only
-              instanceNode.x = x;
-              instanceNode.y = y;
-              instanceNode.rotation = rotation;
+              try {
+                instanceNode.x = x;
+                instanceNode.y = y;
+                instanceNode.rotation = rotation;
+              } catch (e) { console.warn('Could not restore position', e); }
               
               swapCount++;
             } catch (swapErr) {
@@ -2451,4 +2651,79 @@ function bufferToBase64(buffer: Uint8Array): string {
         base64 += chars.charAt(c3 & 0x3f);
     }
     return base64;
+}
+
+async function handleGetComponentProperties(sourceId: string, targetKey: string, targetName: string) {
+    try {
+        console.log(`Getting properties for sourceId: ${sourceId}, targetKey: ${targetKey}`);
+        
+        // 1. Get Source Definitions
+        let sourceDefinitions = {};
+        const sourceNode = await figma.getNodeByIdAsync(sourceId);
+        
+        if (sourceNode) {
+             if (sourceNode.type === 'INSTANCE') {
+                try {
+                    const main = await sourceNode.getMainComponentAsync();
+                    if (main) {
+                        if (main.parent && main.parent.type === 'COMPONENT_SET') {
+                            sourceDefinitions = main.parent.componentPropertyDefinitions;
+                        } else {
+                            sourceDefinitions = main.componentPropertyDefinitions;
+                        }
+                    }
+                } catch (e) { console.warn("Could not get main component", e); }
+             } else if (sourceNode.type === 'COMPONENT') {
+                  // If it's a variant, get definitions from the parent ComponentSet
+                  if (sourceNode.parent && sourceNode.parent.type === 'COMPONENT_SET') {
+                      sourceDefinitions = sourceNode.parent.componentPropertyDefinitions;
+                  } else {
+                      sourceDefinitions = sourceNode.componentPropertyDefinitions;
+                  }
+             } else if (sourceNode.type === 'COMPONENT_SET') {
+                  sourceDefinitions = sourceNode.componentPropertyDefinitions;
+             }
+        }
+
+        // 2. Get Target Definitions
+        let targetDefinitions = {};
+        if (targetKey) {
+            try {
+                // Try importing as component
+                let importedParam: any;
+                try {
+                    importedParam = await figma.importComponentByKeyAsync(targetKey);
+                } catch (e) {
+                    // Try as set
+                    importedParam = await figma.importComponentSetByKeyAsync(targetKey);
+                }
+                
+                if (importedParam) {
+                    if (importedParam.type === 'COMPONENT_SET') {
+                        targetDefinitions = importedParam.componentPropertyDefinitions;
+                    } else if (importedParam.type === 'COMPONENT') {
+                        if (importedParam.parent && importedParam.parent.type === 'COMPONENT_SET') {
+                             targetDefinitions = importedParam.parent.componentPropertyDefinitions;
+                        } else {
+                             targetDefinitions = importedParam.componentPropertyDefinitions;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error importing target component:", err);
+            }
+        }
+
+        figma.ui.postMessage({
+            type: 'SHOW_PROPERTY_MAPPING_VIEW',
+            sourceId,
+            targetName,
+            sourceDefinitions,
+            targetDefinitions
+        });
+        
+    } catch (err: any) {
+        console.error("Error in handleGetComponentProperties:", err);
+        figma.notify("Error loading properties: " + err.message);
+    }
 }
