@@ -12,13 +12,14 @@ let LIBRARY_THUMBNAILS = DEFAULT_LIBRARY_THUMBNAILS;
 
 // Interface definitions
 interface ComponentInfo {
-  id: string;
-  name: string;  // The variant name (mapping key) - used for swapping
-  displayName: string;  // The parent component name - used for UI display
+  id: string; // The ID of the Main Component (for swapping)
+  instanceId?: string; // The ID of the Instance on canvas (for retrieving overrides)
+  name: string;  
+  displayName: string;  
   library: string;
   remote: boolean;
-  parentName: string;  // Kept for backward compatibility
-  libraryFileId?: string;  // File ID of the library
+  parentName: string; 
+  libraryFileId?: string; 
 }
 
 interface TokenInfo {
@@ -548,7 +549,7 @@ figma.ui.onmessage = async (msg: any) => {
       sendConnectedLibraries();
       break;
     case 'GET_COMPONENT_PROPERTIES':
-      await handleGetComponentProperties(msg.sourceId, msg.targetKey, msg.targetName);
+      await handleGetComponentProperties(msg.sourceId, msg.targetKey, msg.targetName, msg.targetLibraryName, msg.sourceLibraryName);
       break;
     case 'SHOW_NATIVE_TOAST':
       figma.notify(msg.message || 'Swap completed successfully!');
@@ -823,6 +824,7 @@ async function scanNodeForAssets(node: SceneNode, components: ComponentInfo[], t
           if (!variantName.startsWith('.')) {
             components.push({ 
               id: component.id, 
+              instanceId: node.type === 'INSTANCE' ? node.id : undefined,
               name: variantName,  // Variant name for swapping
               displayName: parentComponentName,  // Parent name for UI display
               library: foundLibrary, 
@@ -2404,7 +2406,11 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                           // that we JUST mapped, we must NOT overwrite it with the old captured value.
                           let isControlledByMappedProp = false;
                           if (fullPropName) {
-                              const ref = instNode.componentPropertyReferences?.[fullPropName.split('#')[0]];
+                              // Cast to any to allow checking generic property names against the references map
+                              // (Standard types only include visible, characters, mainComponent)
+                              const refs = instNode.componentPropertyReferences as any;
+                              const ref = refs?.[fullPropName.split('#')[0]];
+                              
                               if (ref && finalPropsMap[ref]) {
                                   isControlledByMappedProp = true;
                                   console.log(`    ℹ️ Skipping nested override for '${fullPropName}' (Controlled by mapped prop '${ref}')`);
@@ -2653,35 +2659,111 @@ function bufferToBase64(buffer: Uint8Array): string {
     return base64;
 }
 
-async function handleGetComponentProperties(sourceId: string, targetKey: string, targetName: string) {
+async function handleGetComponentProperties(sourceId: string, targetKey: string, targetName: string, targetLibraryName?: string, sourceLibraryName?: string) {
     try {
-        console.log(`Getting properties for sourceId: ${sourceId}, targetKey: ${targetKey}`);
+        console.log(`Getting properties for sourceId: ${sourceId}, targetKey: ${targetKey}, Lib: ${targetLibraryName}`);
         
-        // 1. Get Source Definitions
+        // 1. Get Source Definitions & Values
         let sourceDefinitions = {};
+        let sourcePropertyValues: any = {};
+        let sourceComponentName = "Source Component";
         const sourceNode = await figma.getNodeByIdAsync(sourceId);
         
         if (sourceNode) {
              if (sourceNode.type === 'INSTANCE') {
                 try {
+                    // Extract values from Instance (overrides)
+                    sourcePropertyValues = sourceNode.componentProperties;
+                    
                     const main = await sourceNode.getMainComponentAsync();
                     if (main) {
                         if (main.parent && main.parent.type === 'COMPONENT_SET') {
                             sourceDefinitions = main.parent.componentPropertyDefinitions;
+                            sourceComponentName = main.parent.name;
                         } else {
                             sourceDefinitions = main.componentPropertyDefinitions;
+                            sourceComponentName = main.name;
                         }
                     }
                 } catch (e) { console.warn("Could not get main component", e); }
              } else if (sourceNode.type === 'COMPONENT') {
+                  // Extract values from Component (Variant properties)
+                  // For a Component (Variant), componentProperties is not directly populated like an Instance.
+                  // We need to construct it from value-based properties (if explicit) or parse name (legacy)?
+                  // Actually, ComponentNode normally doesn't have .componentProperties with values.
+                  // It represents a specific combination of properties.
+                  // Valid properties are in sourceNode.variantProperties or we have to derive them?
+                  // Figma API: ComponentNode.variantProperties returns { [property: string]: string } | null
+                  
+                  if (sourceNode.variantProperties) {
+                      sourcePropertyValues = {};
+                      // Map variantProperties (simple key-value) to componentProperties format (key -> {value, type})
+                      // But we need the full property ID (Name#ID) to match definitions.
+                      // sourceNode.variantProperties only gives "Name" : "Value"
+                      
+                      const defs = sourceNode.parent && sourceNode.parent.type === 'COMPONENT_SET' 
+                          ? sourceNode.parent.componentPropertyDefinitions 
+                          : sourceNode.componentPropertyDefinitions;
+                          
+                      for (const [propName, propVal] of Object.entries(sourceNode.variantProperties)) {
+                          // Find matching definition to get the full key (Name#ID)
+                          const fullKey = Object.keys(defs).find(key => key.startsWith(propName + '#') || key === propName);
+                          if (fullKey) {
+                              sourcePropertyValues[fullKey] = { 
+                                  value: propVal, 
+                                  type: defs[fullKey].type 
+                              };
+                          }
+                      }
+                  } else {
+                     // Fallback if no variantProperties (e.g. simple component)
+                     // Use default values from definitions
+                     const defs = sourceNode.componentPropertyDefinitions;
+                     if (defs) {
+                         for (const [key, def] of Object.entries(defs)) {
+                             sourcePropertyValues[key] = {
+                                 value: def.defaultValue,
+                                 type: def.type
+                             };
+                         }
+                     }
+                  }
+                  
+                  console.log('Component Variant Values:', sourcePropertyValues);
+
                   // If it's a variant, get definitions from the parent ComponentSet
                   if (sourceNode.parent && sourceNode.parent.type === 'COMPONENT_SET') {
                       sourceDefinitions = sourceNode.parent.componentPropertyDefinitions;
+                      sourceComponentName = sourceNode.parent.name;
                   } else {
                       sourceDefinitions = sourceNode.componentPropertyDefinitions;
+                      sourceComponentName = sourceNode.name;
                   }
              } else if (sourceNode.type === 'COMPONENT_SET') {
                   sourceDefinitions = sourceNode.componentPropertyDefinitions;
+                  sourceComponentName = sourceNode.name;
+                  // Component Sets don't have values themselves (defaults are in definitions)
+             }
+        }
+        
+        // Resolve Instance Swap IDs to Names for display
+        for (const key in sourcePropertyValues) {
+             const prop = sourcePropertyValues[key];
+             if (prop.type === 'INSTANCE_SWAP' && typeof prop.value === 'string') {
+                 try {
+                     const swapId = prop.value;
+                     if (swapId && swapId.length > 0) {
+                         const swappedNode = await figma.getNodeByIdAsync(swapId);
+                         if (swappedNode) {
+                             sourcePropertyValues[key] = {
+                                 ...prop,
+                                 value: swappedNode.name // Replace ID with Name for UI display
+                             };
+                         }
+                     }
+                 } catch (e) {
+                     console.warn('Failed to resolve instance swap name:', e);
+                 }
              }
         }
 
@@ -2718,7 +2800,11 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
             type: 'SHOW_PROPERTY_MAPPING_VIEW',
             sourceId,
             targetName,
+            targetLibraryName,
+            sourceLibraryName,
+            sourceComponentName,
             sourceDefinitions,
+            sourcePropertyValues,
             targetDefinitions
         });
         

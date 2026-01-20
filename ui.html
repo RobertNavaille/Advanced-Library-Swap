@@ -1153,6 +1153,129 @@
       display: block !important;
     }
 
+    /* Property Mapping Menu Specific Styles */
+    #propMappingDropdownMenu {
+        background-color: #1e1e1e;
+        border-radius: 13px;
+        box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.12), 0px 10px 16px 0px rgba(0,0,0,0.12), 0px 2px 5px 0px rgba(0,0,0,0.15);
+        padding: 8px 0;
+        min-width: 240px;
+        max-width: 320px;
+        color: white;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .pm-menu-header {
+        display: flex;
+        align-items: center;
+        padding: 0 4px 0 8px;
+        height: 24px;
+        margin: 0 8px; /* Container padding */
+    }
+
+    .pm-menu-title {
+        flex: 1;
+        font-size: 11px;
+        font-weight: 450;
+        color: white;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .pm-menu-badge {
+        background-color: #2c2c2c;
+        border-radius: 5px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        padding: 0 4px 0 0;
+        gap: 4px;
+    }
+    
+    .pm-menu-badge-text {
+        font-size: 11px;
+        font-weight: 450;
+        color: white;
+    }
+
+    .pm-menu-divider {
+        height: 16px; /* Mockup had 24px, but visually 16px might be tighter */
+        width: 100%;
+        position: relative;
+    }
+    
+    .pm-menu-divider-line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background-color: #383838;
+    }
+
+    .pm-menu-section-header {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 4px 16px; 
+        font-size: 11px;
+        color: rgba(255,255,255,0.4);
+        text-transform: none;
+        font-weight: 450;
+    }
+
+    .pm-menu-item {
+        display: flex;
+        align-items: center;
+        padding: 0 8px 0 20px;
+        height: 24px;
+        cursor: pointer;
+        position: relative;
+        border-radius: 5px;
+        margin: 0 8px;
+        color: white;
+        transition: background-color 0.1s;
+    }
+
+    .pm-menu-item:hover {
+        background-color: rgba(255,255,255,0.1);
+    }
+    
+    .pm-menu-item-check {
+        position: absolute;
+        left: 4px;
+        top: 4px;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+    
+    .pm-menu-item-text {
+        font-size: 11px;
+        font-weight: 450;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+    }
+    
+    .pm-menu-item-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0px; 
+        color: white;
+    }
+
     .dropdown-option {
       display: flex;
       align-items: center;
@@ -1393,9 +1516,11 @@
     .prop-mapping-row {
       display: flex;
       gap: 4px;
-      padding: 4px 0;
+      padding: 12px 16px;
       align-items: center;
       width: 100%;
+      border-bottom: 1px solid var(--figma-color-border);
+      box-sizing: border-box;
     }
 
     .prop-source-col {
@@ -1432,7 +1557,7 @@
     }
     
     .prop-dropdown {
-        background: var(--figma-color-bg);
+        background-color: var(--figma-color-bg);
         border: 1px solid var(--figma-color-border);
         border-radius: 5px;
         height: 24px;
@@ -1444,24 +1569,35 @@
         overflow: hidden;
         cursor: pointer;
         position: relative;
+        color: var(--figma-color-text);
+        font-size: 11px;
+        font-weight: 500;
+        transition: all 0.075s ease;
+        box-sizing: border-box;
+        user-select: none;
     }
 
     .prop-dropdown:hover {
         background: var(--figma-color-bg-hover);
     }
     
+    .prop-dropdown.active {
+        background: var(--figma-color-bg-pressed, var(--figma-color-bg-secondary)); 
+        border-color: var(--figma-color-border-brand, #0D99FF);
+    }
+    
     .prop-dropdown-label-container {
         flex: 1;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: flex-start;
         overflow: hidden;
     }
     
     .prop-dropdown-label {
-        font-weight: 450; /* Medium */
+        font-weight: inherit;
         font-size: 11px;
-        color: var(--figma-color-text);
+        color: inherit;
         text-overflow: ellipsis;
         white-space: nowrap;
         overflow: hidden;
@@ -2336,24 +2472,57 @@
       <h1 class="library-selector-title">Property mapping</h1>
     </div>
 
-    <div class="scan-heading-row" style="padding-top: 16px; padding-bottom: 4px;">
-       <div class="row-content">
-          <div class="header-label" style="justify-content: flex-start; align-items: center; width: 100%; gap: 8px;">
-             <div class="header-label-text" id="propMappingComponentName" style="font-weight: 550; font-size: 13px; color: var(--figma-color-text); width: auto;">
-               Component Name
-             </div>
-             
-             <!-- Spacer -->
-              <div style="flex:1;"></div>
+    <div class="scan-heading-row" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-top: 16px; padding-bottom: 4px; padding-left: 16px; padding-right: 16px; margin: 0; gap: 0px; width: 100%; box-sizing: border-box;">
+       <!-- Target Component Name -->
+       <div style="display: flex; flex-direction: column; justify-content: center; position: relative; flex-shrink: 0; white-space: nowrap;">
+         <p id="propMappingComponentName" style="
+           font-family: 'Inter', sans-serif; 
+           font-weight: 550; 
+           font-size: 13px; 
+           line-height: 22px; 
+           letter-spacing: -0.0325px; 
+           color: var(--figma-color-text); 
+           margin: 0;
+         ">Target component name</p>
+       </div>
 
-             <div class="library-badge" id="propMappingLibraryBadge" style="display: flex; align-items: center; background: var(--figma-color-bg-tertiary); border-radius: 5px; padding: 0 4px; height: 16px; gap: 4px;">
-                <!-- Icon and Text injected via JS -->
-             </div>
-          </div>
+       <!-- Badge -->
+       <div style="
+         background-color: var(--figma-color-bg-tertiary); 
+         display: flex; 
+         height: 16px; 
+         align-items: center; 
+         padding-right: 4px; 
+         border-radius: 5px; 
+         flex-shrink: 0;
+       ">
+         <!-- Icon -->
+         <div style="width: 16px; height: 16px; position: relative; flex-shrink: 0; display:flex; align-items:center; justify-content:center;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M8 4.33282C6.67449 3.21952 4.72597 3.2412 3.42473 4.39786L3.16782 4.62622C3.06107 4.72111 3 4.85711 3 4.99993V11.9999C3 12.1968 3.11556 12.3754 3.29517 12.456C3.47479 12.5367 3.68502 12.5044 3.83218 12.3736L4.08909 12.1453C5.03631 11.3033 6.46369 11.3033 7.41091 12.1453L7.66782 12.3736C7.85726 12.542 8.14274 12.542 8.33218 12.3736L8.58909 12.1453C9.53631 11.3033 10.9637 11.3033 11.9109 12.1453L12.1678 12.3736C12.315 12.5044 12.5252 12.5367 12.7048 12.456C12.8844 12.3754 13 12.1968 13 11.9999V4.99993C13 4.85711 12.9389 4.72111 12.8322 4.62622L12.5753 4.39786C11.274 3.2412 9.32551 3.21952 8 4.33282ZM7.41091 5.14527C6.46369 4.3033 5.03631 4.3033 4.08909 5.14527L4 5.22446V10.9822C5.08026 10.3577 6.41974 10.3577 7.5 10.9822V5.22446L7.41091 5.14527ZM8.5 5.22446V10.9822C9.58026 10.3577 10.9197 10.3577 12 10.9822V5.22446L11.9109 5.14527C10.9637 4.3033 9.53631 4.3033 8.58909 5.14527L8.5 5.22446Z" fill="var(--figma-color-icon)" fill-opacity="0.9"/>
+            </svg>
+         </div>
+         
+         <!-- Library Name -->
+         <div style="
+           display: flex; 
+           flex-direction: column; 
+           justify-content: center; 
+           position: relative; 
+           flex-shrink: 0; 
+           white-space: nowrap; 
+           font-family: 'Inter', sans-serif; 
+           font-weight: 400; 
+           font-size: 11px; 
+           color: var(--figma-color-text); 
+           letter-spacing: 0.055px;
+         ">
+           <p id="propMappingLibraryName" style="line-height: 16px; margin: 0;">Target component library</p>
+         </div>
        </div>
     </div>
 
-    <div id="propertyMappingList" class="settings-content-container" style="padding: 0 16px;">
+    <div id="propertyMappingList" class="settings-content-container" style="padding: 0;">
        <!-- Injected content -->
     </div>
   </div>
@@ -2978,8 +3147,10 @@
           // Attach the scan result data directly to the DOM element so it persists and is accessible
           mappingItem.scanResult = { 
               type: 'component', 
-              variants: variants,
+              variants: variants, // contains objects with instanceId
               id: firstVariant.id,
+              instanceId: firstVariant.instanceId, // Use the instance ID from the first found variant (representative)
+              library: firstVariant.library,
               bestCandidate: bestCandidate
           };
 
@@ -4508,9 +4679,12 @@
                          parent.postMessage({ 
                             pluginMessage: { 
                                 type: 'GET_COMPONENT_PROPERTIES',
-                                sourceId: scanResultToModify.id || (scanResultToModify.variants && scanResultToModify.variants[0].id),
+                                // Prefer the instance ID if available to get actual override values
+                                sourceId: scanResultToModify.instanceId || scanResultToModify.id || (scanResultToModify.variants && scanResultToModify.variants[0].id),
                                 targetKey: targetKey,
-                                targetName: targetName
+                                targetName: targetName,
+                                targetLibraryName: candidate.libraryName,
+                                sourceLibraryName: scanResultToModify.library
                             } 
                          }, '*');
                       } else {
@@ -4729,6 +4903,8 @@
 </html>
   <script>
     // --- PROPERTY MAPPING LOGIC EXTENSION ---
+    
+    let currentPropMappingTrigger = null;
 
     const prevOnMessage = onmessage;
     onmessage = (event) => {
@@ -4737,15 +4913,18 @@
         if (!msg) return;
 
         if (msg.type === 'SHOW_PROPERTY_MAPPING_VIEW') {
-            renderPropertyMappingView(msg.sourceId, msg.targetName, msg.sourceDefinitions, msg.targetDefinitions);
+            renderPropertyMappingView(msg.sourceId, msg.targetName, msg.sourceDefinitions, msg.targetDefinitions, msg.targetLibraryName, msg.sourceLibraryName, msg.sourceComponentName, msg.sourcePropertyValues);
         }
     };
 
-    function renderPropertyMappingView(sourceId, targetName, sourceDefs, targetDefs) {
+    function renderPropertyMappingView(sourceId, targetName, sourceDefs, targetDefs, targetLibraryName, sourceLibraryName, sourceComponentName, sourcePropertyValues) {
         showView('propertyMappingView');
         
         const titleEl = document.getElementById('propMappingComponentName');
         if (titleEl) titleEl.textContent = targetName || 'Component';
+
+        const badgeEl = document.getElementById('propMappingLibraryName');
+        if (badgeEl) badgeEl.textContent = targetLibraryName || 'Library';
         
         const list = document.getElementById('propertyMappingList');
         if (list) {
@@ -4779,7 +4958,8 @@
             const renderGroup = (label, items) => {
                 if (items.length === 0) return;
 
-                // Section Header
+                // Section Header - REMOVED
+                /*
                 const sectionHeader = document.createElement('div');
                 sectionHeader.style.fontSize = '11px';
                 sectionHeader.style.fontWeight = '600';
@@ -4792,6 +4972,7 @@
                 sectionHeader.style.letterSpacing = '0.5px';
                 sectionHeader.textContent = label;
                 list.appendChild(sectionHeader);
+                */
 
                 // Sort items by name within group
                 items.sort((a, b) => a.propName.split('#')[0].localeCompare(b.propName.split('#')[0]));
@@ -4862,19 +5043,76 @@
                         }
                     }
 
+                    // Pre-check for available matching properties to set initial state
+                    let hasMatchingProps = false;
+                    const preCheckStrictType = (d) => {
+                         if (d.type === 'VARIANT') {
+                             const isBoolean = d.variantOptions && d.variantOptions.every(opt => ['true', 'false', 'on', 'off', 'yes', 'no'].includes(opt.toLowerCase()));
+                             return isBoolean ? 'VARIANT_BOOLEAN' : 'VARIANT_STRING';
+                         }
+                         return d.type;
+                    };
+                    const targetStrictTypeRaw = preCheckStrictType(def);
+                    
+                    if (sourceDefs) {
+                        for (const [sName, sDef] of Object.entries(sourceDefs)) {
+                             if (sName.startsWith('__')) continue;
+                             const sType = preCheckStrictType(sDef);
+                             let isMatch = false;
+                             if (targetStrictTypeRaw === 'TEXT' && sType === 'TEXT') isMatch = true;
+                             else if (targetStrictTypeRaw === 'BOOLEAN' && sType === 'BOOLEAN') isMatch = true;
+                             else if (targetStrictTypeRaw === 'VARIANT_BOOLEAN' && sType === 'VARIANT_BOOLEAN') isMatch = true;
+                             else if (targetStrictTypeRaw === 'VARIANT_STRING' && sType === 'VARIANT_STRING') isMatch = true;
+                             else if (targetStrictTypeRaw === 'INSTANCE_SWAP' && sType === 'INSTANCE_SWAP') isMatch = true;
+                             else if (targetStrictTypeRaw === 'VARIANT' && (sType === 'VARIANT_BOOLEAN' || sType === 'VARIANT_STRING')) isMatch = true;
+                             
+                             if (isMatch) {
+                                 hasMatchingProps = true;
+                                 break;
+                             }
+                        }
+                    }
+
+                    if (!hasMatchingProps) {
+                        selectedPropDisplay = 'Not available';
+                        dropdown.classList.add('disabled');
+                        dropdown.style.opacity = '0.5';
+                        dropdown.style.pointerEvents = 'none';
+                        dropdown.style.background = 'transparent';
+                    }
+
                     dropdown.innerHTML = `
                         <div class="prop-dropdown-label-container">
                             <div class="prop-dropdown-label" title="${selectedPropRaw || ''}">${selectedPropDisplay}</div>
                         </div>
-                        <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M7 10l5 5 5-5H7z" fill="var(--figma-color-icon)"/>
+                        <svg class="chevron-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="${!hasMatchingProps ? 'display:none;' : ''}">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M9.64645 11.1464C9.84171 10.9512 10.1583 10.9512 10.3536 11.1464L12 12.7929L13.6464 11.1464C13.8417 10.9512 14.1583 10.9512 14.3536 11.1464C14.5488 11.3417 14.5488 11.6583 14.3536 11.8536L12.3536 13.8536C12.1583 14.0488 11.8417 14.0488 11.6464 13.8536L9.64645 11.8536C9.45118 11.6583 9.45118 11.3417 9.64645 11.1464Z" fill="currentColor" fill-opacity="0.9"/>
                         </svg>
                     `;
                     
                     // Add click handler to show actual menu
                     dropdown.onclick = (e) => {
                         e.stopPropagation();
-                        showPropMappingMenu(dropdown, def.type, sourceDefs, (newSelectionRaw) => {
+
+                        const menu = document.getElementById('propMappingDropdownMenu');
+                        if (menu && menu.style.display === 'block' && currentPropMappingTrigger === dropdown) {
+                             menu.style.display = 'none';
+                             currentPropMappingTrigger = null;
+                             dropdown.classList.remove('active');
+                             return;
+                        }
+
+                        // Determine strict type of target (def)
+                        const getStrictType = (d) => {
+                            if (d.type === 'VARIANT') {
+                                const isBoolean = d.variantOptions && d.variantOptions.every(opt => ['true', 'false', 'on', 'off', 'yes', 'no'].includes(opt.toLowerCase()));
+                                return isBoolean ? 'VARIANT_BOOLEAN' : 'VARIANT_STRING';
+                            }
+                            return d.type;
+                        };
+                        const targetStrictType = getStrictType(def);
+
+                        showPropMappingMenu(dropdown, targetStrictType, sourceDefs, sourcePropertyValues, sourceLibraryName, sourceComponentName, (newSelectionRaw) => {
                             const newDisplay = newSelectionRaw === 'No mapping' ? 'No mapping' : newSelectionRaw.split('#')[0];
                             dropdown.querySelector('.prop-dropdown-label').textContent = newDisplay;
                             dropdown.querySelector('.prop-dropdown-label').title = newSelectionRaw;
@@ -4911,13 +5149,13 @@
         }
     }
     
-    function showPropMappingMenu(trigger, type, sourceDefs, onSelect) {
+    function showPropMappingMenu(trigger, type, sourceDefs, sourcePropertyValues, sourceLibraryName, sourceComponentName, onSelect) {
         // Reuse or create a global dropdown menu for mapping
         let menu = document.getElementById('propMappingDropdownMenu');
         if (!menu) {
             menu = document.createElement('div');
             menu.id = 'propMappingDropdownMenu';
-            menu.className = 'dropdown-menu'; // reuse existing class
+            menu.className = 'dropdown-menu'; // Class triggers 'show' logic
             menu.style.position = 'fixed'; // ensure it floats
             document.body.appendChild(menu);
             
@@ -4925,83 +5163,218 @@
            document.addEventListener('click', (e) => {
              if (menu.style.display === 'block' && !menu.contains(e.target)) {
                menu.style.display = 'none';
+               if (currentPropMappingTrigger) {
+                   currentPropMappingTrigger.classList.remove('active');
+                   currentPropMappingTrigger = null;
+               }
              }
            });
         }
         
+        // Update active trigger state
+        if (currentPropMappingTrigger && currentPropMappingTrigger !== trigger) {
+            currentPropMappingTrigger.classList.remove('active');
+        }
+        currentPropMappingTrigger = trigger;
+        currentPropMappingTrigger.classList.add('active');
+        
         // Populate
         menu.innerHTML = '';
         
-        // Option: No mapping
-        const noMapOpt = document.createElement('div');
-        noMapOpt.className = 'dropdown-option';
-        noMapOpt.textContent = 'No mapping';
-        noMapOpt.onclick = () => {
-             onSelect('No mapping');
-             menu.style.display = 'none';
-        };
-        menu.appendChild(noMapOpt);
+        // 1. Header Row
+        const headerRow = document.createElement('div');
+        headerRow.className = 'pm-menu-header';
         
-        // Group properties by type
-        if (sourceDefs) {
-             const groups = {
-                 'VARIANT': [],
-                 'BOOLEAN': [],
-                 'TEXT': [],
-                 'INSTANCE_SWAP': []
-             };
-             const other = []; // complex types or unknowns
+        const headerTitle = document.createElement('div');
+        headerTitle.className = 'pm-menu-title';
+        headerTitle.style.display = 'flex';
+        headerTitle.style.alignItems = 'center';
+        
+        // Component Icon
+        const componentIcon = document.createElement('div');
+        componentIcon.style.marginRight = '8px';
+        componentIcon.style.display = 'flex';
+        componentIcon.style.alignItems = 'center';
+        componentIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M8 5.83824L6.66041 4.5L8 3.16176L9.33959 4.5L8 5.83824ZM7.56946 2.17837L5.6796 4.06632C5.44013 4.30554 5.44013 4.69446 5.6796 4.93368L7.56946 6.82163C7.80753 7.05946 8.19247 7.05946 8.43054 6.82163L10.3204 4.93368C10.5599 4.69446 10.5599 4.30554 10.3204 4.06632L8.43054 2.17837C8.19247 1.94054 7.80753 1.94054 7.56946 2.17837ZM10.1618 8L11.5 6.66041L12.8382 8L11.5 9.33959L10.1618 8ZM9.17837 8.43054L11.0663 10.3204C11.3055 10.5599 11.6945 10.5599 11.9337 10.3204L13.8216 8.43054C14.0595 8.19247 14.0595 7.80753 13.8216 7.56946L11.9337 5.6796C11.6945 5.44013 11.3055 5.44013 11.0663 5.6796L9.17837 7.56946C8.94054 7.80753 8.94054 8.19247 9.17837 8.43054ZM6.66041 11.5L8 12.8382L9.33959 11.5L8 10.1618L6.66041 11.5ZM5.6796 11.0663L7.56946 9.17837C7.80753 8.94054 8.19247 8.94054 8.43054 9.17837L10.3204 11.0663C10.5599 11.3055 10.5599 11.6945 10.3204 11.9337L8.43054 13.8216C8.19247 14.0595 7.80753 14.0595 7.56946 13.8216L5.6796 11.9337C5.44013 11.6945 5.44013 11.3055 5.6796 11.0663ZM3.16176 8L4.5 6.66041L5.83824 8L4.5 9.33959L3.16176 8ZM2.17837 8.43054L4.06632 10.3204C4.30554 10.5599 4.69446 10.5599 4.93368 10.3204L6.82163 8.43054C7.05946 8.19247 7.05946 7.80753 6.82163 7.56946L4.93368 5.6796C4.69446 5.44013 4.30554 5.44013 4.06632 5.6796L2.17837 7.56946C1.94054 7.80753 1.94054 8.19247 2.17837 8.43054Z" fill="white" fill-opacity="1"/>
+</svg>`;
+        headerTitle.appendChild(componentIcon);
+        
+        const titleText = document.createElement('span');
+        titleText.textContent = sourceComponentName || 'Source component';
+        headerTitle.appendChild(titleText);
+        
+        headerRow.appendChild(headerTitle);
+        
+        const badge = document.createElement('div');
+        badge.className = 'pm-menu-badge';
+        // Icon 16 Library
+        const badgeIcon = document.createElement('div');
+        badgeIcon.style.width = '16px';
+        badgeIcon.style.height = '16px';
+        badgeIcon.style.display = 'flex';
+        badgeIcon.style.alignItems = 'center';
+        badgeIcon.style.justifyContent = 'center';
+        badgeIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M8 4.33282C6.67449 3.21952 4.72597 3.2412 3.42473 4.39786L3.16782 4.62622C3.06107 4.72111 3 4.85711 3 4.99993V11.9999C3 12.1968 3.11556 12.3754 3.29517 12.456C3.47479 12.5367 3.68502 12.5044 3.83218 12.3736L4.08909 12.1453C5.03631 11.3033 6.46369 11.3033 7.41091 12.1453L7.66782 12.3736C7.85726 12.542 8.14274 12.542 8.33218 12.3736L8.58909 12.1453C9.53631 11.3033 10.9637 11.3033 11.9109 12.1453L12.1678 12.3736C12.315 12.5044 12.5252 12.5367 12.7048 12.456C12.8844 12.3754 13 12.1968 13 11.9999V4.99993C13 4.85711 12.9389 4.72111 12.8322 4.62622L12.5753 4.39786C11.274 3.2412 9.32551 3.21952 8 4.33282ZM7.41091 5.14527C6.46369 4.3033 5.03631 4.3033 4.08909 5.14527L4 5.22446V10.9822C5.08026 10.3577 6.41974 10.3577 7.5 10.9822V5.22446L7.41091 5.14527ZM8.5 5.22446V10.9822C9.58026 10.3577 10.9197 10.3577 12 10.9822V5.22446L11.9109 5.14527C10.9637 4.3033 9.53631 4.3033 8.58909 5.14527L8.5 5.22446Z" fill="white" fill-opacity="1"/>
+            </svg>`;
+        badge.appendChild(badgeIcon);
+        
+        const badgeText = document.createElement('div');
+        badgeText.className = 'pm-menu-badge-text';
+        badgeText.textContent = sourceLibraryName || 'Library';
+        badge.appendChild(badgeText);
+        
+        headerRow.appendChild(badge);
+        menu.appendChild(headerRow);
+        
+        // 2. Divider
+        const divider = document.createElement('div');
+        divider.className = 'pm-menu-divider';
+        divider.innerHTML = '<div class="pm-menu-divider-line"></div>';
+        menu.appendChild(divider);
+        
+        // 3. Section Header - REMOVED per user request
+        /*
+        const sectionInfo = document.createElement('div');
+        sectionInfo.className = 'pm-menu-section-header';
+        sectionInfo.textContent = sourceComponentName || 'Source component';
+        menu.appendChild(sectionInfo);
+        */
 
+        // 4. Option: "No mapping" & Items
+        
+        // Helper to determine strict type of Source properties
+        const getStrictType = (d) => {
+             if (d.type === 'VARIANT') {
+                 const isBoolean = d.variantOptions && d.variantOptions.every(opt => ['true', 'false', 'on', 'off', 'yes', 'no'].includes(opt.toLowerCase()));
+                 return isBoolean ? 'VARIANT_BOOLEAN' : 'VARIANT_STRING';
+             }
+             return d.type;
+        };
+
+        // Get current selected value
+        let currentSelection = '';
+        const labelEl = trigger.querySelector('.prop-dropdown-label');
+        if (labelEl) {
+             currentSelection = labelEl.getAttribute('title') || labelEl.textContent; // use title for raw value
+        }
+
+        const renderItem = (label, rawValue, itemType, defaultValue) => {
+             const opt = document.createElement('div');
+             opt.className = 'pm-menu-item';
+             
+             // Checkmark
+             const check = document.createElement('div');
+             check.className = 'pm-menu-item-check';
+             if (currentSelection === rawValue || (rawValue === 'No mapping' && (!currentSelection || currentSelection === 'No mapping'))) {
+                 check.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg>`;
+             }
+             opt.appendChild(check);
+             
+             // Icon (if not No mapping)
+             const icon = document.createElement('div');
+             icon.className = 'pm-menu-item-icon';
+             if (rawValue !== 'No mapping') {
+                 icon.innerHTML = getPropIcon(itemType); // This uses currentColor so it should inherit white
+             }
+             opt.appendChild(icon);
+             
+             // Text
+             const text = document.createElement('div');
+             text.className = 'pm-menu-item-text';
+             text.textContent = label;
+             opt.appendChild(text);
+
+             // Default Value (Right Aligned)
+             if (defaultValue !== undefined && defaultValue !== null) {
+                 const valueDiv = document.createElement('div');
+                 valueDiv.className = 'pm-menu-item-value';
+                 valueDiv.style.color = 'var(--figma-color-text-secondary, rgba(255,255,255,0.7))';
+                 valueDiv.style.fontSize = '11px';
+                 valueDiv.style.marginLeft = '8px';
+                 valueDiv.style.whiteSpace = 'nowrap';
+                 // Format boolean values
+                 let displayVal = String(defaultValue);
+                 if (getStrictType({type: itemType, variantOptions: []}) === 'VARIANT_BOOLEAN' || itemType === 'BOOLEAN') {
+                     if (displayVal.toLowerCase() === 'true') displayVal = 'On';
+                     if (displayVal.toLowerCase() === 'false') displayVal = 'Off';
+                 }
+                 valueDiv.textContent = displayVal;
+                 opt.appendChild(valueDiv);
+             }
+             
+             opt.onclick = () => {
+                 onSelect(rawValue);
+                 menu.style.display = 'none';
+                 if (currentPropMappingTrigger) {
+                     currentPropMappingTrigger.classList.remove('active');
+                     currentPropMappingTrigger = null;
+                 }
+             };
+             menu.appendChild(opt);
+        };
+        
+        // renderItem('No mapping', 'No mapping', null); // Removed per user request
+
+        let hasItems = false;
+
+        // Filter logic determined by usage in renderPropertyMappingView
+        if (sourceDefs) {
+             const items = [];
              Object.entries(sourceDefs).forEach(([pName, pDef]) => {
-                 if (Object.prototype.hasOwnProperty.call(groups, pDef.type)) {
-                     groups[pDef.type].push({ name: pName, def: pDef });
-                 } else {
-                     other.push({ name: pName, def: pDef });
+                 if (pName.startsWith('__')) return;
+                 
+                 const sourceStrictType = getStrictType(pDef);
+                 /*
+                  Filtering Logic:
+                  type (targetStrictType) -> sourceStrictType
+                  
+                  STRING (TEXT) -> TEXT
+                  BOOLEAN -> BOOLEAN
+                  VARIANT_BOOLEAN -> VARIANT_BOOLEAN
+                  VARIANT_STRING -> VARIANT_STRING
+                  INSTANCE_SWAP -> INSTANCE_SWAP (Presumed)
+                 */
+                 
+                 let isMatch = false;
+                 // Type is passed as targetStrictType or normal type
+                 if (type === 'TEXT' && sourceStrictType === 'TEXT') isMatch = true;
+                 else if (type === 'BOOLEAN' && sourceStrictType === 'BOOLEAN') isMatch = true;
+                 else if (type === 'VARIANT_BOOLEAN' && sourceStrictType === 'VARIANT_BOOLEAN') isMatch = true;
+                 else if (type === 'VARIANT_STRING' && sourceStrictType === 'VARIANT_STRING') isMatch = true;
+                 else if (type === 'INSTANCE_SWAP' && sourceStrictType === 'INSTANCE_SWAP') isMatch = true;
+                 
+                 // If it's a generic VARIANT type passed (fallback), match any VARIANT
+                 else if (type === 'VARIANT' && (sourceStrictType === 'VARIANT_BOOLEAN' || sourceStrictType === 'VARIANT_STRING')) isMatch = true;
+                 
+                 if (isMatch) {
+                    items.push({ name: pName, def: pDef });
                  }
              });
 
-             const renderGroup = (label, items) => {
-                 if (items.length === 0) return;
-                 
-                 // Section Header
-                 const header = document.createElement('div');
-                 header.style.fontSize = '10px';
-                 header.style.fontWeight = '600';
-                 header.style.color = 'var(--figma-color-text-secondary)';
-                 header.style.padding = '8px 12px 4px 12px';
-                 header.style.textTransform = 'uppercase';
-                 header.style.letterSpacing = '0.5px';
-                 header.textContent = label;
-                 menu.appendChild(header);
+             if (items.length > 0) hasItems = true;
 
-                 items.sort((a, b) => a.name.localeCompare(b.name)).forEach(item => {
-                     const cleanName = item.name.split('#')[0];
-                     
-                     const opt = document.createElement('div');
-                     opt.className = 'dropdown-option';
-                     opt.textContent = cleanName;
-                     opt.title = item.name;
-                     opt.style.paddingLeft = '20px'; // Indent items slightly under header
-                     
-                     // Visual indication of type mismatch?
-                     if (item.def.type !== type) {
-                        opt.style.color = 'var(--figma-color-text-secondary)';
-                     }
-                     
-                     opt.onclick = () => {
-                         onSelect(item.name);
-                         menu.style.display = 'none';
-                     };
-                     menu.appendChild(opt);
-                 });
-             };
-
-             // Render sections in desired order
-             renderGroup('Variants', groups['VARIANT']);
-             renderGroup('Booleans', groups['BOOLEAN']);
-             renderGroup('Text', groups['TEXT']);
-             renderGroup('Instance Swaps', groups['INSTANCE_SWAP']);
-             renderGroup('Other', other);
+             // Sort items by name
+             items.sort((a, b) => a.name.localeCompare(b.name)).forEach(item => {
+                 const cleanName = item.name.split('#')[0];
+                 // Lookup actual value from sourcePropertyValues if available, else fallback to def default
+                 let actualValue = item.def.defaultValue;
+                 if (sourcePropertyValues && sourcePropertyValues[item.name]) {
+                     actualValue = sourcePropertyValues[item.name].value;
+                 }
+                 renderItem(cleanName, item.name, item.def.type, actualValue);
+             });
+        }
+        
+        if (!hasItems) {
+             const emptyOpt = document.createElement('div');
+             emptyOpt.className = 'pm-menu-item';
+             emptyOpt.style.cursor = 'default';
+             emptyOpt.style.color = 'var(--figma-color-text-secondary, rgba(255,255,255,0.5))';
+             emptyOpt.style.fontStyle = 'italic';
+             emptyOpt.textContent = 'No matching properties';
+             menu.appendChild(emptyOpt);
         }
         
         // Position with collision detection
@@ -5013,24 +5386,24 @@
         
         const menuHeight = menu.offsetHeight;
         const windowHeight = window.innerHeight;
-        const spaceBelow = windowHeight - rect.bottom;
-        const spaceAbove = rect.top;
+        const windowWidth = window.innerWidth;
         
-        menu.style.width = rect.width + 'px';
-        menu.style.left = rect.left + 'px';
+        // Align left with trigger, but keep in bounds
+        let left = rect.left;
+        if (left + 240 > windowWidth) {
+            left = windowWidth - 250; 
+        }
+        menu.style.left = left + 'px';
+        menu.style.width = '240px'; 
         
-        // Decide whether to place above or below
-        // If not enough space below AND more space above, flip it logic
-        if (spaceBelow < Math.min(menuHeight, 200) && spaceAbove > spaceBelow) {
-             // Position above
-             const height = Math.min(menuHeight, spaceAbove - 10);
-             menu.style.top = (rect.top - height - 4) + 'px';
-             menu.style.maxHeight = height + 'px';
+        if (rect.bottom + menuHeight > windowHeight && rect.top > menuHeight) {
+             // Show above
+             menu.style.top = (rect.top - menuHeight - 4) + 'px';
+             menu.style.maxHeight = (rect.top - 10) + 'px';
         } else {
-             // Position below
-             const height = Math.min(menuHeight, spaceBelow - 10);
+             // Show below
              menu.style.top = (rect.bottom + 4) + 'px';
-             menu.style.maxHeight = height + 'px';
+             menu.style.maxHeight = (windowHeight - rect.bottom - 10) + 'px';
         }
         
         menu.style.visibility = 'visible';
@@ -5038,10 +5411,11 @@
 
     function getPropIcon(type) {
         // Simple SVGs
-        if (type === 'BOOLEAN') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="10" height="6" rx="3" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="8" r="1.5" fill="currentColor"/></svg>';
-        if (type === 'TEXT') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 4V12H6M10 12H12V4M4 8H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-        if (type === 'INSTANCE_SWAP') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8L8 4L12 8M4 8L8 12L12 8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
-        if (type === 'VARIANT') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="4" height="4" rx="1" stroke="currentColor"/><rect x="9" y="3" width="4" height="4" rx="1" stroke="currentColor"/><rect x="3" y="9" width="4" height="4" rx="1" stroke="currentColor"/><rect x="9" y="9" width="4" height="4" rx="1" stroke="currentColor"/></svg>';
+        if (type === 'BOOLEAN') return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 8H14C16.2091 8 18 9.79086 18 12C18 14.2091 16.2091 16 14 16H10C7.79086 16 6 14.2091 6 12C6 9.79086 7.79086 8 10 8ZM5 12C5 9.23857 7.23857 7 10 7H14C16.7614 7 19 9.23857 19 12C19 14.7614 16.7614 17 14 17H10C7.23857 17 5 14.7614 5 12ZM10 14C8.89543 14 8 13.1046 8 12C8 10.8954 8.89543 10 10 10C11.1046 10 12 10.8954 12 12C12 13.1046 11.1046 14 10 14ZM7 12C7 10.3431 8.34314 9 10 9C11.6569 9 13 10.3431 13 12C13 13.6569 11.6569 15 10 15C8.34314 15 7 13.6569 7 12Z" fill="currentColor" fill-opacity="0.9"/></svg>';
+        if (type === 'TEXT') return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 7H16C16.5523 7 17 7.44771 17 8V16C17 16.5523 16.5523 17 16 17H8C7.44771 17 7 16.5523 7 16V8C7 7.44771 7.44771 7 8 7ZM6 8C6 6.89543 6.89543 6 8 6H16C17.1046 6 18 6.89543 18 8V16C18 17.1046 17.1046 18 16 18H8C6.89543 18 6 17.1046 6 16V8ZM9.5 9C9.22386 9 9 9.22386 9 9.5V10.5C9 10.7761 9.22386 11 9.5 11C9.77614 11 10 10.7761 10 10.5V10H11.5V14H11C10.7239 14 10.5 14.2239 10.5 14.5C10.5 14.7761 10.7239 15 11 15H13C13.2761 15 13.5 14.7761 13.5 14.5C13.5 14.2239 13.2761 14 13 14H12.5V10H14V10.5C14 10.7761 14.2239 11 14.5 11C14.7761 11 15 10.7761 15 10.5V9.5C15 9.22386 14.7761 9 14.5 9H9.5Z" fill="currentColor" fill-opacity="0.9"/></svg>';
+        if (type === 'INSTANCE_SWAP') return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 6C6.22386 6 6 6.22386 6 6.5V9.5C6 9.77614 6.22386 10 6.5 10C6.77614 10 7 9.77614 7 9.5V7H9.5C9.77614 7 10 6.77614 10 6.5C10 6.22386 9.77614 6 9.5 6H6.5Z" fill="currentColor" fill-opacity="0.9"/><path d="M14.5 6C14.2239 6 14 6.22386 14 6.5C14 6.77614 14.2239 7 14.5 7H17V9.5C17 9.77614 17.2239 10 17.5 10C17.7761 10 18 9.77614 18 9.5V6.5C18 6.22386 17.7761 6 17.5 6H14.5Z" fill="currentColor" fill-opacity="0.9"/><path d="M7 14.5C7 14.2239 6.77614 14 6.5 14C6.22386 14 6 14.2239 6 14.5V17.5C6 17.7761 6.22386 18 6.5 18H9.5C9.77614 18 10 17.7761 10 17.5C10 17.2239 9.77614 17 9.5 17H7V14.5Z" fill="currentColor" fill-opacity="0.9"/><path d="M18 14.5C18 14.2239 17.7761 14 17.5 14C17.2239 14 17 14.2239 17 14.5V17H14.5C14.2239 17 14 17.2239 14 17.5C14 17.7761 14.2239 18 14.5 18H17.5C17.7761 18 18 17.7761 18 17.5V14.5Z" fill="currentColor" fill-opacity="0.9"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12.3535 8.64645C12.1583 8.45119 11.8417 8.45119 11.6465 8.64645L8.64645 11.6465C8.45119 11.8417 8.45119 12.1583 8.64645 12.3535L11.6465 15.3535C11.8417 15.5488 12.1583 15.5488 12.3535 15.3535L15.3535 12.3535C15.5488 12.1583 15.5488 11.8417 15.3535 11.6465L12.3535 8.64645ZM12 14.2929L9.70711 12L12 9.70711L14.2929 12L12 14.2929Z" fill="currentColor" fill-opacity="0.9"/></svg>';
+        if (type === 'VARIANT') return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.1162 5.8837L5.88394 11.1159C5.39578 11.6041 5.39578 12.3955 5.88394 12.8837L11.1162 18.1159C11.6043 18.6041 12.3958 18.6041 12.8839 18.1159L18.1162 12.8837C18.6043 12.3955 18.6043 11.6041 18.1162 11.1159L12.8839 5.88369C12.3958 5.39554 11.6043 5.39554 11.1162 5.8837ZM11.8233 6.5908L6.59105 11.823C6.49341 11.9207 6.49341 12.079 6.59105 12.1766L11.8233 17.4088C11.9209 17.5065 12.0792 17.5065 12.1768 17.4088L17.4091 12.1766C17.5067 12.079 17.5067 11.9207 17.4091 11.823L12.1768 6.5908C12.0792 6.49317 11.9209 6.49317 11.8233 6.5908Z" fill="currentColor" fill-opacity="0.9"/></svg>';
+        return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="4" stroke="currentColor"/></svg>';
         return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="4" stroke="currentColor"/></svg>';
     }
 
