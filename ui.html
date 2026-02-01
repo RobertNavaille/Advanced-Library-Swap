@@ -3137,7 +3137,9 @@
           if (trigger) {
              trigger.addEventListener('click', (e) => {
                  e.stopPropagation();
-                 showComponentSelectionMenu(e, targetLibObj, mappingItem, firstVariant);
+                 // Resolve the target library object from the targetLibraryName
+                 const currentTargetLibObj = connectedLibraries ? connectedLibraries.find(l => l.name === targetLibraryName) : null;
+                 showComponentSelectionMenu(e, currentTargetLibObj, mappingItem, firstVariant);
              });
           }
 
@@ -4770,6 +4772,23 @@
                       nameSpan.style.color = '';
                       nameSpan.style.fontStyle = '';
                   }
+                  
+                  // Update Data Model
+                  if (mappingItem.scanResult && targetLibObj.components[compName]) {
+                      const newKey = targetLibObj.components[compName];
+                      // Update or Create bestCandidate
+                      mappingItem.scanResult.bestCandidate = {
+                          name: compName,
+                          key: newKey,
+                          libraryName: targetLibObj.name
+                      };
+                      
+                      // Clear explicit property mappings as component changed (to trigger fresh auto-match)
+                      mappingItem.scanResult.propertyMapping = {};
+                      
+                      console.log('Updated target component to:', compName, newKey);
+                  }
+
                   // Close menu
                   closeMenu();
               };
