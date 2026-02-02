@@ -2469,57 +2469,89 @@
           <path d="M13.8536 7.14645C14.0488 7.34171 14.0488 7.65829 13.8536 7.85355L9.70711 12L13.8536 16.1464C14.0488 16.3417 14.0488 16.6583 13.8536 16.8536C13.6583 17.0488 13.3417 17.0488 13.1464 16.8536L8.64645 12.3535C8.55268 12.2598 8.5 12.1326 8.5 12C8.5 11.8674 8.55268 11.7402 8.64645 11.6464L13.1464 7.14645C13.3417 6.95118 13.6583 6.95118 13.8536 7.14645Z" fill="var(--figma-color-icon-tertiary)" fill-opacity="0.9"/>
         </svg>
       </button>
-      <h1 class="library-selector-title">Property mapping</h1>
+      <h1 class="library-selector-title" style="margin: 0;">Property mapping</h1>
     </div>
 
-    <div class="scan-heading-row" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-top: 16px; padding-bottom: 4px; padding-left: 16px; padding-right: 16px; margin: 0; gap: 0px; width: 100%; box-sizing: border-box;">
-       <!-- Target Component Name -->
-       <div style="display: flex; flex-direction: column; justify-content: center; position: relative; flex-shrink: 0; white-space: nowrap;">
-         <p id="propMappingComponentName" style="
-           font-family: 'Inter', sans-serif; 
-           font-weight: 550; 
-           font-size: 13px; 
-           line-height: 22px; 
-           letter-spacing: -0.0325px; 
-           color: var(--figma-color-text); 
-           margin: 0;
-         ">Target component name</p>
+    <div class="scan-heading-row" style="display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between; padding: 0px 16px 0px 16px; width: 100%; box-sizing: border-box; gap: 0px;">
+       
+       <!-- Source Component (Left) -->
+       <div style="display: flex; flex-direction: column; flex: 1 0 0; min-width: 0; align-items: flex-start;">
+         <!-- Component Name -->
+         <div style="width: 100%; margin-bottom: 0px;">
+            <p id="propMappingSourceComponentName" style="
+              font-family: 'Inter', sans-serif; 
+              font-weight: 550; 
+              font-size: 13px; 
+              line-height: 22px; 
+              letter-spacing: -0.0325px; 
+              color: var(--figma-color-text); 
+              margin: 0;
+              white-space: pre-wrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">Source Component</p>
+         </div>
+         <!-- Library Badge -->
+         <div style="display: flex; align-items: center; width: 100%;">
+            <p id="propMappingSourceLibraryName" style="
+              font-family: 'Inter', sans-serif; 
+              font-weight: 500; 
+              font-size: 11px; 
+              line-height: 16px; 
+              letter-spacing: 0.055px; 
+              color: var(--figma-color-text-secondary); 
+              margin: 0;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">Source Library</p>
+            <div style="width: 16px; height: 16px; margin-left: 0px; display: flex; align-items: center; justify-content: center;">
+               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                 <path fill-rule="evenodd" clip-rule="evenodd" d="M8 4.33282C6.67449 3.21952 4.72597 3.2412 3.42473 4.39786L3.16782 4.62622C3.06107 4.72111 3 4.85711 3 4.99993V11.9999C3 12.1968 3.11556 12.3754 3.29517 12.456C3.47479 12.5367 3.68502 12.5044 3.83218 12.3736L4.08909 12.1453C5.03631 11.3033 6.46369 11.3033 7.41091 12.1453L7.66782 12.3736C7.85726 12.542 8.14274 12.542 8.33218 12.3736L8.58909 12.1453C9.53631 11.3033 10.9637 11.3033 11.9109 12.1453L12.1678 12.3736C12.315 12.5044 12.5252 12.5367 12.7048 12.456C12.8844 12.3754 13 12.1968 13 11.9999V4.99993C13 4.85711 12.9389 4.72111 12.8322 4.62622L12.5753 4.39786C11.274 3.2412 9.32551 3.21952 8 4.33282ZM7.41091 5.14527C6.46369 4.3033 5.03631 4.3033 4.08909 5.14527L4 5.22446V10.9822C5.08026 10.3577 6.41974 10.3577 7.5 10.9822V5.22446L7.41091 5.14527ZM8.5 5.22446V10.9822C9.58026 10.3577 10.9197 10.3577 12 10.9822V5.22446L11.9109 5.14527C10.9637 4.3033 9.53631 4.3033 8.58909 5.14527L8.5 5.22446Z" fill="#B3B3B3"/>
+               </svg>
+            </div>
+         </div>
        </div>
 
-       <!-- Badge -->
-       <div style="
-         background-color: var(--figma-color-bg-tertiary); 
-         display: flex; 
-         height: 16px; 
-         align-items: center; 
-         padding-right: 4px; 
-         border-radius: 5px; 
-         flex-shrink: 0;
-       ">
-         <!-- Icon -->
-         <div style="width: 16px; height: 16px; position: relative; flex-shrink: 0; display:flex; align-items:center; justify-content:center;">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
-              <path fill-rule="evenodd" clip-rule="evenodd" d="M8 4.33282C6.67449 3.21952 4.72597 3.2412 3.42473 4.39786L3.16782 4.62622C3.06107 4.72111 3 4.85711 3 4.99993V11.9999C3 12.1968 3.11556 12.3754 3.29517 12.456C3.47479 12.5367 3.68502 12.5044 3.83218 12.3736L4.08909 12.1453C5.03631 11.3033 6.46369 11.3033 7.41091 12.1453L7.66782 12.3736C7.85726 12.542 8.14274 12.542 8.33218 12.3736L8.58909 12.1453C9.53631 11.3033 10.9637 11.3033 11.9109 12.1453L12.1678 12.3736C12.315 12.5044 12.5252 12.5367 12.7048 12.456C12.8844 12.3754 13 12.1968 13 11.9999V4.99993C13 4.85711 12.9389 4.72111 12.8322 4.62622L12.5753 4.39786C11.274 3.2412 9.32551 3.21952 8 4.33282ZM7.41091 5.14527C6.46369 4.3033 5.03631 4.3033 4.08909 5.14527L4 5.22446V10.9822C5.08026 10.3577 6.41974 10.3577 7.5 10.9822V5.22446L7.41091 5.14527ZM8.5 5.22446V10.9822C9.58026 10.3577 10.9197 10.3577 12 10.9822V5.22446L11.9109 5.14527C10.9637 4.3033 9.53631 4.3033 8.58909 5.14527L8.5 5.22446Z" fill="var(--figma-color-icon)" fill-opacity="0.9"/>
-            </svg>
+       <!-- Target Component (Right) -->
+       <div style="display: flex; flex-direction: column; flex: 1 0 0; min-width: 0; align-items: flex-start;">
+         <!-- Component Name -->
+         <div style="width: 100%; margin-bottom: 0px;">
+            <p id="propMappingComponentName" style="
+              font-family: 'Inter', sans-serif; 
+              font-weight: 550; 
+              font-size: 13px; 
+              line-height: 22px; 
+              letter-spacing: -0.0325px; 
+              color: var(--figma-color-text); 
+              margin: 0;
+              white-space: pre-wrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">Target Component</p>
          </div>
-         
-         <!-- Library Name -->
-         <div style="
-           display: flex; 
-           flex-direction: column; 
-           justify-content: center; 
-           position: relative; 
-           flex-shrink: 0; 
-           white-space: nowrap; 
-           font-family: 'Inter', sans-serif; 
-           font-weight: 400; 
-           font-size: 11px; 
-           color: var(--figma-color-text); 
-           letter-spacing: 0.055px;
-         ">
-           <p id="propMappingLibraryName" style="line-height: 16px; margin: 0;">Target component library</p>
+         <!-- Library Badge -->
+         <div style="display: flex; align-items: center; width: 100%;">
+            <p id="propMappingLibraryName" style="
+              font-family: 'Inter', sans-serif; 
+              font-weight: 500; 
+              font-size: 11px; 
+              line-height: 16px; 
+              letter-spacing: 0.055px; 
+              color: var(--figma-color-text-secondary); 
+              margin: 0;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">Target Library</p>
+             <div style="width: 16px; height: 16px; margin-left: 0px; display: flex; align-items: center; justify-content: center;">
+               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                 <path fill-rule="evenodd" clip-rule="evenodd" d="M8 4.33282C6.67449 3.21952 4.72597 3.2412 3.42473 4.39786L3.16782 4.62622C3.06107 4.72111 3 4.85711 3 4.99993V11.9999C3 12.1968 3.11556 12.3754 3.29517 12.456C3.47479 12.5367 3.68502 12.5044 3.83218 12.3736L4.08909 12.1453C5.03631 11.3033 6.46369 11.3033 7.41091 12.1453L7.66782 12.3736C7.85726 12.542 8.14274 12.542 8.33218 12.3736L8.58909 12.1453C9.53631 11.3033 10.9637 11.3033 11.9109 12.1453L12.1678 12.3736C12.315 12.5044 12.5252 12.5367 12.7048 12.456C12.8844 12.3754 13 12.1968 13 11.9999V4.99993C13 4.85711 12.9389 4.72111 12.8322 4.62622L12.5753 4.39786C11.274 3.2412 9.32551 3.21952 8 4.33282ZM7.41091 5.14527C6.46369 4.3033 5.03631 4.3033 4.08909 5.14527L4 5.22446V10.9822C5.08026 10.3577 6.41974 10.3577 7.5 10.9822V5.22446L7.41091 5.14527ZM8.5 5.22446V10.9822C9.58026 10.3577 10.9197 10.3577 12 10.9822V5.22446L11.9109 5.14527C10.9637 4.3033 9.53631 4.3033 8.58909 5.14527L8.5 5.22446Z" fill="#B3B3B3"/>
+               </svg>
+            </div>
          </div>
        </div>
+
     </div>
 
     <div id="propertyMappingList" class="settings-content-container" style="padding: 0;">
@@ -4939,11 +4971,19 @@
     function renderPropertyMappingView(sourceId, targetName, sourceDefs, targetDefs, targetLibraryName, sourceLibraryName, sourceComponentName, sourcePropertyValues) {
         showView('propertyMappingView');
         
+        // Target Component
         const titleEl = document.getElementById('propMappingComponentName');
         if (titleEl) titleEl.textContent = targetName || 'Component';
 
         const badgeEl = document.getElementById('propMappingLibraryName');
         if (badgeEl) badgeEl.textContent = targetLibraryName || 'Library';
+
+        // Source Component
+        const sourceTitleEl = document.getElementById('propMappingSourceComponentName');
+        if (sourceTitleEl) sourceTitleEl.textContent = sourceComponentName || 'Component';
+
+        const sourceBadgeEl = document.getElementById('propMappingSourceLibraryName');
+        if (sourceBadgeEl) sourceBadgeEl.textContent = sourceLibraryName || 'Library';
         
         const list = document.getElementById('propertyMappingList');
         if (list) {
@@ -4977,21 +5017,41 @@
             const renderGroup = (label, items) => {
                 if (items.length === 0) return;
 
-                // Section Header - REMOVED
-                /*
+                // Section Header (Matching Figma Design)
                 const sectionHeader = document.createElement('div');
-                sectionHeader.style.fontSize = '11px';
-                sectionHeader.style.fontWeight = '600';
-                sectionHeader.style.color = 'var(--figma-color-text-secondary)';
-                sectionHeader.style.backgroundColor = 'var(--figma-color-bg-tertiary)';
-                sectionHeader.style.padding = '8px 12px';
-                sectionHeader.style.marginTop = '4px';
-                sectionHeader.style.marginBottom = '4px';
-                sectionHeader.style.textTransform = 'uppercase';
-                sectionHeader.style.letterSpacing = '0.5px';
-                sectionHeader.textContent = label;
+                sectionHeader.className = 'content-stretch flex items-center pt-[16px] px-[16px] relative shrink-0 w-full z-[7]';
+                // Inline styles fallback if tailwind classes not present
+                sectionHeader.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    padding-top: 16px;
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    position: relative;
+                    flex-shrink: 0;
+                    width: 100%;
+                    z-index: 7;
+                `;
+                
+                sectionHeader.innerHTML = `
+                    <div style="
+                        display: flex; 
+                        flex-direction: column; 
+                        justify-content: center; 
+                        position: relative; 
+                        flex-shrink: 0; 
+                        white-space: nowrap;
+                        color: var(--figma-color-text-secondary);
+                        font-family: 'Inter', sans-serif;
+                        font-weight: 400;
+                        font-size: 9px;
+                        line-height: 14px;
+                        letter-spacing: 0.045px;
+                    ">
+                      <p style="margin: 0;">${label}</p>
+                    </div>
+                `;
                 list.appendChild(sectionHeader);
-                */
 
                 // Sort items by name within group
                 items.sort((a, b) => a.propName.split('#')[0].localeCompare(b.propName.split('#')[0]));
@@ -5160,10 +5220,10 @@
             };
 
             // Render groups in order
-            renderGroup('Variants', groups['VARIANT']);
-            renderGroup('Booleans', groups['BOOLEAN']);
+            renderGroup('Variant', groups['VARIANT']);
+            renderGroup('Boolean', groups['BOOLEAN']);
             renderGroup('Text', groups['TEXT']);
-            renderGroup('Instance Swaps', groups['INSTANCE_SWAP']);
+            renderGroup('Instance Swap', groups['INSTANCE_SWAP']);
             renderGroup('Other', other);
         }
     }
