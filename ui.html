@@ -898,6 +898,16 @@
     .filter-dropdown-overlay.active {
       display: block;
     }
+
+    /* Disable interactions with background elements when overlay is active */
+    /* EXCEPTION: Keep the active trigger clickable so it can toggle/close itself */
+    /* NOTE: We removed .dropdown-trigger from here so it can receive clicks to dismiss the overlay */
+    body.overlay-active .filter-button:not(.active),
+    body.overlay-active .mapping-item,
+    body.overlay-active .search-input-wrapper {
+        pointer-events: none !important;
+    }
+
     
     /* Filter Dropdown Menu Styles */
     .filter-dropdown {
@@ -1092,15 +1102,25 @@
       background-color: var(--figma-color-bg);
       box-sizing: border-box;
       user-select: none;
+      position: relative;
+      z-index: 1501; /* Always above overlay (1500) so it works as a dismiss trigger */
     }
 
     .dropdown-trigger:hover {
       background-color: var(--figma-color-bg-hover);
     }
+
+    /* Suppress hover effect when overlay is active (cleaner UI) */
+    body.overlay-active .dropdown-trigger:not(.active):hover {
+        background-color: var(--figma-color-bg) !important;
+        border-color: var(--figma-color-border) !important;
+        cursor: default;
+    }
     
     .dropdown-trigger.active {
         border-color: var(--figma-color-border-selected);
         background-color: var(--figma-color-bg);
+        z-index: 2001; /* Keep even higher when active */
     }
 
     .component-dropdown-trigger {
@@ -2097,7 +2117,149 @@
     .scan-results-content {
       flex: 1;
       overflow-y: auto;
-      padding-bottom: var(--figma-space-16);
+      padding-bottom: var(--figma-color-space-16);
+    }
+
+    /* Submenu Styles - Flyout (Redesigned based on metadata) */
+    
+    .component-group {
+        position: relative;
+    }
+
+    /* Main Menu / Submenu Container Style */
+    #componentSelectionMenu, .dropdown-submenu {
+        background: #1e1e1e; 
+        border: none; /* Mockup seems to use shadow mainly or subtle border */
+        border-radius: 13px; 
+        box-shadow: 0px 0px 0.5px 0px rgba(0,0,0,0.12), 0px 10px 16px 0px rgba(0,0,0,0.12), 0px 2px 5px 0px rgba(0,0,0,0.15); 
+        padding: 8px; 
+        overflow-y: auto;
+        width: 200px;
+    }
+
+    .dropdown-submenu {
+        position: absolute;
+        right: 100%; 
+        left: auto;
+        top: -8px; 
+        margin-right: 10px; /* Gap from mockup context 'gap-[10px]' */
+        margin-left: 0;
+        z-index: 1001; 
+        max-height: 300px;
+    }
+
+    /* Option Styles */
+    .dropdown-option {
+        padding: 0 8px; /* px 8px from mockup */
+        height: 24px;   /* min-h 24px from mockup */
+        display: flex;
+        align-items: center;
+        border-radius: 5px; 
+        margin-bottom: 0px; /* Mockup creates stack, gaps usually handled by flex container or margin */
+        cursor: default;
+        color: white;
+    }
+    
+    .dropdown-option:last-child {
+        margin-bottom: 0;
+    }
+
+    .dropdown-option:hover, .dropdown-option.parent-option:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+    
+    /* Keep highlighted when submenu is open - Blue per mockup */
+    .component-group:hover .dropdown-option.parent-option {
+        background: #0d99ff;
+    }
+
+    .dropdown-option.selected, .dropdown-option.variant-option.selected {
+        background: #0d99ff;
+        color: white; 
+        font-weight: 450; /* Inter Medium/Regular weights */
+    }
+    
+    /* Dividers */
+    .menu-divider {
+        height: 16px; /* Container height in mockup */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Negative margins to pull divider to edges over parent padding */
+        margin-left: -8px;
+        margin-right: -8px;
+        width: calc(100% + 16px);
+    }
+    .menu-divider::after {
+        content: '';
+        display: block;
+        height: 1px;
+        width: 100%;
+        background: #383838;
+        border-radius: 2px;
+    }
+    
+    /* Simple Header Rows (like 'Components' or 'Variants') */
+    .menu-title-row {
+        padding: 0 8px; 
+        height: 24px;
+        display: flex;
+        align-items: center;
+        /* Primary white text */
+        color: var(--figma-color-text, #FFFFFF); 
+        font-size: 11px;
+        font-weight: 450;
+        cursor: default;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .menu-header-row {
+        padding: 0 16px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        /* Left aligned per request */
+        justify-content: flex-start; 
+        color: var(--figma-color-text, #FFFFFF);
+        font-size: 11px;
+        font-weight: 450;
+        cursor: default;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Headings (Gray centered, like '{Variant prop name}') */
+    .menu-heading-centered {
+        display: flex;
+        justify-content: center;
+        padding: 4px 16px;
+        color: rgba(255,255,255,0.4);
+        font-size: 11px;
+        font-weight: 450;
+        text-align: center;
+    }
+    
+    /* Component Group specific gap */
+    .component-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px; /* from mockup flex gap */
+    }
+
+    .dropdown-option.variant-option {
+        padding-left: 8px; 
+        padding-right: 8px;
+    }
+
+    .dropdown-submenu .expand-arrow, 
+    #componentSelectionMenu .expand-arrow,
+    .dropdown-submenu svg,
+    #componentSelectionMenu svg {
+        fill: currentColor;
     }
 
     .component-mappings {
@@ -2898,6 +3060,7 @@
           // Hide overlay
           if (overlay) {
             overlay.classList.remove('active');
+            document.body.classList.remove('overlay-active');
             if (menu._closeHandler) {
                 overlay.removeEventListener('click', menu._closeHandler);
                 menu._closeHandler = null;
@@ -2918,8 +3081,33 @@
       
       // Update toggle listener
       trigger.onclick = (e) => {
+        console.log('Target Lib Trigger Clicked', e.target);
         if (trigger.classList.contains('disabled')) return;
         e.stopPropagation();
+
+        // 1. Force Check: Is Component Selection Menu Open?
+        const compMenu = document.getElementById('componentSelectionMenu');
+        const isCompMenuOpen = compMenu && (compMenu.style.display === 'block' || compMenu.classList.contains('show'));
+        
+        // 2. Check Overlay State
+        const isOverlayActive = overlay && overlay.classList.contains('active');
+
+        // Combined Blocking Check:
+        // If (Overlay Active OR Component Menu Open) AND (This Menu Closed)
+        // Then we are in a "Dismissal" interaction.
+        if ((isOverlayActive || isCompMenuOpen) && !menu.classList.contains('show')) {
+            console.log('Blocking open due to conflict. Closing others.');
+            
+            // Trigger overlay click to run cleanup logic
+            if (overlay) overlay.click();
+            
+            // Failsafe: Manually hide component menu if overlay didn't catch it
+            if (compMenu) compMenu.style.display = 'none';
+            if (overlay) overlay.classList.remove('active');
+            document.body.classList.remove('overlay-active'); // Instant cleanup
+            
+            return; 
+        }
         
         // Global close of other menus
         closeScanResultContextMenu();
@@ -2937,12 +3125,15 @@
         if (overlay) {
             if (isOpening) {
                 overlay.classList.add('active');
+                document.body.classList.add('overlay-active');
                 
                 // Handler to close this specific dropdown
                 const closeHandler = () => {
+                    console.log('Target Lib Overlay closeHandler running');
                     menu.classList.remove('show');
                     trigger.classList.remove('active');
                     overlay.classList.remove('active');
+                    document.body.classList.remove('overlay-active');
                     overlay.removeEventListener('click', closeHandler);
                     menu._closeHandler = null;
                 };
@@ -2950,6 +3141,7 @@
                 menu._closeHandler = closeHandler;
             } else {
                 overlay.classList.remove('active');
+                document.body.classList.remove('overlay-active');
                 if (menu._closeHandler) {
                     overlay.removeEventListener('click', menu._closeHandler);
                     menu._closeHandler = null;
@@ -3838,10 +4030,30 @@
             }
 
             const variants = variantNames.split(',').map(v => v.trim());
+            
+            // Get the best candidate key if available
+            const bestCandidate = (item.scanResult && item.scanResult.bestCandidate) ? item.scanResult.bestCandidate : null;
+            let targetKey = bestCandidate ? bestCandidate.key : undefined;
+            
+            // Safety Net: If key is missing but we have a specific name, try to look it up in the library
+            if (!targetKey && selectedTargetName && window.connectedLibraries) {
+                 const targetLib = window.connectedLibraries.find(l => l.name === targetLibrary);
+                 if (targetLib && targetLib.components) {
+                     // Try exact match
+                     if (targetLib.components[selectedTargetName]) {
+                         targetKey = targetLib.components[selectedTargetName];
+                         console.log(`✅ [UI] Recovered key for '${selectedTargetName}': ${targetKey}`);
+                     }
+                 }
+            }
+            
+            console.log(`📤 Preparing swap for '${selectedTargetName}': TargetKey=${targetKey}, BestCandidate=`, bestCandidate);
+
             variants.forEach(variantName => {
               componentsToSwap.push({
                 name: variantName,
                 targetName: selectedTargetName, // Pass the manually selected target name
+                targetKey: targetKey, // Pass the exact key to ensure specific variant is used
                 sourceLibrary: sourceLibrary,
                 targetLibrary: targetLibrary,
                 preserveStyle: preserveStyle,
@@ -4442,14 +4654,45 @@
       });
     }
 
+    // Observer to toggle body class when overlay is active
+    // This allows CSS to disable hover states on background elements
+    const filterDropdownOverlay = document.getElementById('filterDropdownOverlay');
+    // Observer removed to rely on explicit class toggling for better performance
+    // if (filterDropdownOverlay) { ... }
+
     // Filter button - open on click, close on click again
     const filterBtn = document.getElementById('filterBtn');
     const filterDropdown = document.getElementById('filterDropdown');
-    const filterDropdownOverlay = document.getElementById('filterDropdownOverlay');
     
     if (filterBtn && filterDropdown && filterDropdownOverlay) {
+      // Permanent overlay click listener (initialization)
+      filterDropdownOverlay.addEventListener('click', (e) => {
+        console.log('Permanent Overlay Listener Clicked');
+        e.stopPropagation();
+        
+        // Hide Filter Dropdown if open
+        if (filterDropdown.style.display !== 'none') {
+             filterDropdown.style.display = 'none';
+        }
+        
+        // Always attempt cleanup of global state
+        filterDropdownOverlay.classList.remove('active');
+        document.body.classList.remove('overlay-active');
+        filterBtn.classList.remove('active');
+        filterBtn.blur();
+      });
+
       filterBtn.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent event from bubbling to document click handler
+
+        // Check if component selection menu is open
+        const componentMenu = document.getElementById('componentSelectionMenu');
+        if (componentMenu && componentMenu.style.display === 'block') {
+             // If component menu is open, do not open filter menu.
+             // Optionally, close the component menu? 
+             // "It should not be possible to active the filter menu" implies prevention.
+             return;
+        }
         
         // Toggle display
         if (filterDropdown.style.display === '') {
@@ -4775,57 +5018,270 @@
       
       // Populate menu
       menu.innerHTML = '';
-      const components = Object.keys(targetLibObj.components).sort();
       
-      if (components.length === 0) {
+      // Components Header (Simple Mockup Style)
+      const mainHeader = document.createElement('div');
+      mainHeader.className = 'menu-header-row';
+      mainHeader.textContent = 'Components';
+      menu.appendChild(mainHeader);
+      
+      // Divider
+      const mainDivider = document.createElement('div');
+      mainDivider.className = 'menu-divider';
+      menu.appendChild(mainDivider);
+
+      const allComponents = Object.keys(targetLibObj.components).sort();
+      
+      // Organize into Parent -> Variants structure
+      const hierarchy = {};
+      
+      allComponents.forEach(compName => {
+          if (compName.includes('/')) {
+              // It's a variant (or at least has slashes)
+              const parts = compName.split('/');
+              // Assume the last part is the variant name, everything before is the parent
+              let rawVariantName = parts.pop();
+              let displayVariantName = rawVariantName;
+              
+              // Simplify variant name (remove "Property=")
+              if (displayVariantName && displayVariantName.includes('=')) {
+                  displayVariantName = displayVariantName.split(',')
+                    .map(part => part.includes('=') ? part.split('=')[1].trim() : part.trim())
+                    .join(', ');
+              }
+              
+              const parentName = parts.join('/');
+              
+              if (!hierarchy[parentName]) {
+                  hierarchy[parentName] = { variants: [] };
+              }
+              hierarchy[parentName].variants.push({ full: compName, short: displayVariantName, raw: rawVariantName });
+          } else {
+              // It's a top level component (or a Parent Component Set)
+              if (!hierarchy[compName]) {
+                  hierarchy[compName] = { variants: [] };
+              }
+              hierarchy[compName].isTopLevel = true;
+          }
+      });
+      
+      const parents = Object.keys(hierarchy).sort();
+
+      if (parents.length === 0) {
           menu.innerHTML = '<div class="dropdown-option" style="padding: 8px; color: var(--figma-color-text-secondary); font-style: italic; cursor: default;">No components found</div>';
       } else {
-          components.forEach(compName => {
+          parents.forEach(parentName => {
+              const node = hierarchy[parentName];
+              
+              // Only treat as a "Parent" if it is explicitly a top level component OR has variants but we want to show the group
+              // Use a container for the parent + potential children
+              const groupContainer = document.createElement('div');
+              groupContainer.className = 'component-group';
+              
               const item = document.createElement('div');
-              item.className = 'dropdown-option';
+              item.className = 'dropdown-option parent-option';
               
               const nameSpan = mappingItem.querySelector('.selected-library-name');
               const currentName = nameSpan ? nameSpan.textContent : '';
-              if (compName === currentName) {
+              
+              // Check if selected is this parent (direct match) OR if the current selection is one of its variants
+              const normCurrentName = currentName.trim();
+              const isParentSelected = (parentName === normCurrentName) || 
+                                       (node.variants && node.variants.some(v => v.full.trim() === normCurrentName));
+
+              if (isParentSelected) {
                   item.classList.add('selected');
               }
+               
+              const checkIcon = `<span class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg></span>`;
               
-              const checkIcon = `<svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg>`;
+              const componentIcon = `<div class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.5 2.5L2.5 5.5L5.5 8.5L8.5 5.5L5.5 2.5ZM6.20711 1.79289C5.81658 1.40237 5.18342 1.40237 4.79289 1.79289L1.08579 5.5L4.79289 9.20711C5.18342 9.59763 5.81658 9.59763 6.20711 9.20711L9.91421 5.5L6.20711 1.79289ZM7.5 5.5L10.5 8.5L7.5 11.5L4.5 8.5L7.5 5.5ZM8.20711 4.79289C7.81658 4.40237 7.18342 4.40237 6.79289 4.79289L3.08579 8.5L6.79289 12.2071C7.18342 12.5976 7.81658 12.5976 8.20711 12.2071L11.9142 8.5L8.20711 4.79289ZM5.5 2.5L8.5 5.5L11.5 2.5L8.5 -0.5L5.5 2.5ZM6.20711 1.79289C6.59763 2.18342 7.23079 2.18342 7.62132 1.79289L11.3284 -1.91421L7.62132 -5.62132C7.23079 -6.01184 6.59763 -6.01184 6.20711 -5.62132L2.5 -1.91421L6.20711 1.79289Z" fill="currentColor"/></svg><svg style="display:none;" width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12L12 22L22 12L12 2ZM4.82843 12L12 4.82843L19.1716 12L12 19.1716L4.82843 12Z" fill="currentColor"/></svg></div>`;
               
-              const componentIcon = `<div class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg class="component-icon" viewBox="0 0 24 24" fill="none" style="width: 16px; height: 16px;"><path d="M11.1163 13.5907C11.6045 13.1027 12.3958 13.1026 12.8839 13.5907L14.2628 14.9696C14.7506 15.4577 14.7507 16.2491 14.2628 16.7372L12.8839 18.1161C12.3958 18.604 11.6045 18.6039 11.1163 18.1161L9.73741 16.7372C9.24928 16.249 9.24935 15.4577 9.73741 14.9696L11.1163 13.5907ZM12.1769 14.2977C12.0793 14.2001 11.921 14.2002 11.8233 14.2977L10.4444 15.6766C10.3469 15.7743 10.3468 15.9325 10.4444 16.0301L11.8233 17.409C11.921 17.5064 12.0793 17.5065 12.1769 17.409L13.5558 16.0301C13.6531 15.9326 13.6531 15.7742 13.5558 15.6766L12.1769 14.2977ZM7.2628 9.73716C7.75097 9.24916 8.54227 9.24906 9.03038 9.73716L10.4093 11.1161C10.8972 11.6042 10.8972 12.3956 10.4093 12.8836L9.03038 14.2626C8.54229 14.7505 7.75094 14.7504 7.2628 14.2626L5.88389 12.8836C5.39577 12.3955 5.39583 11.6042 5.88389 11.1161L7.2628 9.73716ZM14.9698 9.73716C15.458 9.2491 16.2493 9.24904 16.7374 9.73716L18.1163 11.1161C18.6042 11.6042 18.6043 12.3956 18.1163 12.8836L16.7374 14.2626C16.2493 14.7506 15.458 14.7504 14.9698 14.2626L13.5909 12.8836C13.1028 12.3955 13.1028 11.6042 13.5909 11.1161L14.9698 9.73716ZM8.32334 10.4442C8.22576 10.3466 8.06747 10.3467 7.96983 10.4442L6.59092 11.8231C6.49339 11.9207 6.49332 12.0789 6.59092 12.1766L7.96983 13.5555C8.06778 13.6529 8.22613 13.6529 8.32367 13.5554L9.70257 12.1765C9.80001 12.079 9.79989 11.9206 9.70257 11.823L8.32367 10.4441ZM16.0307 10.4441C15.9331 10.3465 15.7748 10.3466 15.6772 10.4441L14.2983 11.823C14.2007 11.9207 14.2007 12.0789 14.2983 12.1765L15.6772 13.5554C15.7748 13.6527 15.9331 13.6529 16.0307 13.5554L17.4096 12.1765C17.507 12.079 17.5069 11.9206 17.4096 11.823L16.0307 10.4441ZM11.1166 5.88364C11.6048 5.39559 12.3961 5.39553 12.8842 5.88364L14.2631 7.26253C14.7509 7.75067 14.7511 8.54203 14.2631 9.03009L12.8842 10.409L12.7895 10.4949C12.3313 10.8686 11.6696 10.8684 11.2114 10.4949L11.1166 10.409L9.73773 9.03009C9.2801 8.57247 9.2514 7.84822 9.65179 7.35726L9.73773 7.26253L11.1166 5.88364ZM12.1772 6.59067C12.0796 6.49307 11.9213 6.49313 11.8237 6.59067L10.4444 7.96955C10.3472 8.06719 10.3472 8.22547 10.4448 8.32307L11.8237 9.70195C11.921 9.79927 12.0796 9.7994 12.1772 9.70195L13.5561 8.32307C13.6535 8.22552 13.6534 8.06718 13.5561 7.96955L12.1772 6.59067Z" fill="currentColor"/></svg></div>`;
+              // Add expand arrow if variants exist
+              const hasVariants = node.variants.length > 0;
+              const arrowIcon = hasVariants ? 
+                  `<div class="expand-arrow" style="margin-left: auto; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;">
+                     <svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                   </div>` : '';
+
+              item.innerHTML = `${checkIcon}${componentIcon}<span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${parentName}</span>${arrowIcon}`;
               
-              item.innerHTML = `${checkIcon}${componentIcon}<span>${compName}</span>`;
+              // Handle Click
+              // If it's a Top Level Component (Parent), clicking it selects it.
+              // If it has variants, clicking the ARROW (or whole row?) toggles submenu?
+              // Standard behavior: Clicking parent selects parent. Hovering or clicking specific trigger opens submenu.
               
-              item.onclick = (e) => {
-                  e.stopPropagation();
-                  // Update UI
+              // Let's make the whole item toggle the submenu if variants exist, OR add a specific "Select Parent" action?
+              // If I click "Button", do I mean "Button (Set)" or "Expand Button"?
+              // Usually in this context, I want to select "Button".
+              // So I'll make the arrow a separate hit target? Or use Hover?
+              // "Submenu" usually implies Hover.
+              
+              // Let's implement HOVER for submenu using CSS mostly, but injected here.
+              // Logic:
+              // 1. Parent is selectable.
+              // 2. Submenu appears on hover.
+              
+              const updateSelection = (name, key, libraryName) => {
                   if (nameSpan) {
-                      nameSpan.textContent = compName;
+                      nameSpan.textContent = name;
                       nameSpan.style.color = '';
                       nameSpan.style.fontStyle = '';
                   }
-                  
-                  // Update Data Model
-                  if (mappingItem.scanResult && targetLibObj.components[compName]) {
-                      const newKey = targetLibObj.components[compName];
-                      // Update or Create bestCandidate
+                  if (mappingItem.scanResult && targetLibObj.components[name]) {
                       mappingItem.scanResult.bestCandidate = {
-                          name: compName,
-                          key: newKey,
-                          libraryName: targetLibObj.name
+                          name: name,
+                          key: key || targetLibObj.components[name],
+                          libraryName: libraryName
                       };
-                      
-                      // Clear explicit property mappings as component changed (to trigger fresh auto-match)
                       mappingItem.scanResult.propertyMapping = {};
-                      
-                      console.log('Updated target component to:', compName, newKey);
+                      console.log('Updated target component to:', name);
                   }
-
-                  // Close menu
                   closeMenu();
               };
+
+              item.onclick = (e) => {
+                  // If it has variants, select the FIRST variant by default
+                  e.stopPropagation();
+                  
+                  if (hasVariants && node.variants.length > 0) {
+                      // Logic: Select the first variant in the list
+                      const firstVariant = node.variants[0];
+                      const resolvedKey = targetLibObj.components[firstVariant.full];
+                      console.log(`🖱️ Clicked parent, selecting first variant: ${firstVariant.full}, Key: ${resolvedKey}`);
+                      updateSelection(firstVariant.full, resolvedKey, targetLibObj.name);
+                  } else {
+                      // Fallback for components without variants (or set only)
+                      const key = targetLibObj.components[parentName];
+                      if (key) {
+                          updateSelection(parentName, key, targetLibObj.name);
+                      }
+                  }
+              };
               
-              menu.appendChild(item);
+              groupContainer.appendChild(item);
+
+              // Submenu
+              if (hasVariants) {
+                  const submenu = document.createElement('div');
+                  submenu.className = 'dropdown-submenu';
+                  submenu.style.display = 'none'; // Hidden by default
+                  
+                  // 1. Title Row ("Rectangle Variants")
+                  const subTitle = document.createElement('div');
+                  subTitle.className = 'menu-title-row';
+                  subTitle.textContent = `${parentName} Variants`;
+                  submenu.appendChild(subTitle);
+
+                  // 2. Divider
+                  const subDivider = document.createElement('div');
+                  subDivider.className = 'menu-divider';
+                  submenu.appendChild(subDivider);
+
+                  // 3. Property Heading Row ("Shape")
+                  // Extract Property Keys from the first variant to use as Header
+                  let headerText = 'Properties';
+                  if (node.variants.length > 0 && node.variants[0].raw && node.variants[0].raw.includes('=')) {
+                      // Extract all keys (e.g. Shape=Round, Size=Large -> "Shape, Size")
+                      // Use the raw name which contains the property keys
+                      const keys = node.variants[0].raw.split(',').map(part => {
+                          const pair = part.split('=');
+                          return pair.length > 0 ? pair[0].trim() : '';
+                      }).filter(k => k);
+                      
+                      if (keys.length > 0) {
+                          headerText = keys.join(', ');
+                      }
+                  }
+
+                  const subHeader = document.createElement('div');
+                  subHeader.className = 'menu-header-row';
+                  subHeader.textContent = headerText;
+                  submenu.appendChild(subHeader);
+                  
+                  // Generic Property Heading (Centered Gray) - Optional per mockup showing "{Variant prop name}"
+                  // Since we dont have the prop name easily here, we can skip or add if needed.
+                  // Im adding a generic one if you want perfectly matching structure, but "Variants" title covers it.
+                  // Leaving out for cleaner look unless insisted.
+                  
+                  // Add Variants
+                  node.variants.forEach((v, index) => {
+                       const subItem = document.createElement('div');
+                       subItem.className = 'dropdown-option variant-option';
+                       // CSS handles padding for flyout
+                       
+                       // Normalize strings for comparison
+                       const normCurrent = currentName.trim();
+                       const normVariant = v.full.trim();
+                       let isVariantSelected = normVariant === normCurrent;
+                       
+                       // If no variant is explicitly selected, but the Parent is selected (or matches current name),
+                       // pre-select the first variant visually.
+                       if (!isVariantSelected && index === 0 && normCurrent === parentName) {
+                           isVariantSelected = true;
+                       }
+                       
+                       // debug logging
+                       // console.log(`Menu Item: '${normVariant}' vs Selected: '${normCurrent}' -> ${isVariantSelected}`);
+
+                       if (isVariantSelected) subItem.classList.add('selected');
+
+                       // Variants use standard checkmark, but simpler
+                       const checkIcon = `<span class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg></span>`;
+
+                       subItem.innerHTML = `${checkIcon}<span style="font-size: 11px;">${v.short}</span>`;
+                       
+
+                       subItem.onclick = (e) => {
+                           e.stopPropagation();
+                           const resolvedKey = targetLibObj.components[v.full];
+                           console.log(`🖱️ Clicked variant: ${v.full}, Key: ${resolvedKey}`);
+                           updateSelection(v.full, resolvedKey, targetLibObj.name);
+                       };
+                       
+                       submenu.appendChild(subItem);
+                  });
+                  
+                  groupContainer.appendChild(submenu);
+
+                  
+                  // Hover logic for Flyout with Fixed Positioning to avoid overflow clipping
+                  let hideTimeout;
+                  
+                  groupContainer.addEventListener('mouseenter', () => {
+                      if (hideTimeout) clearTimeout(hideTimeout);
+                      
+                      // Calculate position relative to viewport
+                      const rect = item.getBoundingClientRect();
+                      const submenuWidth = 200; // Fixed width
+                      const gap = 10;
+                      
+                      submenu.style.position = 'fixed';
+                      submenu.style.top = rect.top + 'px';
+                      // Position to the left of the item
+                      submenu.style.left = (rect.left - submenuWidth - gap) + 'px';
+                      // Ensure it's not offscreen left (simple check)
+                      if (parseFloat(submenu.style.left) < 0) {
+                           // If offscreen left, try right side? Or just clamp?
+                           // For now, let's assume enough space or force left
+                           // User asked for "to the left".
+                      }
+                      
+                      submenu.style.width = submenuWidth + 'px';
+                      submenu.style.display = 'block';
+                      submenu.style.zIndex = '2005'; // Higher than menu
+                      item.classList.add('parent-active');
+                  });
+                  
+                  groupContainer.addEventListener('mouseleave', () => {
+                      hideTimeout = setTimeout(() => {
+                          submenu.style.display = 'none';
+                          item.classList.remove('parent-active');
+                      }, 150); // Small delay to allow bridging the gap
+                  });
+              }
+              
+              menu.appendChild(groupContainer);
           });
       }
       
@@ -4833,8 +5289,7 @@
       const rect = trigger.getBoundingClientRect();
       menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
       menu.style.left = `${rect.left}px`;
-      menu.style.width = 'auto';
-      menu.style.minWidth = `${Math.max(rect.width, 254)}px`;
+      menu.style.width = '200px';
       menu.style.display = 'block';
       
       // Close logic
@@ -4843,6 +5298,7 @@
         trigger.classList.remove('active');
         if (overlay) {
           overlay.classList.remove('active');
+          document.body.classList.remove('overlay-active');
           overlay.removeEventListener('click', closeMenu);
         } else {
           document.removeEventListener('click', closeMenu);
@@ -4851,6 +5307,7 @@
       
       if (overlay) {
         overlay.classList.add('active');
+        document.body.classList.add('overlay-active');
         overlay.addEventListener('click', closeMenu);
       } else {
         setTimeout(() => {
@@ -5220,7 +5677,7 @@
             };
 
             // Render groups in order
-            renderGroup('Variant', groups['VARIANT']);
+            // renderGroup('Variant', groups['VARIANT']); // Hidden per user request
             renderGroup('Boolean', groups['BOOLEAN']);
             renderGroup('Text', groups['TEXT']);
             renderGroup('Instance Swap', groups['INSTANCE_SWAP']);

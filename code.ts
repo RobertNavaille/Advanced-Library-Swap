@@ -1801,7 +1801,7 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
 
   for (const comp of components) {
     try {
-      console.log(`🔄 Processing component: ${comp.name}`);
+      console.log(`🔄 Processing component: ${comp.name} -> Target: ${comp.targetName} (Key: ${comp.targetKey})`);
       // Use the scanned frame if available, otherwise fall back to selection
       const nodesToProcess = scannedFrame ? [scannedFrame] : figma.currentPage.selection;
       
@@ -1816,8 +1816,9 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
           foundInstancesForThisComponent = true;
           for (const instance of instances) {
             // Look up target key in connected library metadata
-            let targetKey: string | undefined;
-            if (targetLibObj && targetLibObj.components) {
+            let targetKey: string | undefined = comp.targetKey;
+            
+            if (!targetKey && targetLibObj && targetLibObj.components) {
                 // Use explicitly provided target name if available, otherwise fallback to source name
                 const lookupName = comp.targetName || comp.name;
                 
@@ -2215,6 +2216,27 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
               // Hoist finalPropsMap so it can be used in reapplyTextValues
               const finalPropsMap: Record<string, any> = {};
 
+              // [FIX] Enforce specific variant properties
+              // When swapping between variants, Figma might try to preserve the OLD variant properties (e.g. Shape=Round)
+              // even if we swapped to a specific new variant (Shape=Square).
+              // We must explicitly enforce the properties of the target variant on the new instance.
+              if (componentToSwap.type === 'COMPONENT' && componentToSwap.parent && componentToSwap.parent.type === 'COMPONENT_SET') {
+                  const variantProps = componentToSwap.variantProperties;
+                  if (variantProps) {
+                      console.log('  🔒 Enforcing variant properties:', JSON.stringify(variantProps));
+                      // Match variant properties to instance property IDs
+                      const instanceProps = instanceNode.componentProperties;
+                      Object.entries(variantProps).forEach(([vName, vValue]) => {
+                          const match = Object.entries(instanceProps).find(([k, v]) => k.split('#')[0] === vName);
+                          if (match) {
+                              const [propId, currentVal] = match;
+                              // Only add if it's different or we want to be sure
+                              finalPropsMap[propId] = vValue;
+                          }
+                      });
+                  }
+              }
+
               if (Object.keys(mappedValues).length > 0) {
                   console.log('  🔄 Applying mapped properties...');
                   const newProps = instanceNode.componentProperties;
@@ -2245,8 +2267,9 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                            finalPropsMap[finalKey] = value;
                        }
                   }
+              }
                   
-                  if (Object.keys(finalPropsMap).length > 0) {
+              if (Object.keys(finalPropsMap).length > 0) {
                       try {
                           instanceNode.setProperties(finalPropsMap);
                           console.log('  ✅ Applied mapped properties success. Keys:', Object.keys(finalPropsMap));
@@ -2285,7 +2308,6 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                       } catch (e) {
                           console.warn('  ⚠️ Failed to apply mapped properties:', e);
                       }
-                  }
               }
               
               // Always attempt to restore content (Text) and Layout, but be smart about it.
@@ -2659,7 +2681,40 @@ function bufferToBase64(buffer: Uint8Array): string {
     return base64;
 }
 
+// Store context for live updates
+let lastPropContext: {
+    sourceId: string;
+    targetKey: string;
+    targetName: string;
+    targetLibraryName?: string;
+    sourceLibraryName?: string;
+} | null = null;
+
+// Listen for property changes on the source instance to update the UI dynamically
+// figma.on('documentchange', (event) => {
+//     if (!lastPropContext) return;
+    
+//     // Check if the source node had a property change
+//     const changed = event.documentChanges.find(c => 
+//         c.type === 'PROPERTY_CHANGE' && c.id === lastPropContext!.sourceId
+//     );
+    
+//     if (changed) {
+//         console.log('🔄 Source instance properties changed, refreshing mapping view...');
+//         handleGetComponentProperties(
+//             lastPropContext.sourceId,
+//             lastPropContext.targetKey,
+//             lastPropContext.targetName,
+//             lastPropContext.targetLibraryName,
+//             lastPropContext.sourceLibraryName
+//         );
+//     }
+// });
+
 async function handleGetComponentProperties(sourceId: string, targetKey: string, targetName: string, targetLibraryName?: string, sourceLibraryName?: string) {
+    // Update context for live updates
+    lastPropContext = { sourceId, targetKey, targetName, targetLibraryName, sourceLibraryName };
+
     try {
         console.log(`Getting properties for sourceId: ${sourceId}, targetKey: ${targetKey}, Lib: ${targetLibraryName}`);
         
