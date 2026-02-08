@@ -2077,7 +2077,15 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                    // If lookupName is "Button/Type=Primary, State=Hover"
                    // We want to match { Type: "Primary", State: "Hover" }
                    
-                   const targetVariantName = (comp.targetName || comp.name).split('/').pop(); // "Shape=Square"
+                   // [Fix] If targetName is provided but looks like a generic Component Set name (no "="),
+                   // whereas the source name DOES have properties, prefer the source name to preserve states.
+                   let lookupString = comp.targetName || comp.name;
+                   if (comp.targetName && !comp.targetName.includes('=') && comp.name.includes('=')) {
+                       console.log(`  ℹ️ Target name '${comp.targetName}' appears generic. Using source '${comp.name}' for variant matching.`);
+                       lookupString = comp.name;
+                   }
+                   
+                   const targetVariantName = lookupString.split('/').pop(); // "Shape=Square"
                    
                    // Try to find a child with matching name
                    // Component variants have names like "Type=Primary, State=Hover"
@@ -2089,35 +2097,92 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                        console.log(`  ✅ Found variant by exact name match in set: ${componentToSwap.name}`);
                    }
                    
-                   // 2. Try parsing properties
-                   if (!componentToSwap && targetVariantName) {
-                       // Convert "Shape=Square, Size=Small" to object { Shape: "Square", Size: "Small" }
+                   // 2. Try parsing properties to find the best variant match
+                   if (!componentToSwap) {
                        const desiredProps: Record<string, string> = {};
-                       targetVariantName.split(',').forEach((pair: string) => {
-                           const [k, v] = pair.split('=').map((s: string) => s.trim());
-                           if (k && v) desiredProps[k] = v;
-                       });
+                       let propertiesSource = 'None';
+
+                       // Strategy A: Use Property Mapping (Best for Component Sets)
+                       if (comp.propertyMapping && Object.keys(comp.propertyMapping).length > 0) {
+                           propertiesSource = 'Mapping';
+                           const currentProps = instanceNode.componentProperties;
+                           for (const [targetProp, sourceProp] of Object.entries(comp.propertyMapping)) {
+                               const sKey = sourceProp as string;
+                               let val = undefined;
+                               
+                               // Robust lookup: Exact ID match -> Hash-stripped match
+                               if (currentProps[sKey]) val = currentProps[sKey].value;
+                               else {
+                                   const cleanS = sKey.split('#')[0];
+                                   const match = Object.entries(currentProps).find(([k]) => k.split('#')[0] === cleanS);
+                                   if (match) val = match[1].value;
+                               }
+                               
+                               if (val !== undefined) {
+                                   // targetProp might come with #hash, we only need the name for variant lookup
+                                   const targetPropName = targetProp.split('#')[0];
+                                   desiredProps[targetPropName] = String(val);
+                               }
+                           }
+                       }
+                       
+                       // Strategy B: Parse from Source Variant Name (Fallback)
+                       // Only do this if we didn't get properties from mapping (or if mapping was empty/failed)
+                       if (Object.keys(desiredProps).length === 0 && targetVariantName) {
+                           // Try strictly parsing "Key=Value" format
+                           targetVariantName.split(',').forEach((pair: string) => {
+                               const parts = pair.split('=');
+                               if (parts.length === 2) {
+                                   const k = parts[0].trim();
+                                   const v = parts[1].trim();
+                                   if (k && v) desiredProps[k] = v;
+                               }
+                           });
+                           
+                           if (Object.keys(desiredProps).length > 0) {
+                               propertiesSource = 'NameString';
+                           } else {
+                               // Strategy C: Fuzzy/Value matching (for names like "Primary" or "Square")
+                               // If we couldn't find Key=Value pairs, treat the whole string as a potential Value.
+                               propertiesSource = 'ValueMatch';
+                           }
+                       }
                        
                        if (Object.keys(desiredProps).length > 0) {
-                           // Find variant that matches all desired properties
+                           console.log(`  🎯 Searching for variant using [${propertiesSource}]:`, JSON.stringify(desiredProps));
                            
                            const bestVariant = importedComponent.children.find(child => {
                                if (child.type !== 'COMPONENT') return false;
-                               // Check if all desired props match this child's name properties
-                               // Child name format: "Key1=Value1, Key2=Value2"
-                               const childProps: Record<string, string> = {};
-                               child.name.split(',').forEach((pair: string) => {
-                                   const [k, v] = pair.split('=').map((s: string) => s.trim());
-                                   if (k && v) childProps[k] = v;
-                               });
                                
-                               // Check match
-                               return Object.entries(desiredProps).every(([k, v]) => childProps[k] === v);
+                               // Use native variantProperties map instead of parsing name string
+                               const childProps = child.variantProperties || {};
+                               
+                               // Verify every desired property matches this child
+                               return Object.entries(desiredProps).every(([k, v]) => {
+                                   return childProps[k] === v;
+                               });
                            });
                            
                            if (bestVariant) {
                                componentToSwap = bestVariant as ComponentNode;
                                console.log(`  ✅ Found variant by property match: ${componentToSwap.name}`);
+                           } else {
+                               console.log(`  ⚠️ No variant found specific properties. (Will fallback to default)`);
+                           }
+                       } else if (propertiesSource === 'ValueMatch') {
+                           // Strategy C Implementation
+                           console.log(`  🎯 Searching for variant where ANY property value equals '${targetVariantName}'`);
+                           
+                           const bestVariant = importedComponent.children.find(child => {
+                               if (child.type !== 'COMPONENT') return false;
+                               const childProps = child.variantProperties || {};
+                               // Check if any property value matches targetVariantName
+                               return Object.values(childProps).some(val => val === targetVariantName);
+                           });
+                           
+                           if (bestVariant) {
+                               componentToSwap = bestVariant as ComponentNode;
+                               console.log(`  ✅ Found variant by Value Match: ${componentToSwap.name}`);
                            }
                        }
                    }

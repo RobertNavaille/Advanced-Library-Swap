@@ -3285,18 +3285,73 @@
                   // We want to find the BEST match (e.g. same variant name)
                   // For the parent group row, we just need ONE valid target to enable configuration
                   
-                  // Find first matching variant
-                  for (const v of variants) {
-                      const matchKey = targetLibObj.components[v.name];
-                      if (matchKey) {
-                          isMatchFound = true;
-                          targetComponentName = firstVariant.displayName; // Use source name paradigm for now
-                          bestCandidate = {
-                              name: v.displayName, // or v.name? v.displayName is parent name usually
-                              key: matchKey,
-                              libraryName: targetLibraryName
-                          };
-                          break; // Found a valid target for this component set
+                  // 1. Try to find the Parent Component Set directly (Preferred for preserving variants)
+                  // validParentName is usually stored in displayName for the group
+                  const parentName = firstVariant.displayName;
+                  
+                  // NEW LOGIC: Refine Parent Set Match to Specific Variant
+                  // If we match the Parent Name, we know the target has this Component Set.
+                  // However, we shouldn't just stop at the Set Key. We should check if the
+                  // target library has a default variant or if we can map to a specific one immediately.
+                  // This ensures that 'bestCandidate.key' points to a actionable variant (like 'Round')
+                  // rather than the generic set, which solves the "ignoring preselection" issue.
+                  
+                  if (targetLibObj.components[parentName]) {
+                       isMatchFound = true;
+                       targetComponentName = parentName;
+                       const setKey = targetLibObj.components[parentName];
+                       
+                       // Start with the Set Key
+                       bestCandidate = {
+                           name: parentName,
+                           key: setKey,
+                           libraryName: targetLibraryName
+                       };
+                       
+                       // Try to upgrade to a specific variant key if possible
+                       // We look for a variant in the target library that matches our source name convention?
+                       // Unlike the backend, we don't have the full variant properties structure here easily,
+                       // just a flat list of 'Name' -> 'Key' in targetLibObj.components.
+                       // But! We know the target library keys.
+                       
+                       // Look for keys that start with the Parent Name + "/"
+                       // and try to find the "first" one / default one to carry over.
+                       // Actually, the issue is that the UI *shows* "Round" selected in the menu
+                       // because the menu logic (onclick) auto-selects the first variant.
+                       // We need to bake that auto-selection into bestCandidate RIGHT HERE.
+                       
+                       const variantPrefix = parentName + '/';
+                       const availableVariants = Object.keys(targetLibObj.components).filter(k => k.startsWith(variantPrefix));
+                       
+                       if (availableVariants.length > 0) {
+                           // Sort to ensure consistent default (or just take the first one found)
+                           availableVariants.sort(); 
+                           const defaultVariantName = availableVariants[0]; // e.g. "Rectangle/Shape=Round"
+                           const defaultVariantKey = targetLibObj.components[defaultVariantName];
+                           
+                           console.log(`✨ [Scan] Upgraded '${parentName}' (Set) to '${defaultVariantName}' (Default Variant)`);
+                           
+                           bestCandidate = {
+                               name: defaultVariantName, // Use the specific variant name
+                               displayName: parentName,  // Keep display name simple in the main row
+                               key: defaultVariantKey,   // CRITICAL: Point to the specific variant key!
+                               libraryName: targetLibraryName
+                           };
+                       }
+                  } else {
+                      // 2. Fallback: Find first matching variant
+                      for (const v of variants) {
+                          const matchKey = targetLibObj.components[v.name];
+                          if (matchKey) {
+                              isMatchFound = true;
+                              targetComponentName = firstVariant.displayName; // Use source name paradigm for now
+                              bestCandidate = {
+                                  name: v.displayName, // or v.name? v.displayName is parent name usually
+                                  key: matchKey,
+                                  libraryName: targetLibraryName
+                              };
+                              break; // Found a valid target for this component set
+                          }
                       }
                   }
               }
@@ -4024,9 +4079,6 @@
             
             if (propertyMapping) {
                 console.log(`📦 [UI] Found property mapping for ${variantNames}:`, propertyMapping);
-            } else {
-                // debug: check why it might be missing
-                // console.log(`[UI] No property mapping found on item for ${variantNames}`, item.scanResult);
             }
 
             const variants = variantNames.split(',').map(v => v.trim());
@@ -4035,16 +4087,38 @@
             const bestCandidate = (item.scanResult && item.scanResult.bestCandidate) ? item.scanResult.bestCandidate : null;
             let targetKey = bestCandidate ? bestCandidate.key : undefined;
             
-            // Safety Net: If key is missing but we have a specific name, try to look it up in the library
-            if (!targetKey && selectedTargetName && window.connectedLibraries) {
+            // -------------------------------------------------------------------------
+            // Fix for "Default Selection" logic (Revised):
+            // -------------------------------------------------------------------------
+            // We behave differently depending on whether the User has manually changed the dropdown.
+            // 1. If bestCandidate exists and the UI Name matches (or resembles) the Best Candidate Name,
+            //    we TRUST the bestCandidate.key (which is likely a specific Variant Key).
+            // 2. We ONLY override targetKey if the user has selected a DIFFERENT component name
+            //    than what the scan suggested.
+            
+            const candidateName = bestCandidate ? (bestCandidate.displayName || bestCandidate.name) : '';
+            const isManualChange = selectedTargetName && candidateName && (selectedTargetName !== candidateName);
+            
+            // Only look up a new key if we suspect a manual change, OR if we had no key to begin with
+            // AND we have a valid library connection.
+            if ((!targetKey || isManualChange) && selectedTargetName && window.connectedLibraries) {
                  const targetLib = window.connectedLibraries.find(l => l.name === targetLibrary);
                  if (targetLib && targetLib.components) {
-                     // Try exact match
-                     if (targetLib.components[selectedTargetName]) {
-                         targetKey = targetLib.components[selectedTargetName];
-                         console.log(`✅ [UI] Recovered key for '${selectedTargetName}': ${targetKey}`);
+                     // Check if the selected name exists in the library components map
+                     const uiKey = targetLib.components[selectedTargetName];
+                     
+                     if (uiKey) {
+                         // User selected something specific found in the library
+                         if (!targetKey || targetKey !== uiKey) {
+                             console.log(`✅ [UI] Manual Override: Using Key for '${selectedTargetName}' (${uiKey})`);
+                             targetKey = uiKey;
+                         }
                      }
                  }
+            } else {
+                if (targetKey) {
+                     console.log(`✅ [UI] Trusting Scan Result Key for '${selectedTargetName}' (Key: ${targetKey})`);
+                }
             }
             
             console.log(`📤 Preparing swap for '${selectedTargetName}': TargetKey=${targetKey}, BestCandidate=`, bestCandidate);
