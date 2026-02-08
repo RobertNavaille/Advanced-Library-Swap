@@ -1,7 +1,6 @@
 {
   "name": "Advanced Library Swap",
   "id": "1554521831844238245",
-  "icon": "Images/icon.png",
   "api": "1.0.0",
   "main": "code.js",
   "capabilities": [],
