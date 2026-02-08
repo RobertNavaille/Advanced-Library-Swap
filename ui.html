@@ -2217,13 +2217,13 @@
     }
 
     .menu-header-row {
-        padding: 0 16px;
+        padding: 0 8px;
         height: 24px;
         display: flex;
         align-items: center;
         /* Left aligned per request */
         justify-content: flex-start; 
-        color: var(--figma-color-text, #FFFFFF);
+        color: var(--figma-color-text-tertiary, #B3B3B3);
         font-size: 11px;
         font-weight: 450;
         cursor: default;
@@ -5096,6 +5096,7 @@
       // Components Header (Simple Mockup Style)
       const mainHeader = document.createElement('div');
       mainHeader.className = 'menu-header-row';
+      mainHeader.style.color = 'var(--figma-color-text, #FFFFFF)';
       mainHeader.textContent = 'Components';
       menu.appendChild(mainHeader);
       
@@ -5167,18 +5168,20 @@
                   item.classList.add('selected');
               }
                
-              const checkIcon = `<span class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg></span>`;
+              const checkIcon = `<span class="icon-container" style="width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;"><svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg></span>`;
               
-              const componentIcon = `<div class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.5 2.5L2.5 5.5L5.5 8.5L8.5 5.5L5.5 2.5ZM6.20711 1.79289C5.81658 1.40237 5.18342 1.40237 4.79289 1.79289L1.08579 5.5L4.79289 9.20711C5.18342 9.59763 5.81658 9.59763 6.20711 9.20711L9.91421 5.5L6.20711 1.79289ZM7.5 5.5L10.5 8.5L7.5 11.5L4.5 8.5L7.5 5.5ZM8.20711 4.79289C7.81658 4.40237 7.18342 4.40237 6.79289 4.79289L3.08579 8.5L6.79289 12.2071C7.18342 12.5976 7.81658 12.5976 8.20711 12.2071L11.9142 8.5L8.20711 4.79289ZM5.5 2.5L8.5 5.5L11.5 2.5L8.5 -0.5L5.5 2.5ZM6.20711 1.79289C6.59763 2.18342 7.23079 2.18342 7.62132 1.79289L11.3284 -1.91421L7.62132 -5.62132C7.23079 -6.01184 6.59763 -6.01184 6.20711 -5.62132L2.5 -1.91421L6.20711 1.79289Z" fill="currentColor"/></svg><svg style="display:none;" width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12L12 22L22 12L12 2ZM4.82843 12L12 4.82843L19.1716 12L12 19.1716L4.82843 12Z" fill="currentColor"/></svg></div>`;
+              // const componentIcon = ... (Removed at user request for cleaner look)
               
               // Add expand arrow if variants exist
               const hasVariants = node.variants.length > 0;
               const arrowIcon = hasVariants ? 
-                  `<div class="expand-arrow" style="margin-left: auto; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;">
-                     <svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  `<div class="expand-arrow" style="margin-left: auto; margin-right: -8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--figma-color-icon);">
+                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M11.1464 9.64645C11.3417 9.45118 11.6583 9.45118 11.8536 9.64645L13.8536 11.6464C14.0488 11.8417 14.0488 12.1583 13.8536 12.3536L11.8536 14.3536C11.6583 14.5488 11.3417 14.5488 11.1464 14.3536C10.9512 14.1583 10.9512 13.8417 11.1464 13.6464L12.7929 12L11.1464 10.3536C10.9512 10.1583 10.9512 9.84171 11.1464 9.64645Z" fill="currentColor" fill-opacity="0.9"/>
+</svg>
                    </div>` : '';
 
-              item.innerHTML = `${checkIcon}${componentIcon}<span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${parentName}</span>${arrowIcon}`;
+              item.innerHTML = `${checkIcon}<span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${parentName}</span>${arrowIcon}`;
               
               // Handle Click
               // If it's a Top Level Component (Parent), clicking it selects it.
@@ -5301,7 +5304,7 @@
                        if (isVariantSelected) subItem.classList.add('selected');
 
                        // Variants use standard checkmark, but simpler
-                       const checkIcon = `<span class="icon-container" style="width: 16px; height: 16px; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center;"><svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg></span>`;
+                       const checkIcon = `<span class="icon-container" style="width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;"><svg class="dropdown-check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.7773 4.084C12.0071 4.23717 12.0692 4.54761 11.916 4.77737L7.91603 10.7774C7.83293 10.902 7.69834 10.9828 7.54927 10.9976C7.4002 11.0123 7.25237 10.9595 7.14645 10.8536L4.14645 7.85358C3.95118 7.65831 3.95118 7.34173 4.14645 7.14647C4.34171 6.95121 4.65829 6.95121 4.85355 7.14647L7.42229 9.7152L11.084 4.22267C11.2372 3.99291 11.5476 3.93082 11.7773 4.084Z" fill="currentColor" fill-opacity="0.9"/></svg></span>`;
 
                        subItem.innerHTML = `${checkIcon}<span style="font-size: 11px;">${v.short}</span>`;
                        
