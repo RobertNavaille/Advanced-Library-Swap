@@ -604,7 +604,6 @@ async function handleScanFrames(): Promise<void> {
     // Filter components and tokens to only include those from connected libraries
     const connectedLibraryNames = new Set(CONNECTED_LIBRARIES.map(l => l.name));
     
-    // Also include libraries from JSONBin if they are considered "connected" or if we want to allow them
     // But user requirement is "ignore ... not included in connected libraries"
     // So we strictly filter by CONNECTED_LIBRARIES
     
@@ -1198,9 +1197,6 @@ async function syncLibraryDefinitions(): Promise<void> {
   variables.forEach(variable => {
     console.log(`  '${variable.name}': '${variable.id}',`);
   });
-  
-  // Try to upload to JSONBin
-  // await uploadToJSONBin(components, styles, variables);
   
   figma.notify(`Found ${components.length} components, ${styles.length} styles, and ${variables.length} variables. Check console for keys/IDs.`);
   figma.ui.postMessage({ 
