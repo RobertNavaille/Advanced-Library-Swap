@@ -5329,21 +5329,44 @@
                       const gap = 10;
                       
                       submenu.style.position = 'fixed';
-                      submenu.style.top = rect.top + 'px';
-                      // Position to the left of the item
-                      submenu.style.left = (rect.left - submenuWidth - gap) + 'px';
-                      // Ensure it's not offscreen left (simple check)
-                      if (parseFloat(submenu.style.left) < 0) {
-                           // If offscreen left, try right side? Or just clamp?
-                           // For now, let's assume enough space or force left
-                           // User asked for "to the left".
-                      }
-                      
                       submenu.style.width = submenuWidth + 'px';
-                      submenu.style.display = 'block';
+                      submenu.style.display = 'block'; // Show to measure
                       submenu.style.zIndex = '2005'; // Higher than menu
+                      
+                      const submenuHeight = submenu.offsetHeight;
+                      const windowHeight = window.innerHeight;
+                      
+                      // Vertical Positioning
+                      let topPos = rect.top;
+                      
+                      // If submenu goes off bottom, shift it up
+                      if (topPos + submenuHeight > windowHeight) {
+                          topPos = windowHeight - submenuHeight - 10;
+                          // If shifting up makes it go off top, clamp to top and scroll
+                          if (topPos < 10) {
+                              topPos = 10;
+                              submenu.style.maxHeight = (windowHeight - 20) + 'px';
+                              submenu.style.overflowY = 'auto';
+                          }
+                      } else {
+                          submenu.style.maxHeight = '';
+                          submenu.style.overflowY = 'visible';
+                      }
+                      submenu.style.top = topPos + 'px';
+
+                      // Horizontal Positioning (Prefer Left, fallback to Right)
+                      // Current logic is hardcoded Left per user request/impl
+                      let leftPos = rect.left - submenuWidth - gap;
+                      
+                      // If offscreen left, force Right
+                      if (leftPos < 0) {
+                          leftPos = rect.right + gap;
+                      }
+                      submenu.style.left = leftPos + 'px';
+
                       item.classList.add('parent-active');
                   });
+
                   
                   groupContainer.addEventListener('mouseleave', () => {
                       hideTimeout = setTimeout(() => {
@@ -5359,10 +5382,41 @@
       
       // Position menu
       const rect = trigger.getBoundingClientRect();
-      menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
-      menu.style.left = `${rect.left}px`;
       menu.style.width = '200px';
-      menu.style.display = 'block';
+      menu.style.display = 'block'; // Make it visible to measure height
+      
+      const menuHeight = menu.offsetHeight;
+      const windowHeight = window.innerHeight;
+      const spaceBelow = windowHeight - rect.bottom - 4;
+      const spaceAbove = rect.top - 4;
+      
+      if (menuHeight < spaceBelow || spaceBelow > spaceAbove) {
+          // Fits below, or more space below
+          menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+          // Max height constraint
+          if (menuHeight > spaceBelow) {
+              menu.style.maxHeight = `${spaceBelow - 10}px`;
+              menu.style.overflowY = 'auto';
+          } else {
+              menu.style.maxHeight = '';
+              menu.style.overflowY = 'visible';
+          }
+      } else {
+          // Position above
+          menu.style.top = `${rect.top + window.scrollY - menuHeight - 4}px`;
+           // unique scenario: if menu is taller than space above, we must constrain it and re-position
+           if (menuHeight > spaceAbove) {
+               menu.style.maxHeight = `${spaceAbove - 10}px`;
+               menu.style.overflowY = 'auto';
+               // Re-measure or just set top to top of window + padding
+               menu.style.top = `${window.scrollY + 10}px`; 
+           } else {
+               menu.style.maxHeight = '';
+               menu.style.overflowY = 'visible';
+           }
+      }
+      
+      menu.style.left = `${rect.left}px`;
       
       // Close logic
       const closeMenu = () => {
