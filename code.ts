@@ -2798,6 +2798,9 @@ async function extractNestedProperties(node: SceneNode, prefix: string, definiti
                     // Add property definitions
                     if (childDefs) {
                         for (const [key, def] of Object.entries(childDefs)) {
+                            // Cast def to ComponentPropertyDefinition to avoid 'unknown' type errors
+                            const propDef = def as ComponentPropertyDefinition;
+                            
                             // Construct a unique key for the UI that includes the path
                             // Format: "Path/To/Instance#PropertyKey"
                             // We use a special separator or just ensure it's unique.
@@ -2815,14 +2818,14 @@ async function extractNestedProperties(node: SceneNode, prefix: string, definiti
                             const uniqueKey = `${newPrefix} / ${propName}#${propId || key}_${child.id}`;
                             
                             definitions[uniqueKey] = {
-                                ...def,
-                                defaultValue: def.defaultValue
+                                ...propDef,
+                                defaultValue: propDef.defaultValue
                             };
                             
                             if (childProperties[key]) {
                                 values[uniqueKey] = childProperties[key];
                             } else {
-                                 values[uniqueKey] = { value: def.defaultValue, type: def.type };
+                                 values[uniqueKey] = { value: propDef.defaultValue, type: propDef.type };
                             }
                         }
                     }
