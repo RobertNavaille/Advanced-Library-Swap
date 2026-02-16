@@ -2779,6 +2779,7 @@ async function extractNestedProperties(node: SceneNode, prefix: string, definiti
             if (child.type === 'INSTANCE') {
                 const childName = child.name;
                 const newPrefix = prefix ? `${prefix} / ${childName}` : childName;
+                console.log(`🔍 Inspecting nested child: "${childName}" (Path: ${newPrefix})`);
                 
                 try {
                     // Get properties of this instance
@@ -2788,15 +2789,21 @@ async function extractNestedProperties(node: SceneNode, prefix: string, definiti
                     
                     const main = await child.getMainComponentAsync();
                     if (main) {
+                         console.log(`   ✅ Found main component for nested instance: ${main.name}`);
                          if (main.parent && main.parent.type === 'COMPONENT_SET') {
                               childDefs = main.parent.componentPropertyDefinitions;
                          } else {
                               childDefs = main.componentPropertyDefinitions;
                          }
+                    } else {
+                         console.warn(`   ⚠️ Could not find main component for nested instance: "${childName}"`);
                     }
                     
                     // Add property definitions
                     if (childDefs) {
+                        const defKeys = Object.keys(childDefs);
+                        console.log(`   📝 Found ${defKeys.length} property definitions in nested instance.`);
+                        
                         for (const [key, def] of Object.entries(childDefs)) {
                             // Cast def to ComponentPropertyDefinition to avoid 'unknown' type errors
                             const propDef = def as ComponentPropertyDefinition;
@@ -2817,6 +2824,8 @@ async function extractNestedProperties(node: SceneNode, prefix: string, definiti
                             const [propName, propId] = key.split('#');
                             const uniqueKey = `${newPrefix} / ${propName}#${propId || key}_${child.id}`;
                             
+                            console.log(`      + Adding nested property: "${propName}" -> Key: ${uniqueKey}`);
+
                             definitions[uniqueKey] = {
                                 ...propDef,
                                 defaultValue: propDef.defaultValue
