@@ -2772,6 +2772,74 @@ let lastPropContext: {
 //     }
 // });
 
+// Helper to recursively extract properties from nested instances
+async function extractNestedProperties(node: SceneNode, prefix: string, definitions: any, values: any) {
+    if ("children" in node) {
+        for (const child of node.children) {
+            if (child.type === 'INSTANCE') {
+                const childName = child.name;
+                const newPrefix = prefix ? `${prefix} / ${childName}` : childName;
+                
+                try {
+                    // Get properties of this instance
+                    // Note: componentProperties includes overrides.
+                    const childProperties = child.componentProperties; 
+                    let childDefs: any = {};
+                    
+                    const main = await child.getMainComponentAsync();
+                    if (main) {
+                         if (main.parent && main.parent.type === 'COMPONENT_SET') {
+                              childDefs = main.parent.componentPropertyDefinitions;
+                         } else {
+                              childDefs = main.componentPropertyDefinitions;
+                         }
+                    }
+                    
+                    // Add property definitions
+                    if (childDefs) {
+                        for (const [key, def] of Object.entries(childDefs)) {
+                            // Construct a unique key for the UI that includes the path
+                            // Format: "Path/To/Instance#PropertyKey"
+                            // We use a special separator or just ensure it's unique.
+                            // The UI splits by '#', receiving the Name.
+                            // We construct the name as "Path / Name".
+                            
+                            // Original Key: "Show Icon#123:456"
+                            // New Key: "Nested / Show Icon#unique_suffix" ??
+                            // Actually, if we just prepend the path to the name part of the key:
+                            // "Button / Show Icon#123:456"
+                            // But 123:456 is the property ID. Reusing it might confuse things if multiple instances use the same component.
+                            // So we should append the node ID or path to the ID part to make it unique.
+                            
+                            const [propName, propId] = key.split('#');
+                            const uniqueKey = `${newPrefix} / ${propName}#${propId || key}_${child.id}`;
+                            
+                            definitions[uniqueKey] = {
+                                ...def,
+                                defaultValue: def.defaultValue
+                            };
+                            
+                            if (childProperties[key]) {
+                                values[uniqueKey] = childProperties[key];
+                            } else {
+                                 values[uniqueKey] = { value: def.defaultValue, type: def.type };
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log(`Error extracting nested prop for ${child.name}`, e);
+                }
+
+                // Recurse
+                await extractNestedProperties(child, newPrefix, definitions, values);
+            } else if (child.type === 'FRAME' || child.type === 'GROUP' || child.type === 'SECTION') {
+                 // Recurse for containers
+                 await extractNestedProperties(child, prefix, definitions, values);
+            }
+        }
+    }
+}
+
 async function handleGetComponentProperties(sourceId: string, targetKey: string, targetName: string, targetLibraryName?: string, sourceLibraryName?: string) {
     // Update context for live updates
     lastPropContext = { sourceId, targetKey, targetName, targetLibraryName, sourceLibraryName };
@@ -2801,6 +2869,10 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
                             sourceComponentName = main.name;
                         }
                     }
+                    
+                    // Extract nested instance properties for the instance
+                    await extractNestedProperties(sourceNode, '', sourceDefinitions, sourcePropertyValues);
+                    
                 } catch (e) { console.warn("Could not get main component", e); }
              } else if (sourceNode.type === 'COMPONENT') {
                   // Extract values from Component (Variant properties)
@@ -2847,7 +2919,10 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
                   
                   console.log('Component Variant Values:', sourcePropertyValues);
 
-                  // If it's a variant, get definitions from the parent ComponentSet
+   // Recurse for nested instance properties
+                  // Note: sourceDefinitions might be reassigned below, so we should wait or re-merge.
+                  // Actually, for Component, we usually get definitions from parent Set.
+                  
                   if (sourceNode.parent && sourceNode.parent.type === 'COMPONENT_SET') {
                       sourceDefinitions = sourceNode.parent.componentPropertyDefinitions;
                       sourceComponentName = sourceNode.parent.name;
@@ -2855,6 +2930,10 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
                       sourceDefinitions = sourceNode.componentPropertyDefinitions;
                       sourceComponentName = sourceNode.name;
                   }
+
+                  // NOW extract nested properties and merge them into sourceDefinitions
+                  await extractNestedProperties(sourceNode, '', sourceDefinitions, sourcePropertyValues);
+
              } else if (sourceNode.type === 'COMPONENT_SET') {
                   sourceDefinitions = sourceNode.componentPropertyDefinitions;
                   sourceComponentName = sourceNode.name;
