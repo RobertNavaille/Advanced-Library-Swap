@@ -5104,29 +5104,86 @@
       
       // Organize into Parent -> Variants structure
       const hierarchy = {};
+
+      console.log('--- START TARGET COMPONENT MENU BUILD ---');
+      console.log('Total components to process:', allComponents.length);
       
       allComponents.forEach(compName => {
+          // Filter out private components/variants (starting with . or _)
+          if (compName.startsWith('.') || compName.startsWith('_')) {
+             console.log(`[Skip] Private prefix: "${compName}"`);
+             return;
+          }
+
           if (compName.includes('/')) {
               // It's a variant (or at least has slashes)
               const parts = compName.split('/');
+              
+              // Filter out if ANY part of the path (folder or variant name) is private
+              if (parts.some(p => p.trim().startsWith('.') || p.trim().startsWith('_'))) {
+                 console.log(`[Skip] Private path part: "${compName}"`);
+                 return;
+              }
+
               // Assume the last part is the variant name, everything before is the parent
               let rawVariantName = parts.pop();
               let displayVariantName = rawVariantName;
               
-              // Simplify variant name (remove "Property=")
+              // Simplify variant name (keep only the first property value if multiple exist)
               if (displayVariantName && displayVariantName.includes('=')) {
-                  displayVariantName = displayVariantName.split(',')
-                    .map(part => part.includes('=') ? part.split('=')[1].trim() : part.trim())
-                    .join(', ');
+                  // The user requests STRICT and SIMPLE logic. 
+                  const firstProp = displayVariantName.split(',')[0];
+                  
+                  if (firstProp.includes('=')) {
+                      const [k, v] = firstProp.split('=');
+                      const key = k ? k.trim() : '';
+                      const val = v ? v.trim() : '';
+                      
+                      // Filter out private keys/values if needed (standard convention)
+                      if (!key.startsWith('.') && !key.startsWith('_')) {
+                           displayVariantName = val;
+                      }
+                  } else {
+                       // If split by comma didn't result in an equals sign in the first part, 
+                       // it might be that the comma is part of a value? Unlikely in standard Figma naming.
+                       // Or maybe the loop logic is flawed.
+                  }
+              } else {
+                  // CRITICAL FIX:
+                  // If the "variant name" does NOT contain an '=', it is likely NOT a variant but just a regular component
+                  // nested in a folder structure (e.g. "Buttons/Big Button").
+                  
+                  // Reconstruct the full name as the key
+                  const fullPath = parts.join('/') + '/' + rawVariantName;
+                  
+                   if (!hierarchy[fullPath]) {
+                      hierarchy[fullPath] = { variants: [] };
+                  }
+                  hierarchy[fullPath].isTopLevel = true;
+                  // console.log(`[Non-variant] Treated as top level: ${fullPath}`);
+                  return;
               }
+
+              if (!displayVariantName) return;
               
               const parentName = parts.join('/');
+              
+              // NEW LOGIC: Handling nested component sets (e.g. "Examples/Alert")
               
               if (!hierarchy[parentName]) {
                   hierarchy[parentName] = { variants: [] };
               }
-              hierarchy[parentName].variants.push({ full: compName, short: displayVariantName, raw: rawVariantName });
+
+              // Check if we already have this variant value (e.g. "Stacked")
+              // If so, we skip adding duplicates. We essentially pick the "first found" combination
+              
+              const existing = hierarchy[parentName].variants.find(v => v.short === displayVariantName);
+              if (!existing) {
+                  // console.log(`[Add] ${parentName} -> ${displayVariantName}`);
+                  hierarchy[parentName].variants.push({ full: compName, short: displayVariantName, raw: rawVariantName });
+              }
           } else {
+              console.log(`[Add Parent] Top level: "${compName}"`);
               // It's a top level component (or a Parent Component Set)
               if (!hierarchy[compName]) {
                   hierarchy[compName] = { variants: [] };
@@ -5134,6 +5191,7 @@
               hierarchy[compName].isTopLevel = true;
           }
       });
+      console.log('--- END TARGET COMPONENT MENU BUILD ---');
       
       const parents = Object.keys(hierarchy).sort();
 
@@ -5239,10 +5297,11 @@
                   submenu.className = 'dropdown-submenu';
                   submenu.style.display = 'none'; // Hidden by default
                   
+                   
                   // 1. Title Row ("Rectangle Variants")
                   const subTitle = document.createElement('div');
                   subTitle.className = 'menu-title-row';
-                  subTitle.textContent = `${parentName} Variants`;
+                  subTitle.textContent = `${parentName}`; // Just the parent name, cleaner
                   submenu.appendChild(subTitle);
 
                   // 2. Divider
@@ -5250,31 +5309,20 @@
                   subDivider.className = 'menu-divider';
                   submenu.appendChild(subDivider);
 
-                  // 3. Property Heading Row ("Shape")
-                  // Extract Property Keys from the first variant to use as Header
-                  let headerText = 'Properties';
+                  // 3. Header Row (Use the property key if available)
+                  let headerText = 'Variants';
+                  // Simple: Just take the key of the FIRST property of the first variant.
                   if (node.variants.length > 0 && node.variants[0].raw && node.variants[0].raw.includes('=')) {
-                      // Extract all keys (e.g. Shape=Round, Size=Large -> "Shape, Size")
-                      // Use the raw name which contains the property keys
-                      const keys = node.variants[0].raw.split(',').map(part => {
-                          const pair = part.split('=');
-                          return pair.length > 0 ? pair[0].trim() : '';
-                      }).filter(k => k);
-                      
-                      if (keys.length > 0) {
-                          headerText = keys.join(', ');
+                      const firstProp = node.variants[0].raw.split(',')[0];
+                      if (firstProp.includes('=')) {
+                          headerText = firstProp.split('=')[0].trim();
                       }
                   }
-
+                  
                   const subHeader = document.createElement('div');
                   subHeader.className = 'menu-header-row';
                   subHeader.textContent = headerText;
                   submenu.appendChild(subHeader);
-                  
-                  // Generic Property Heading (Centered Gray) - Optional per mockup showing "{Variant prop name}"
-                  // Since we dont have the prop name easily here, we can skip or add if needed.
-                  // Im adding a generic one if you want perfectly matching structure, but "Variants" title covers it.
-                  // Leaving out for cleaner look unless insisted.
                   
                   // Add Variants
                   node.variants.forEach((v, index) => {

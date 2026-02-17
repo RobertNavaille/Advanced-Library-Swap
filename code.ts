@@ -310,7 +310,24 @@ async function handleSyncCurrentFile() {
             // We will handle local lookup by scanning keys if needed
             let entryName = node.name;
             if (node.parent && node.parent.type === 'COMPONENT_SET') {
-                entryName = `${node.parent.name}/${node.name}`;
+                // If the user has organized components using Frames/Sections (e.g. "Examples" -> "Alert" Set),
+                // the raw name of the set is just "Alert", leading to collisions with the main "Alert" set.
+                // We attempt to construct a more unique name by prepending the parent container's name 
+                // if it's a structural container (Frame, Section, Group).
+                let prefix = '';
+                let currentParent = node.parent.parent;
+                
+                // Traverse up to 2 levels to find meaningful context (e.g. "Examples/Alert")
+                // Stop at PAGE or DOCUMENT root.
+                if (currentParent && (currentParent.type === 'FRAME' || currentParent.type === 'SECTION' || currentParent.type === 'GROUP')) {
+                     // Only prepend if the name doesn't already start with the parent name (avoid "Alert/Alert")
+                     // and if the parent has a name.
+                     if (currentParent.name && !node.parent.name.startsWith(currentParent.name)) {
+                          prefix = `${currentParent.name}/`;
+                     }
+                }
+                
+                entryName = `${prefix}${node.parent.name}/${node.name}`;
             }
             components[entryName] = node.key;
             // console.log(`     - Component: ${entryName}, Key: ${node.key}`);
