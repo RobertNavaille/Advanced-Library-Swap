@@ -5552,6 +5552,7 @@
     };
 
     function renderPropertyMappingView(sourceId, targetName, sourceDefs, targetDefs, targetLibraryName, sourceLibraryName, sourceComponentName, sourcePropertyValues) {
+        console.log('UI: renderPropertyMappingView. Source Defs Keys:', sourceDefs ? Object.keys(sourceDefs) : 'None');
         showView('propertyMappingView');
         
         // Target Component
@@ -5587,6 +5588,7 @@
             const other = [];
 
             Object.entries(targetDefs).forEach(([propName, def]) => {
+                // if (propName.startsWith('__')) return; // Allow internal/nested for target if needed, but usually target is clean
                 if (propName.startsWith('__')) return;
                 
                 if (Object.prototype.hasOwnProperty.call(groups, def.type)) {
@@ -5689,8 +5691,17 @@
                         // console.log(`Restored mapping for ${cleanTargetName}: ${selectedPropDisplay}`);
 
                     } else if (sourceDefs) {
-                        // Fallback: Try to find a property with the same clean name
-                        const matchRaw = Object.keys(sourceDefs).find(p => p.split('#')[0] === cleanTargetName);
+                        // Fallback: Try to find a property with the same clean name OR nested suffix match
+                        let matchRaw = Object.keys(sourceDefs).find(p => p.split('#')[0] === cleanTargetName);
+
+                        if (!matchRaw) {
+                            // Smart Match: Check for nested properties (e.g. "LabelComp / Text" matches "Text")
+                            matchRaw = Object.keys(sourceDefs).find(p => {
+                                const clean = p.split('#')[0];
+                                return clean.endsWith(` / ${cleanTargetName}`);
+                            });
+                            if (matchRaw) console.log(`🤖 Smart matched nested prop: ${matchRaw} for target ${cleanTargetName}`);
+                        }
                         
                         if (matchRaw) {
                             selectedPropRaw = matchRaw;
@@ -5720,11 +5731,13 @@
                         for (const [sName, sDef] of Object.entries(sourceDefs)) {
                              if (sName.startsWith('__')) continue;
                              const sType = preCheckStrictType(sDef);
+                             // RELAXED FILTERING LOGIC (Matching showPropMappingMenu)
                              let isMatch = false;
-                             if (targetStrictTypeRaw === 'TEXT' && sType === 'TEXT') isMatch = true;
-                             else if (targetStrictTypeRaw === 'BOOLEAN' && sType === 'BOOLEAN') isMatch = true;
-                             else if (targetStrictTypeRaw === 'VARIANT_BOOLEAN' && sType === 'VARIANT_BOOLEAN') isMatch = true;
-                             else if (targetStrictTypeRaw === 'VARIANT_STRING' && sType === 'VARIANT_STRING') isMatch = true;
+                             const textLike = ['TEXT', 'VARIANT_STRING'];
+                             const boolLike = ['BOOLEAN', 'VARIANT_BOOLEAN'];
+                             
+                             if (textLike.includes(targetStrictTypeRaw) && textLike.includes(sType)) isMatch = true;
+                             else if (boolLike.includes(targetStrictTypeRaw) && boolLike.includes(sType)) isMatch = true;
                              else if (targetStrictTypeRaw === 'INSTANCE_SWAP' && sType === 'INSTANCE_SWAP') isMatch = true;
                              else if (targetStrictTypeRaw === 'VARIANT' && (sType === 'VARIANT_BOOLEAN' || sType === 'VARIANT_STRING')) isMatch = true;
                              
@@ -5736,6 +5749,7 @@
                     }
 
                     if (!hasMatchingProps) {
+                        console.log(`No matching props for ${cleanTargetName} (Target Type: ${targetStrictTypeRaw})`);
                         selectedPropDisplay = 'Not available';
                         dropdown.classList.add('disabled');
                         dropdown.style.opacity = '0.5';
@@ -6000,18 +6014,25 @@
                  */
                  
                  let isMatch = false;
-                 // Type is passed as targetStrictType or normal type
-                 if (type === 'TEXT' && sourceStrictType === 'TEXT') isMatch = true;
-                 else if (type === 'BOOLEAN' && sourceStrictType === 'BOOLEAN') isMatch = true;
-                 else if (type === 'VARIANT_BOOLEAN' && sourceStrictType === 'VARIANT_BOOLEAN') isMatch = true;
-                 else if (type === 'VARIANT_STRING' && sourceStrictType === 'VARIANT_STRING') isMatch = true;
+                 // RELAXED FILTERING LOGIC
+                 // Allow cross-compatibility:
+                 // TEXT <-> VARIANT_STRING
+                 // BOOLEAN <-> VARIANT_BOOLEAN
+                 
+                 const textLike = ['TEXT', 'VARIANT_STRING'];
+                 const boolLike = ['BOOLEAN', 'VARIANT_BOOLEAN'];
+                 
+                 if (textLike.includes(type) && textLike.includes(sourceStrictType)) isMatch = true;
+                 else if (boolLike.includes(type) && boolLike.includes(sourceStrictType)) isMatch = true;
                  else if (type === 'INSTANCE_SWAP' && sourceStrictType === 'INSTANCE_SWAP') isMatch = true;
                  
-                 // If it's a generic VARIANT type passed (fallback), match any VARIANT
+                 // Fallback for generic VARIANT
                  else if (type === 'VARIANT' && (sourceStrictType === 'VARIANT_BOOLEAN' || sourceStrictType === 'VARIANT_STRING')) isMatch = true;
                  
                  if (isMatch) {
                     items.push({ name: pName, def: pDef });
+                 } else {
+                     console.log(`Filtered out property: ${pName} (Target Type: ${type}, Source Type: ${sourceStrictType})`);
                  }
              });
 

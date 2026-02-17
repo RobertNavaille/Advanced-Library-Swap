@@ -2204,6 +2204,65 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
 
               console.log(`  ✅ Ready to swap instance to: ${componentToSwap.name}`);
               
+
+              // Helper to find a child by name, recursively searching through non-instance containers
+              function findChildInstanceByName(parent: SceneNode, name: string): SceneNode | null {
+                  if (!('children' in parent)) return null;
+                  const children = (parent as FrameNode | GroupNode | ComponentNode | InstanceNode).children;
+                  
+                  for (const child of children) {
+                      // 1. Direct match (if it's the target instance)
+                      if (child.type === 'INSTANCE' && child.name === name) {
+                          return child;
+                      }
+                      
+                      // 2. Recurse into non-instance containers
+                      if (child.type === 'FRAME' || child.type === 'GROUP' || child.type === 'SECTION') {
+                          const foundInContainer = findChildInstanceByName(child, name);
+                          if (foundInContainer) return foundInContainer;
+                      }
+                  }
+                  return null;
+              }
+
+              // Helper to get nested property value
+              function getNestedPropertyValue(root: InstanceNode, pathKey: string): any {
+                  // 1. Try top-level first
+                  if (root.componentProperties[pathKey]) {
+                      return root.componentProperties[pathKey].value;
+                  }
+                  
+                  // 2. Parse path
+                  const parts = pathKey.split(' / ');
+                  if (parts.length > 1) {
+                      const propertyPart = parts.pop(); 
+                      if (!propertyPart) return undefined;
+                      
+                      const targetPropName = propertyPart.split('#')[0];
+                      const instancePath = parts; 
+                      
+                      let currentContext: SceneNode = root;
+                      for (const stepName of instancePath) {
+                          const nextInstance = findChildInstanceByName(currentContext, stepName);
+                          if (nextInstance) {
+                              currentContext = nextInstance;
+                          } else {
+                              return undefined;
+                          }
+                      }
+                      
+                      if (currentContext.type === 'INSTANCE') {
+                           const targetInstance = currentContext as InstanceNode;
+                           const props = targetInstance.componentProperties;
+                           // Find by clean name match
+                           const match = Object.entries(props).find(([k]) => k.split('#')[0] === targetPropName);
+                           if (match) return match[1].value;
+                      }
+                  }
+                  
+                  return undefined;
+              }
+
               // Capture Mapped Properties (Before Swap)
               const mappedValues: Record<string, any> = {};
               if (comp.propertyMapping && Object.keys(comp.propertyMapping).length > 0) {
@@ -2229,12 +2288,22 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                               valueToTransfer = match[1].value;
                               matchedSourceKey = match[0];
                           }
-                      } else {
-                          // 3. Simple name match (sourceProp="State")
+                      } 
+                      // 3. Simple name match (sourceProp="State")
+                      if (valueToTransfer === undefined) {
                           const match = Object.entries(currentProps).find(([k,v]) => k.split('#')[0] === sourceKeyRaw);
                           if (match) {
                               valueToTransfer = match[1].value;
                               matchedSourceKey = match[0];
+                          }
+                      }
+                      
+                      // 4. Nested Property Lookup
+                      if (valueToTransfer === undefined && sourceKeyRaw.includes(' / ')) {
+                          valueToTransfer = getNestedPropertyValue(instanceNode, sourceKeyRaw);
+                          if (valueToTransfer !== undefined) {
+                              matchedSourceKey = sourceKeyRaw; // Matched via path
+                              console.log(`    ✅ [Backend] Found nested source property value: ${valueToTransfer}`);
                           }
                       }
                       
@@ -2298,41 +2367,110 @@ async function performLibrarySwap(components: any[], styles: any[], sourceLibrar
                   }
               }
 
-              if (Object.keys(mappedValues).length > 0) {
-                  console.log('  🔄 Applying mapped properties...');
-                  const newProps = instanceNode.componentProperties;
-                  // console.log('    [Backend] Debug: New Instance Props available:', Object.keys(newProps));
+              // [NEW] Helper to apply nested properties by traversing the instance tree
+              async function applyNestedPropertiesRecursively(root: InstanceNode, mappedValues: Record<string, any>) {
+                  // console.log('  🔄 Applying nested properties recursively...');
                   
-                  for (const [targetKeyRaw, value] of Object.entries(mappedValues)) {
-                       let finalKey = targetKeyRaw;
-                       
-                       // Verify key exists on new instance, or find name equivalent
-                       if (!newProps[finalKey]) {
-                            const cleanTarget = targetKeyRaw.split('#')[0];
-                            console.log(`    ⚠️ Key '${targetKeyRaw}' not found on new instance. Searching for '${cleanTarget}'...`);
-                            
-                            const match = Object.entries(newProps).find(([k,v]) => k.split('#')[0] === cleanTarget);
-                            if (match) {
-                                finalKey = match[0];
-                                console.log(`      ✅ Found match by name: '${finalKey}'`);
-                            }
-                            else {
-                                console.warn(`      ❌ No match found for property '${cleanTarget}' on new instance.`);
-                                finalKey = '';
-                            }
-                       } else {
-                           // console.log(`    ✅ Exact key match: ${finalKey}`);
-                       }
-                       
-                       if (finalKey) {
-                           finalPropsMap[finalKey] = value;
-                       }
+                  for (const [fullKey, value] of Object.entries(mappedValues)) {
+                      // console.log(`    🔹 Processing mapped key: "${fullKey}" -> Value: "${value}"`);
+
+                      // 1. Check if property exists on root instance (top-level exposed property)
+                      try {
+                          // Try exact key
+                          if (root.componentProperties[fullKey]) {
+                              root.setProperties({ [fullKey]: value });
+                              // console.log(`      ✅ Applied top-level property (Exact Key): ${fullKey}`);
+                              continue;
+                          }
+                          // Try clean name (for unhashed keys from mapping)
+                          const cleanName = fullKey.split('#')[0];
+                          const rootMatch = Object.entries(root.componentProperties).find(([k]) => k.split('#')[0] === cleanName);
+                          if (rootMatch) {
+                              root.setProperties({ [rootMatch[0]]: value });
+                              // console.log(`      ✅ Applied top-level property (Name Match): "${cleanName}" -> (${rootMatch[0]})`);
+                              continue;
+                          }
+                      } catch (e) {
+                           console.warn('      ⚠️ Error checking top-level property', e);
+                      }
+
+                      // 2. Parse path for nested properties
+                      const parts = fullKey.split(' / ');
+                      if (parts.length > 1) {
+                          const propertyPart = parts.pop(); // "PropName#ID"
+                          if (!propertyPart) continue;
+
+                          const targetPropName = propertyPart.split('#')[0];
+                          const instancePath = parts; // ["Child1", "Child2"]
+                          
+                          // console.log(`      📂 Path: [${instancePath.join(' > ')}], Target Prop: "${targetPropName}"`);
+
+                          let currentContext: SceneNode = root;
+                          let found = true;
+                          
+                          // Helper to find a child by name, recursively searching through non-instance containers
+                          function findChildInstanceByName(parent: SceneNode, name: string): SceneNode | null {
+                              if (!('children' in parent)) return null;
+                              const children = (parent as FrameNode | GroupNode | ComponentNode | InstanceNode).children;
+                              
+                              for (const child of children) {
+                                  // 1. Direct match (if it's the target instance)
+                                  if (child.type === 'INSTANCE' && child.name === name) {
+                                      return child;
+                                  }
+                                  
+                                  // 2. Recurse into non-instance containers
+                                  if (child.type === 'FRAME' || child.type === 'GROUP' || child.type === 'SECTION') {
+                                      const foundInContainer = findChildInstanceByName(child, name);
+                                      if (foundInContainer) return foundInContainer;
+                                  }
+                              }
+                              return null;
+                          }
+                          
+                          for (const stepName of instancePath) {
+                              const nextInstance = findChildInstanceByName(currentContext, stepName);
+                              if (nextInstance) {
+                                  currentContext = nextInstance;
+                              } else {
+                                  found = false;
+                                  // console.log(`      ❌ Path broken! Could not find nested instance "${stepName}" inside "${currentContext.name}"`);
+                                  break;
+                              }
+                          }
+
+                          if (found && currentContext.type === 'INSTANCE') {
+                              const targetInstance = currentContext as InstanceNode;
+                              const nestedProps = targetInstance.componentProperties;
+                              
+                              // Check exact or name match
+                              const match = Object.entries(nestedProps).find(([k]) => k.split('#')[0] === targetPropName);
+                              
+                              if (match) {
+                                  try {
+                                      targetInstance.setProperties({ [match[0]]: value });
+                                      console.log(`      ✅ Applied nested property on "${targetInstance.name}": "${targetPropName}" = ${value}`);
+                                  } catch (e) {
+                                      console.warn(`      ⚠️ Failed to set property on ${targetInstance.name}`, e);
+                                  }
+                              } else {
+                                  // console.log(`      ⚠️ Property "${targetPropName}" not found on instance "${targetInstance.name}"`);
+                              }
+                          } 
+                      }
                   }
               }
+
+              if (Object.keys(mappedValues).length > 0) {
+                  // Use the new recursive helper
+                  await applyNestedPropertiesRecursively(instanceNode, mappedValues);
+              }
                   
+              // Legacy top-level application (double check, harmless if already applied)
               if (Object.keys(finalPropsMap).length > 0) {
                       try {
                           instanceNode.setProperties(finalPropsMap);
+
                           console.log('  ✅ Applied mapped properties success. Keys:', Object.keys(finalPropsMap));
                           console.log('  🔍 Verifying values stuck...');
                           const checkProps = instanceNode.componentProperties;
@@ -2774,9 +2912,47 @@ let lastPropContext: {
 
 // Helper to recursively extract properties from nested instances
 async function extractNestedProperties(node: SceneNode, prefix: string, definitions: any, values: any) {
+    // Only process children if the node is a container or instance
     if ("children" in node) {
+        // [New Feature] Check for "Exposed Nested Instances" on this node
+        // If this node is an Instance or Component, it may have a list of exposed nested instance IDs.
+        // If this list exists and is non-empty, we ONLY process children that are in this list.
+        // If it's empty/undefined, we might default to previous behavior? 
+        // Or if the user wants strict parity with Figma UI, we ONLY show exposed ones.
+        
+        let exposedInstanceIds: string[] | null = null;
+        if (node.type === 'INSTANCE' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET') {
+             // exposedInstances is available on Component/Instance nodes in newer API
+             // It returns an array of { id: string } objects or similar?
+             // Checking typings or documentation... property is 'exposedInstances'.
+             if ('exposedInstances' in node) {
+                 const exposed = (node as any).exposedInstances;
+                 if (Array.isArray(exposed) && exposed.length > 0) {
+                     exposedInstanceIds = exposed.map((e: any) => e.id);
+                     console.log(`Examples of exposed instances on ${node.name}:`, exposedInstanceIds);
+                 }
+             }
+        }
+
         for (const child of node.children) {
+            // Skip private (starts with . or _) or locked layers or HIDDEN layers
+            if (child.name.startsWith('.') || child.name.startsWith('_') || child.locked || !child.visible) continue;
+
+            const isExposed = exposedInstanceIds ? exposedInstanceIds.includes(child.id) : true;
+            
+            // If we have an explicit list of exposed instances, skip children that aren't in it.
+            // BUT: We need to be careful. Containers (Frames/Groups) inside the component structure
+            // are structural, not "nested instances" themselves, but they contain them.
+            // So we must traverse Frames/Groups regardless.
+            // We only filter INSTANCE children based on the exposed list.
+            
             if (child.type === 'INSTANCE') {
+                if (exposedInstanceIds !== null && !isExposed) {
+                    // Skip unexposed nested instances to reduce clutter
+                    // console.log(`Skipping unexposed nested instance: ${child.name}`);
+                    continue; 
+                }
+                
                 const childName = child.name;
                 const newPrefix = prefix ? `${prefix} / ${childName}` : childName;
                 console.log(`🔍 Inspecting nested child: "${childName}" (Path: ${newPrefix})`);
@@ -2805,26 +2981,32 @@ async function extractNestedProperties(node: SceneNode, prefix: string, definiti
                         console.log(`   📝 Found ${defKeys.length} property definitions in nested instance.`);
                         
                         for (const [key, def] of Object.entries(childDefs)) {
-                            // Cast def to ComponentPropertyDefinition to avoid 'unknown' type errors
-                            const propDef = def as ComponentPropertyDefinition;
-                            
-                            // Construct a unique key for the UI that includes the path
-                            // Format: "Path/To/Instance#PropertyKey"
-                            // We use a special separator or just ensure it's unique.
-                            // The UI splits by '#', receiving the Name.
-                            // We construct the name as "Path / Name".
-                            
-                            // Original Key: "Show Icon#123:456"
-                            // New Key: "Nested / Show Icon#unique_suffix" ??
-                            // Actually, if we just prepend the path to the name part of the key:
-                            // "Button / Show Icon#123:456"
-                            // But 123:456 is the property ID. Reusing it might confuse things if multiple instances use the same component.
-                            // So we should append the node ID or path to the ID part to make it unique.
+                            // Cast def to any to avoid 'unknown' type errors if types are missing
+                            const propDef = def as any;
                             
                             const [propName, propId] = key.split('#');
+
+                            // [Fix] Check if this nested property is ALREADY exposed at the top level
+                            // If the main component exposes "Show Search" and maps it to this child's "Show Search",
+                            // we don't need to show the nested one separately.
+                            
+                            // Check if any exposed property on the parent maps to this property ID on this child ID
+                            // Unfortunately, we can't easily see the internal mapping of the parent source component from the API side
+                            // (ComponentPropertyDefinitions doesn't tell us "this maps to child X prop Y").
+                            
+                            // However, we can check if the value is derived? 
+                            // No, the value on the child instance might be overridden.
+                            
+                            // Better heuristic:
+                            // We only want to show properties for nested instances that are NOT "part of the implementation details".
+                            // But usually, exposed nested instances ARE the ones we want.
+                            
+                            // If the user sees "Toolbar" props inside "Alert", then "Alert" MUST contain "Toolbar".
+                            // If the user says "it doesn't belong", maybe they mean "Toolbar" is just a random hidden layer they don't care about?
+                            
                             const uniqueKey = `${newPrefix} / ${propName}#${propId || key}_${child.id}`;
                             
-                            console.log(`      + Adding nested property: "${propName}" -> Key: ${uniqueKey}`);
+                            // console.log(`      + Adding nested property: "${propName}" -> Key: ${uniqueKey}`);
 
                             definitions[uniqueKey] = {
                                 ...propDef,
@@ -2874,10 +3056,10 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
                     const main = await sourceNode.getMainComponentAsync();
                     if (main) {
                         if (main.parent && main.parent.type === 'COMPONENT_SET') {
-                            sourceDefinitions = main.parent.componentPropertyDefinitions;
+                            sourceDefinitions = { ...main.parent.componentPropertyDefinitions };
                             sourceComponentName = main.parent.name;
                         } else {
-                            sourceDefinitions = main.componentPropertyDefinitions;
+                            sourceDefinitions = { ...main.componentPropertyDefinitions };
                             sourceComponentName = main.name;
                         }
                     }
@@ -2936,10 +3118,10 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
                   // Actually, for Component, we usually get definitions from parent Set.
                   
                   if (sourceNode.parent && sourceNode.parent.type === 'COMPONENT_SET') {
-                      sourceDefinitions = sourceNode.parent.componentPropertyDefinitions;
+                      sourceDefinitions = { ...sourceNode.parent.componentPropertyDefinitions };
                       sourceComponentName = sourceNode.parent.name;
                   } else {
-                      sourceDefinitions = sourceNode.componentPropertyDefinitions;
+                      sourceDefinitions = { ...sourceNode.componentPropertyDefinitions };
                       sourceComponentName = sourceNode.name;
                   }
 
@@ -2975,7 +3157,7 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
         }
 
         // 2. Get Target Definitions
-        let targetDefinitions = {};
+        let targetDefinitions: any = {};
         if (targetKey) {
             try {
                 // Try importing as component
@@ -2989,13 +3171,33 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
                 
                 if (importedParam) {
                     if (importedParam.type === 'COMPONENT_SET') {
-                        targetDefinitions = importedParam.componentPropertyDefinitions;
+                        targetDefinitions = { ...importedParam.componentPropertyDefinitions };
                     } else if (importedParam.type === 'COMPONENT') {
                         if (importedParam.parent && importedParam.parent.type === 'COMPONENT_SET') {
-                             targetDefinitions = importedParam.parent.componentPropertyDefinitions;
+                             targetDefinitions = { ...importedParam.parent.componentPropertyDefinitions };
                         } else {
-                             targetDefinitions = importedParam.componentPropertyDefinitions;
+                             targetDefinitions = { ...importedParam.componentPropertyDefinitions };
                         }
+                    }
+
+                    // Extract nested properties for target too
+                    try {
+                        let nodeToScan: SceneNode | null = null;
+                        if (importedParam.type === 'COMPONENT_SET') {
+                             nodeToScan = importedParam.defaultVariant as SceneNode;
+                             if (!nodeToScan && importedParam.children.length > 0) {
+                                 nodeToScan = importedParam.children[0] as SceneNode;
+                             }
+                        } else if (importedParam.type === 'COMPONENT') {
+                             nodeToScan = importedParam;
+                        }
+                        
+                        if (nodeToScan) {
+                             const dummyValues = {};
+                             await extractNestedProperties(nodeToScan, '', targetDefinitions, dummyValues);
+                        }
+                    } catch (e) {
+                        console.warn('Error extracting target nested properties', e);
                     }
                 }
             } catch (err) {
@@ -3003,6 +3205,7 @@ async function handleGetComponentProperties(sourceId: string, targetKey: string,
             }
         }
 
+        console.log('Sending Property Mapping View with Source Keys:', Object.keys(sourceDefinitions));
         figma.ui.postMessage({
             type: 'SHOW_PROPERTY_MAPPING_VIEW',
             sourceId,
